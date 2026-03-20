@@ -1,0 +1,41 @@
+# --- Build Directories ---
+/build/
+/out/
+/Debug/
+/Release/
+
+# --- Toolchain Outputs ---
+*.elf
+*.hex
+*.bin
+*.map
+*.list
+*.su
+*.d
+*.o
+
+# --- IDEs and Project Management ---
+# STM32CubeMX configuration file (regenerated from .ioc)
+.mxproject
+
+# Eclipse-based IDEs (STM32CubeIDE, TrueStudio, etc.)
+.settings/
+.project
+.cproject
+
+# VS Code
+.vscode/
+
+# CLion / Rider / IntelliJ
+.idea/
+cmake-build-*/
+
+# --- Temporary & Backup Files ---
+*~
+*.swp
+*.bak
+*.tmp
+
+# --- OS Specific Files ---
+.DS_Store
+Thumbs.db
