@@ -16,8 +16,13 @@
 					"name": "Rebuild",
 					"command": "python ${workspaceFolder}/build.py --clean",
 					"useTerminal": true
+				},
+				{
+					"name": "Flash",
+					"command": "python ${workspaceFolder}/flash.py",
+					"useTerminal": true
 				}
 			]
 		}
-	},
+	}
 }
