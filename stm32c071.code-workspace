@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"actionButtons": {
+			"buttons": [
+				{
+					"name": "Build",
+					"command": "python ${workspaceFolder}/build.py",
+					"useTerminal": true
+				},
+				{
+					"name": "Rebuild",
+					"command": "python ${workspaceFolder}/build.py --clean",
+					"useTerminal": true
+				}
+			]
+		}
+	},
+}
