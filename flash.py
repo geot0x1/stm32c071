@@ -3,18 +3,29 @@ import subprocess
 import sys
 import os
 import glob
+import json
 
 def find_elf(build_dir):
-    # Try finding in the root of build directory first
-    elf_files = glob.glob(os.path.join(build_dir, "*.elf"))
-    if not elf_files:
-        # Try recursively just in case (e.g. presets might place it deeper)
-        elf_files = glob.glob(os.path.join(build_dir, "**", "*.elf"), recursive=True)
-    
-    if elf_files:
-        # Return the first one found
-        return elf_files[0]
-    return None
+    # Try finding via build_info.json first
+    json_path = os.path.join(build_dir, "build_info.json")
+    if not os.path.exists(json_path):
+        print(f"Error: Could not find build information file: {json_path}")
+        print("Please configure the project using CMake first.")
+        sys.exit(1)
+
+    try:
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+            executable = data.get("executable")
+            if executable and os.path.exists(executable):
+                return executable
+            else:
+                print(f"Error: Executable '{executable}' from {json_path} does not exist.")
+                print("Please build the project first.")
+                sys.exit(1)
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"Error: Could not read build_info.json: {e}")
+        sys.exit(1)
 
 def main():
     # Set working directory to the script's location
@@ -24,10 +35,7 @@ def main():
     build_dir = "build"
     elf_path = find_elf(build_dir)
 
-    if not elf_path:
-        print(f"Error: Could not find any .elf file in '{build_dir}'.")
-        print("Please build the project first (e.g., using build.py).")
-        sys.exit(1)
+
 
     print(f"Found ELF file: {elf_path}")
 
