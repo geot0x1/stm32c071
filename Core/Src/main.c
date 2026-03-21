@@ -119,9 +119,17 @@ int main(void)
     /* USER CODE BEGIN 3 */
     tud_task(); // tinyusb device task
 
-    // Simple CDC Echo for testing
+    // Periodic Hello World
+    static uint32_t last_print = 0;
     if (tud_cdc_connected())
     {
+        if (HAL_GetTick() - last_print >= 1000)
+        {
+            last_print = HAL_GetTick();
+            tud_cdc_write_str("Hello World\r\n");
+            tud_cdc_write_flush();
+        }
+        
         if (tud_cdc_available())
         {
             char buf[64];
