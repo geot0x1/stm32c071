@@ -45,16 +45,34 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/usb_descriptors.c
+    
+    # TinyUSB Core
+    ${CMAKE_CURRENT_SOURCE_DIR}/tinyusb/src/tusb.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/tinyusb/src/common/tusb_fifo.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/tinyusb/src/device/usbd.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/tinyusb/src/device/usbd_control.c
+    
+    # TinyUSB Classes
+    ${CMAKE_CURRENT_SOURCE_DIR}/tinyusb/src/class/cdc/cdc_device.c
+    
+    # TinyUSB Driver
+    ${CMAKE_CURRENT_SOURCE_DIR}/tinyusb/src/portable/st/stm32_fsdev/dcd_stm32_fsdev.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/tinyusb/src/portable/st/stm32_fsdev/fsdev_common.c
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/tinyusb/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/tinyusb/src/portable/st/stm32_fsdev
 )
 
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined symbols
+    CFG_TUSB_MCU=OPT_MCU_STM32C0
 )
 
 # Remove wrong libob.a library dependency when using cpp files

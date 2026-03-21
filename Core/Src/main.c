@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "tusb.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -53,7 +53,7 @@ PCD_HandleTypeDef hpcd_USB_DRD_FS;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM1_Init(void);
-static void MX_USB_PCD_Init(void);
+// static void MX_USB_PCD_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -93,9 +93,21 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM1_Init();
-  MX_USB_PCD_Init();
+  // MX_USB_PCD_Init(); // TinyUSB will manage the USB peripheral
   /* USER CODE BEGIN 2 */
+  
+  // Enable USB Clock (adapted from HAL_PCD_MspInit)
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
+  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  __HAL_RCC_USB_CLK_ENABLE();
 
+  // Initialize TinyUSB
+  tusb_init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -105,8 +117,27 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-    HAL_Delay(500);
+    tud_task(); // tinyusb device task
+
+    // Simple CDC Echo for testing
+    if (tud_cdc_connected())
+    {
+        if (tud_cdc_available())
+        {
+            char buf[64];
+            uint32_t count = tud_cdc_read(buf, sizeof(buf));
+            tud_cdc_write(buf, count);
+            tud_cdc_write_flush();
+        }
+    }
+
+    // Toggle LED to show life
+    static uint32_t last_toggle = 0;
+    if (HAL_GetTick() - last_toggle >= 500)
+    {
+        last_toggle = HAL_GetTick();
+        HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+    }
   }
   /* USER CODE END 3 */
 }
@@ -220,6 +251,7 @@ static void MX_TIM1_Init(void)
 
 }
 
+#if 0
 /**
   * @brief USB Initialization Function
   * @param None
@@ -255,6 +287,7 @@ static void MX_USB_PCD_Init(void)
   /* USER CODE END USB_Init 2 */
 
 }
+#endif
 
 /**
   * @brief GPIO Initialization Function
