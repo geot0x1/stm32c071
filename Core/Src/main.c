@@ -59,8 +59,7 @@ static void MX_TIM1_Init(void);
 static void MX_USB_PCD_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_I2C1_Init(void);
-/* USER CODE BEGIN PFP */
-
+void set_pwm_percentage(TIM_HandleTypeDef *htim, uint32_t channel, uint8_t percent);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -115,6 +114,12 @@ int main(void)
 
   // Initialize TinyUSB
   tusb_init();
+
+  // Start TIM1 PWM on Channel 1
+  if (HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1) != HAL_OK)
+  {
+      Error_Handler();
+  }
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -146,12 +151,20 @@ int main(void)
         }
     }
 
-    // Toggle LED to show life
-    static uint32_t last_toggle = 0;
-    if (HAL_GetTick() - last_toggle >= 500)
+    // Update PWM duty cycle every second
+    static uint32_t last_pwm_update = 0;
+    static uint8_t duty_percent = 0;
+
+    if (HAL_GetTick() - last_pwm_update >= 1000)
     {
-        last_toggle = HAL_GetTick();
-        HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+        last_pwm_update = HAL_GetTick();
+        set_pwm_percentage(&htim1, TIM_CHANNEL_1, duty_percent);
+
+        duty_percent += 10;
+        if (duty_percent > 100)
+        {
+            duty_percent = 0;
+        }
     }
   }
   /* USER CODE END 3 */
@@ -265,7 +278,7 @@ static void MX_TIM1_Init(void)
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 0;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 65535;
+  htim1.Init.Period = 1919;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -281,7 +294,7 @@ static void MX_TIM1_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
+  sConfigOC.Pulse = 960;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
@@ -456,7 +469,16 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void set_pwm_percentage(TIM_HandleTypeDef *htim, uint32_t channel, uint8_t percent)
+{
+    if (percent > 100)
+    {
+        percent = 100;
+    }
 
+    uint32_t pulse = (uint32_t)(((uint64_t)percent * (htim->Instance->ARR + 1)) / 100);
+    __HAL_TIM_SET_COMPARE(htim, channel, pulse);
+}
 /* USER CODE END 4 */
 
 /**
