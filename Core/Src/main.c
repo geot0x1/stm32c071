@@ -126,7 +126,7 @@ int main(void)
     Error_Handler();
   }
   __HAL_RCC_USB_CLK_ENABLE();
-
+  HAL_Delay(20);
   // Initialize TinyUSB
   tusb_init();
 
