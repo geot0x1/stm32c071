@@ -61,6 +61,7 @@ PCD_HandleTypeDef hpcd_USB_DRD_FS;
 /* USER CODE BEGIN PV */
 volatile PwmMeasure capturePB10 = {0};
 volatile PwmMeasure capturePB11 = {0};
+volatile uint32_t timer3_overflow_count = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -72,7 +73,7 @@ static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_I2C2_Init(void);
 /* USER CODE BEGIN PFP */
-static void set_pwm_percentage(TIM_HandleTypeDef *htim, uint32_t channel, uint8_t percent);
+uint64_t get_microseconds(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -139,8 +140,8 @@ int main(void)
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 
-  // Start TIM3 (Free-running timer at 1MHz)
-  HAL_TIM_Base_Start(&htim3);
+  // Start TIM3 (Free-running timer at 1MHz with interrupts)
+  HAL_TIM_Base_Start_IT(&htim3);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -153,20 +154,14 @@ int main(void)
     tud_task(); // tinyusb device task
 
     // Periodic PWM Data Reporting
-    static uint32_t last_pwm_print = 0;
+    static uint32_t last_pwm_print = 200;
     if (tud_cdc_connected())
     {
         if (HAL_GetTick() - last_pwm_print >= 200)
         {
             last_pwm_print = HAL_GetTick();
-            char msg[128];
-            int dc10 = (int)capturePB10.duty_cycle;
-            int dc11 = (int)capturePB11.duty_cycle;
-            int freq10 = (capturePB10.last_period > 0) ? (1000000 / capturePB10.last_period) : 0;
-            int freq11 = (capturePB11.last_period > 0) ? (1000000 / capturePB11.last_period) : 0;
-
-            snprintf(msg, sizeof(msg), "PB10: %d%% (%dHz) | PB11: %d%% (%dHz)\r\n", 
-                     dc10, freq10, dc11, freq11);
+            char msg[64];
+            snprintf(msg, sizeof(msg), "TIME: %lu\r\n", timer3_overflow_count);
             
             tud_cdc_write_str(msg);
             tud_cdc_write_flush();
@@ -567,7 +562,36 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-/* USER CODE BEGIN 4 */
+/**
+  * @brief  Return the total microseconds since start.
+  */
+uint64_t get_microseconds(void)
+{
+    // uint32_t overflow = timer3_overflow_count;
+    // uint32_t cnt = htim3.Instance->CNT;
+    
+    // // Check for race condition where interrupt happened between reading overflow and CNT
+    // if (__HAL_TIM_GET_FLAG(&htim3, TIM_FLAG_UPDATE) && (cnt < 1000))
+    // {
+    //     overflow++;
+    // }
+    
+    // return ((uint64_t)overflow << 16) | cnt;
+}
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @param  htim: TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM3)
+    {
+        timer3_overflow_count++;
+    }
+}
+
 /**
   * @brief  EXTI line detection callback.
   * @param  GPIO_Pin: Specifies the port pin connected to corresponding EXTI line.
