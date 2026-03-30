@@ -21,6 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "stm32c0xx_hal_rcc_ex.h"
 #include "tusb.h"
 #include <stdio.h>
 /* USER CODE END Includes */
@@ -118,7 +119,7 @@ int main(void)
   // Enable USB Clock (adapted from HAL_PCD_MspInit)
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
-  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
+  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSE;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
