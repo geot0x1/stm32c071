@@ -146,4 +146,15 @@ void USB_DRD_FS_IRQHandler(void)
 {
   dcd_int_handler(0);
 }
+
+/**
+  * @brief This function handles EXTI4 to 15 interrupts.
+  */
+void EXTI4_15_IRQHandler(void)
+{
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_10);
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_11);
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_14);
+}
 /* USER CODE END 1 */
