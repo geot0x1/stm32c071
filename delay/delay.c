@@ -14,7 +14,7 @@ void delay_init(void)
 void delay_us(uint32_t us)
 {
     // Safety check to prevent infinite loop if TIM14 is not enabled
-    if (!(TIM14->CR1 & TIM_CR1_CEN))
+    if (!(TIM14->CR1 & TIM_CR1_CEN) || (us == 0))
     {
         return;
     }
