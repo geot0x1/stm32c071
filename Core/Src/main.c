@@ -24,6 +24,7 @@
 #include "stm32c0xx_hal_rcc_ex.h"
 #include "tusb.h"
 #include <stdio.h>
+#include "sys_time.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -163,7 +164,7 @@ int main(void)
         {
             last_pwm_print = HAL_GetTick();
             char msg[64];
-            snprintf(msg, sizeof(msg), "TIME: %lu\r\n", timer3_overflow_count);
+            snprintf(msg, sizeof(msg), "TIME: %lu\r\n", (unsigned long)millis());
             
             tud_cdc_write_str(msg);
             tud_cdc_write_flush();
@@ -610,6 +611,7 @@ uint64_t get_microseconds(void)
     // }
     
     // return ((uint64_t)overflow << 16) | cnt;
+    return 0;
 }
 
 /**
