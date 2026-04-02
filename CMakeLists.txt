@@ -42,6 +42,7 @@ add_subdirectory(cmake/stm32cubemx)
 add_subdirectory(crc32)
 add_subdirectory(nvs)
 add_subdirectory(critical)
+add_subdirectory(onewire)
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
@@ -92,6 +93,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     nvs
     sys_time
     critical
+    onewire
 )
 
 # Include build info generator
