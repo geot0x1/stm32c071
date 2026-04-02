@@ -29,7 +29,7 @@ def monitor_serial():
             # Port not found or busy
             sys.stdout.write(".")
             sys.stdout.flush()
-            time.sleep(1)
+            time.sleep(0.01)
         except KeyboardInterrupt:
             print("\n[EXITING] Monitor stopped by user.")
             break

@@ -43,6 +43,8 @@ add_subdirectory(crc32)
 add_subdirectory(nvs)
 add_subdirectory(critical)
 add_subdirectory(onewire)
+add_subdirectory(ds18b20)
+add_subdirectory(delay)
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
@@ -94,6 +96,8 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     sys_time
     critical
     onewire
+    ds18b20
+    delay
 )
 
 # Include build info generator

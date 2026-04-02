@@ -1,7 +1,6 @@
 #include "onewire.h"
 #include "critical.h"
-
-static void delay_us(uint32_t us);
+#include "delay.h"
 
 #define ENTER_CRITICAL() critical_enter()
 #define EXIT_CRITICAL()  critical_exit()
@@ -446,16 +445,4 @@ void ow_lock_bus(OneWire* ow)
 void ow_unlock_bus(OneWire* ow)
 {
     ow_sem_unlock(ow);
-}
-
-static void delay_us(uint32_t us)
-{
-    // Approximately 1 tick per cycle at 48MHz
-    // Each loop iteration takes a few cycles. 
-    // This is a simple wait loop for STM32C0.
-    volatile uint32_t count = us * 6;
-    while (count--)
-    {
-        __NOP();
-    }
 }
