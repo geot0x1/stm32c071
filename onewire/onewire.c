@@ -5,8 +5,8 @@
 #define ENTER_CRITICAL() critical_enter()
 #define EXIT_CRITICAL()  critical_exit()
 
-#define TIME_DELAY_A (2)
-#define TIME_DELAY_B (64)
+#define TIME_DELAY_A (3)
+#define TIME_DELAY_B (60)
 #define TIME_DELAY_C (60)
 #define TIME_DELAY_D (10)
 #define TIME_DELAY_E (10)

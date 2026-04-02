@@ -21,6 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "stm32c0xx_hal.h"
 #include "stm32c0xx_hal_rcc_ex.h"
 #include "tusb.h"
 #include <stdio.h>
@@ -180,8 +181,37 @@ int main(void)
             char init_msg[64];
             snprintf(init_msg, sizeof(init_msg), "INIT: Sensors=%d\r\n", count);
             tud_cdc_write_str(init_msg);
-
             tud_cdc_write_flush();
+
+            if (count > 0)
+            {
+                ds18b20_request_temperatures(&ds18b20);
+                HAL_Delay(1000);
+                int16_t raw_temp = ds18b20_get_temp(&ds18b20, NULL);
+                char temp_msg[32];
+                snprintf(temp_msg, sizeof(temp_msg), "TEMP: %d C\r\n", raw_temp);
+                tud_cdc_write_str(temp_msg);
+                tud_cdc_write_flush();
+                float celsius = ds18b20_raw_to_celsius(raw_temp);
+                
+                // Manual float to integer/fraction formatting
+                int32_t int_part = (int32_t)celsius;
+                int32_t frac_part = (int32_t)((celsius - (float)int_part) * 100.0f);
+                if (frac_part < 0) frac_part = -frac_part;
+                if (int_part == 0 && celsius < 0)
+                {
+                    char temp_msg[32];
+                    snprintf(temp_msg, sizeof(temp_msg), "TEMP: -%d.%02d C\r\n", -int_part, frac_part);
+                    tud_cdc_write_str(temp_msg);
+                }
+                else
+                {
+                    char temp_msg[32];
+                    snprintf(temp_msg, sizeof(temp_msg), "TEMP: %d.%02d C\r\n", int_part, frac_part);
+                    tud_cdc_write_str(temp_msg);
+                }
+                tud_cdc_write_flush();
+            }
         }
     }
     /* USER CODE END WHILE */

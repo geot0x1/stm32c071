@@ -244,8 +244,15 @@ bool ds18b20_read_scratch_pad(Ds18b20_t * ds, const uint8_t *deviceAddress, uint
     {
     }
 
-	ow_select(ds->ow, deviceAddress);
-	ow_write(ds->ow, READSCRATCH);
+    if (deviceAddress == NULL)
+    {
+        ow_skip(ds->ow);
+    }
+    else
+    {
+        ow_select(ds->ow, deviceAddress);
+    }
+    ow_write(ds->ow, READSCRATCH);
 
     while (!ow_pin_status(ds->ow))
     {
