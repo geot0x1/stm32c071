@@ -30,6 +30,7 @@
 #include "temperature_sensor.h"
 #include "delay.h"
 #include "ds18b20.h"
+#include "fan_control.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -167,11 +168,13 @@ int main(void)
   // Initialize USB wrapper (calls tusb_init)
   usb_init();
 
-  // Start TIM1 PWM on all Channels
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+  // Initialize Fan Control Module (TIM1 @ 25kHz)
+  fan_control_init(25000);
+  fan_control_set_duty(FanChannel1, 50);
+  fan_control_set_duty(FanChannel2, 10);
+  fan_control_set_duty(FanChannel3, 60);
+  fan_control_set_duty(FanChannel4, 80);
+
 
   // Start TIM2 PWM on all Channels
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);

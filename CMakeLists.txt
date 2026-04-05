@@ -47,6 +47,8 @@ add_subdirectory(ds18b20)
 add_subdirectory(temperature_sensor)
 add_subdirectory(delay)
 add_subdirectory(usb)
+add_subdirectory(fan_control)
+
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
@@ -63,8 +65,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/temperature_sensor
+    ${CMAKE_CURRENT_SOURCE_DIR}/temperature_sensor
     ${CMAKE_CURRENT_SOURCE_DIR}/usb
+    ${CMAKE_CURRENT_SOURCE_DIR}/fan_control
 )
 
 # Add project symbols (macros)
@@ -88,6 +91,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     delay
     temperature_sensor
     usb
+    fan_control
 )
 
 # Include build info generator
