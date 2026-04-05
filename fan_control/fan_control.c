@@ -7,24 +7,30 @@ extern TIM_HandleTypeDef htim3;
 static uint8_t _power_duties[4] = {0, 0, 0, 0};
 static uint8_t _remote_duties[4] = {0, 0, 0, 0};
 
+typedef struct
+{
+    FanChannel tim1_pwr_channel;   /**< Power channel on TIM1 */
+    FanChannel tim3_ctrl_channel;  /**< Remote/Control channel on TIM3 */
+} FanLink;
+
 static const FanLink _fan_links[4] = {
-    {2, 1}, // Unit 1
-    {1, 4}, // Unit 2
-    {4, 3}, // Unit 3
-    {3, 2}  // Unit 4
+    {FAN_CHANNEL2, FAN_CHANNEL1}, // Unit 1: Power (TIM1_CH2) + Remote (TIM3_CH1)
+    {FAN_CHANNEL1, FAN_CHANNEL4}, // Unit 2: Power (TIM1_CH1) + Remote (TIM3_CH4)
+    {FAN_CHANNEL4, FAN_CHANNEL3}, // Unit 3: Power (TIM1_CH4) + Remote (TIM3_CH3)
+    {FAN_CHANNEL3, FAN_CHANNEL2}  // Unit 4: Power (TIM1_CH3) + Remote (TIM3_CH2)
 };
 
-static uint32_t get_hal_channel(uint8_t channel)
+static uint32_t get_hal_channel(FanChannel channel)
 {
     switch (channel)
     {
-        case 1:
+        case FAN_CHANNEL1:
             return TIM_CHANNEL_1;
-        case 2:
+        case FAN_CHANNEL2:
             return TIM_CHANNEL_2;
-        case 3:
+        case FAN_CHANNEL3:
             return TIM_CHANNEL_3;
-        case 4:
+        case FAN_CHANNEL4:
             return TIM_CHANNEL_4;
         default:
             return 0;
@@ -92,9 +98,9 @@ void fan_control_init(void)
     // Links are now defined at compile-time
 }
 
-void fan_control_set_power_channel_duty(uint8_t channel, uint8_t duty_pct)
+void fan_control_set_power_channel_duty(FanChannel channel, uint8_t duty_pct)
 {
-    if (channel < 1 || channel > 4)
+    if (channel < FAN_CHANNEL1 || channel > FAN_CHANNEL4)
     {
         return;
     }
@@ -109,9 +115,9 @@ void fan_control_set_power_channel_duty(uint8_t channel, uint8_t duty_pct)
     __HAL_TIM_SET_COMPARE(&htim1, get_hal_channel(channel), pulse);
 }
 
-void fan_control_set_remote_channel_duty(uint8_t channel, uint8_t duty_pct)
+void fan_control_set_remote_channel_duty(FanChannel channel, uint8_t duty_pct)
 {
-    if (channel < 1 || channel > 4)
+    if (channel < FAN_CHANNEL1 || channel > FAN_CHANNEL4)
     {
         return;
     }
@@ -126,18 +132,18 @@ void fan_control_set_remote_channel_duty(uint8_t channel, uint8_t duty_pct)
     __HAL_TIM_SET_COMPARE(&htim3, get_hal_channel(channel), pulse);
 }
 
-uint8_t fan_control_get_power_channel_duty(uint8_t channel)
+uint8_t fan_control_get_power_channel_duty(FanChannel channel)
 {
-    if (channel < 1 || channel > 4)
+    if (channel < FAN_CHANNEL1 || channel > FAN_CHANNEL4)
     {
         return 0;
     }
     return _power_duties[channel - 1];
 }
 
-uint8_t fan_control_get_remote_channel_duty(uint8_t channel)
+uint8_t fan_control_get_remote_channel_duty(FanChannel channel)
 {
-    if (channel < 1 || channel > 4)
+    if (channel < FAN_CHANNEL1 || channel > FAN_CHANNEL4)
     {
         return 0;
     }
@@ -151,6 +157,6 @@ void fan_control_set_unit_duty(uint8_t unit_idx, uint8_t duty_pct)
         return;
     }
     uint8_t idx = unit_idx - 1;
-    fan_control_set_power_channel_duty(_fan_links[idx].power_channel, duty_pct);
-    fan_control_set_remote_channel_duty(_fan_links[idx].remote_channel, duty_pct);
+    fan_control_set_power_channel_duty(_fan_links[idx].tim1_pwr_channel, duty_pct);
+    fan_control_set_remote_channel_duty(_fan_links[idx].tim3_ctrl_channel, duty_pct);
 }
