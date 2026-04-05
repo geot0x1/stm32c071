@@ -32,6 +32,11 @@ PWM_Output_t  pwmOutB = { .htim = &htim17, .channel = TIM_CHANNEL_1, .cap_factor
 static void handle_ic_capture(PWM_Channel_t *ch, uint32_t captured, uint32_t channel, uint32_t ccr_offset);
 static void reset_channel_state(PWM_Channel_t *ch, uint32_t channel);
 static uint32_t calculate_output_pulse(PWM_Output_t *out);
+static void init_channel_struct(PWM_Channel_t *ch);
+static void apply_output_to_hardware(PWM_Output_t *out, uint32_t active_pulse);
+static void process_channel_update(PWM_Channel_t *ch, PWM_Output_t *out, GPIO_TypeDef *port, uint16_t pin);
+static uint32_t calculate_frequency(uint32_t period_ticks);
+static uint32_t calculate_duty_pct(uint32_t period_ticks, uint32_t pulse_ticks);
 
 void pwm_set_throttle_a(uint32_t val, ThrottleMode mode)
 {
@@ -82,29 +87,8 @@ void pwm_repeater_init(void)
     __HAL_TIM_ENABLE_OCxPRELOAD(&htim17, TIM_CHANNEL_1);
 
     /* 3. Reset state */
-    pwmChA.rise_captured = false;
-    pwmChA.fall_captured = false;
-    pwmChA.period_ticks = 0;
-    pwmChA.pulse_ticks = 0;
-    pwmChA.low_level_ticks = 0;
-    pwmChA.last_capture_ms = HAL_GetTick();
-    pwmChA.new_data_ready = false;
-    pwmChA.period_stable_counter = 0;
-    pwmChA.previous_period_ticks = 0;
-    pwmChA.pulse_stable_counter = 0;
-    pwmChA.previous_pulse_ticks = 0;
-
-    pwmChB.rise_captured = false;
-    pwmChB.fall_captured = false;
-    pwmChB.period_ticks = 0;
-    pwmChB.pulse_ticks = 0;
-    pwmChB.low_level_ticks = 0;
-    pwmChB.last_capture_ms = HAL_GetTick();
-    pwmChB.new_data_ready = false;
-    pwmChB.period_stable_counter = 0;
-    pwmChB.previous_period_ticks = 0;
-    pwmChB.pulse_stable_counter = 0;
-    pwmChB.previous_pulse_ticks = 0;
+    init_channel_struct(&pwmChA);
+    init_channel_struct(&pwmChB);
 
     /* 4. Start Peripheral CC Interrupts and Outputs */
     htim2.Instance->ARR = UINT32_MAX;
@@ -180,6 +164,98 @@ static uint32_t calculate_output_pulse(PWM_Output_t *out)
 }
 
 /**
+ * @brief Zeroes out a channel info structure.
+ */
+static void init_channel_struct(PWM_Channel_t *ch)
+{
+    ch->rise_captured = false;
+    ch->fall_captured = false;
+    ch->period_ticks = 0;
+    ch->pulse_ticks = 0;
+    ch->low_level_ticks = 0;
+    ch->last_capture_ms = HAL_GetTick();
+    ch->new_data_ready = false;
+    ch->period_stable_counter = 0;
+    ch->previous_period_ticks = 0;
+    ch->pulse_stable_counter = 0;
+    ch->previous_pulse_ticks = 0;
+}
+
+/**
+ * @brief Converts tick durations to hardware register values and applies them.
+ */
+static void apply_output_to_hardware(PWM_Output_t *out, uint32_t active_pulse)
+{
+    /* Apply to hardware (with division by 48 for 1MHz output timebase) */
+    uint32_t output_period = (out->period_ticks / 48U);
+    uint32_t target_arr = (output_period > 0xFFFFU) ? 0xFFFFU : (output_period > 0 ? output_period - 1 : 0);
+    uint32_t target_ccr = (active_pulse / 48U);
+
+    /* Cap target_ccr to 100% duty cycle, ensuring CCR > ARR for glitch-free 100% DC. */
+    if (target_ccr > target_arr)
+    {
+        if (target_arr == 0xFFFFU)
+        {
+            target_arr = 0xFFFEU;
+        }
+        target_ccr = target_arr + 1;
+    }
+
+    out->htim->Instance->ARR = target_arr;
+    out->htim->Instance->CCR1 = target_ccr;
+}
+
+/**
+ * @brief Shared logic for updating outputs and running the watchdog.
+ */
+static void process_channel_update(PWM_Channel_t *ch, PWM_Output_t *out, GPIO_TypeDef *port, uint16_t pin)
+{
+    uint32_t now = HAL_GetTick();
+    const uint32_t timeout_ms = 50;
+
+    if (ch->new_data_ready)
+    {
+        out->period_ticks = ch->period_ticks;
+        out->pulse_ticks = ch->pulse_ticks;
+
+        uint32_t active_pulse = calculate_output_pulse(out);
+        apply_output_to_hardware(out, active_pulse);
+
+        ch->new_data_ready = false;
+    }
+
+    /* Watchdog logic */
+    if ((now - ch->last_capture_ms) > timeout_ms)
+    {
+        if (HAL_GPIO_ReadPin(port, pin) == GPIO_PIN_SET)
+        {
+            if (ch->period_ticks == 0)
+            {
+                /* Pure 100% DC - frequency unknown, set to lowest freq with no reload glitches */
+                out->htim->Instance->ARR = 0xFFFE;
+                out->htim->Instance->CCR1 = 0xFFFF;
+            }
+            else
+            {
+                /* 100% DC - use past known period and apply throttle */
+                ch->pulse_ticks = ch->period_ticks;
+                out->period_ticks = ch->period_ticks;
+                out->pulse_ticks = ch->pulse_ticks;
+
+                uint32_t active_pulse = calculate_output_pulse(out);
+                apply_output_to_hardware(out, active_pulse);
+            }
+        }
+        else
+        {
+            /* 0% DC / Signal Lost */
+            out->htim->Instance->CCR1 = 0;
+            init_channel_struct(ch);
+        }
+    }
+}
+
+/**
  * @brief Resets the capture state for a channel and sets polarity to rising.
  */
 static void reset_channel_state(PWM_Channel_t *ch, uint32_t channel)
@@ -195,6 +271,30 @@ static void reset_channel_state(PWM_Channel_t *ch, uint32_t channel)
     ch->pulse_stable_counter = 0;
     ch->previous_pulse_ticks = 0;
     __HAL_TIM_SET_CAPTUREPOLARITY(&htim2, channel, TIM_ICPOLARITY_RISING);
+}
+
+/**
+ * @brief Computes frequency from period ticks.
+ */
+static uint32_t calculate_frequency(uint32_t period_ticks)
+{
+    if (period_ticks == 0)
+    {
+        return 0;
+    }
+    return 48000000U / period_ticks;
+}
+
+/**
+ * @brief Computes duty cycle percentage.
+ */
+static uint32_t calculate_duty_pct(uint32_t period_ticks, uint32_t pulse_ticks)
+{
+    if (period_ticks == 0)
+    {
+        return 0;
+    }
+    return (pulse_ticks * 100U) / period_ticks;
 }
 
 /**
@@ -348,135 +448,8 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
  */
 void pwm_repeater_task(void)
 {
-    uint32_t now = HAL_GetTick();
-    const uint32_t timeout_ms = 50;
-
-    /* Update Channel A output */
-    if (pwmChA.new_data_ready)
-    {
-        pwmOutA.period_ticks = pwmChA.period_ticks;
-        pwmOutA.pulse_ticks = pwmChA.pulse_ticks;
-        
-        uint32_t active_pulse = calculate_output_pulse(&pwmOutA);
-
-        /* Apply to hardware (with division by 48 for 1MHz output timebase) */
-        uint32_t output_period = (pwmOutA.period_ticks / 48U);
-        uint32_t target_arr = (output_period > 0xFFFFU) ? 0xFFFFU : (output_period - 1);
-        uint32_t target_ccr = (active_pulse / 48U);
-        
-        pwmOutA.htim->Instance->ARR = target_arr;
-        pwmOutA.htim->Instance->CCR1 = target_ccr;
-        
-        pwmChA.new_data_ready = false;
-    }
-
-    /* Update Channel B output */
-    if (pwmChB.new_data_ready)
-    {
-        pwmOutB.period_ticks = pwmChB.period_ticks;
-        pwmOutB.pulse_ticks = pwmChB.pulse_ticks;
-
-        uint32_t active_pulse = calculate_output_pulse(&pwmOutB);
-
-        /* Apply to hardware (with division by 48 for 1MHz output timebase) */
-        uint32_t output_period = (pwmOutB.period_ticks / 48U);
-        uint32_t target_arr = (output_period > 0xFFFFU) ? 0xFFFFU : (output_period - 1);
-        uint32_t target_ccr = (active_pulse / 48U);
-
-        pwmOutB.htim->Instance->ARR = target_arr;
-        pwmOutB.htim->Instance->CCR1 = target_ccr;
-        
-        pwmChB.new_data_ready = false;
-    }
-
-    /* Watchdog logic */
-    if ((now - pwmChA.last_capture_ms) > timeout_ms)
-    {
-        if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10) == GPIO_PIN_SET)
-        {
-            if (pwmChA.period_ticks == 0)
-            {
-                /* Pure 100% DC - frequency unknown, skip throttle */
-                pwmOutA.htim->Instance->ARR = 0xFFFF;
-                pwmOutA.htim->Instance->CCR1 = 0xFFFF;
-            }
-            else
-            {
-                /* 100% DC - use past known period and apply throttle */
-                pwmChA.pulse_ticks = pwmChA.period_ticks;
-                pwmOutA.period_ticks = pwmChA.period_ticks;
-                pwmOutA.pulse_ticks = pwmChA.pulse_ticks;
-                
-                uint32_t active_pulse = calculate_output_pulse(&pwmOutA);
-
-                /* Update hardware ARR and CCR safely (prevent 16-bit overflow) */
-                uint32_t output_period = (pwmOutA.period_ticks / 48U);
-                uint32_t target_arr = (output_period > 0xFFFFU) ? 0xFFFFU : (output_period - 1);
-                uint32_t target_ccr = (active_pulse / 48U);
-
-                /* Cap target_ccr to target_arr + 1 to ensure 100% DC is possible but not exceeded */
-                if (target_ccr > (target_arr + 1)) target_ccr = target_arr + 1;
-
-                pwmOutA.htim->Instance->ARR = target_arr;
-                pwmOutA.htim->Instance->CCR1 = target_ccr;
-            }
-        }
-        else
-        {
-            /* 0% DC / Signal Lost */
-            pwmOutA.htim->Instance->CCR1 = 0;
-            pwmChA.rise_captured = false;
-            pwmChA.fall_captured = false;
-            pwmChA.new_data_ready = false;
-            pwmChA.period_ticks = 0;
-            pwmChA.pulse_ticks = 0;
-            pwmChA.low_level_ticks = 0;
-        }
-    }
-
-    if ((now - pwmChB.last_capture_ms) > timeout_ms)
-    {
-        if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_11) == GPIO_PIN_SET)
-        {
-            if (pwmChB.period_ticks == 0)
-            {
-                /* Pure 100% DC - frequency unknown, skip throttle */
-                pwmOutB.htim->Instance->ARR = 0xFFFF;
-                pwmOutB.htim->Instance->CCR1 = 0xFFFF;
-            }
-            else
-            {
-                /* 100% DC - use past known period and apply throttle */
-                pwmChB.pulse_ticks = pwmChB.period_ticks;
-                pwmOutB.period_ticks = pwmChB.period_ticks;
-                pwmOutB.pulse_ticks = pwmChB.pulse_ticks;
-
-                uint32_t active_pulse = calculate_output_pulse(&pwmOutB);
-
-                /* Update hardware ARR and CCR safely (prevent 16-bit overflow) */
-                uint32_t output_period = (pwmOutB.period_ticks / 48U);
-                uint32_t target_arr = (output_period > 0xFFFFU) ? 0xFFFFU : (output_period - 1);
-                uint32_t target_ccr = (active_pulse / 48U);
-
-                /* Cap target_ccr to target_arr + 1 to ensure 100% DC is possible but not exceeded */
-                if (target_ccr > (target_arr + 1)) target_ccr = target_arr + 1;
-
-                pwmOutB.htim->Instance->ARR = target_arr;
-                pwmOutB.htim->Instance->CCR1 = target_ccr;
-            }
-        }
-        else
-        {
-            /* 0% DC / Signal Lost */
-            pwmOutB.htim->Instance->CCR1 = 0;
-            pwmChB.rise_captured = false;
-            pwmChB.fall_captured = false;
-            pwmChB.new_data_ready = false;
-            pwmChB.period_ticks = 0;
-            pwmChB.pulse_ticks = 0;
-            pwmChB.low_level_ticks = 0;
-        }
-    }
+    process_channel_update(&pwmChA, &pwmOutA, GPIOB, GPIO_PIN_10);
+    process_channel_update(&pwmChB, &pwmOutB, GPIOB, GPIO_PIN_11);
 }
 
 
@@ -487,24 +460,20 @@ uint32_t get_ticks(void)
 
 uint32_t pwm_get_frequency_a(void)
 {
-    if (pwmChA.period_ticks == 0) return 0;
-    return 48000000U / pwmChA.period_ticks;
+    return calculate_frequency(pwmChA.period_ticks);
 }
 
 uint32_t pwm_get_duty_a(void)
 {
-    if (pwmChA.period_ticks == 0) return 0;
-    return (pwmChA.pulse_ticks * 100U) / pwmChA.period_ticks;
+    return calculate_duty_pct(pwmChA.period_ticks, pwmChA.pulse_ticks);
 }
 
 uint32_t pwm_get_frequency_b(void)
 {
-    if (pwmChB.period_ticks == 0) return 0;
-    return 48000000U / pwmChB.period_ticks;
+    return calculate_frequency(pwmChB.period_ticks);
 }
 
 uint32_t pwm_get_duty_b(void)
 {
-    if (pwmChB.period_ticks == 0) return 0;
-    return (pwmChB.pulse_ticks * 100U) / pwmChB.period_ticks;
+    return calculate_duty_pct(pwmChB.period_ticks, pwmChB.pulse_ticks);
 }
