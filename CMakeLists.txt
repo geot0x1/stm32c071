@@ -44,7 +44,7 @@ add_subdirectory(nvs)
 add_subdirectory(critical)
 add_subdirectory(onewire)
 add_subdirectory(ds18b20)
-add_subdirectory(src/temperature_sensor)
+add_subdirectory(temperature_sensor)
 add_subdirectory(delay)
 
 # Link directories setup
