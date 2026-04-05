@@ -31,6 +31,7 @@ PWM_Output_t  pwmOutB = { .htim = &htim17, .channel = TIM_CHANNEL_1, .cap_factor
 
 static void handle_ic_capture(PWM_Channel_t *ch, uint32_t captured, uint32_t channel, uint32_t ccr_offset);
 static void reset_channel_state(PWM_Channel_t *ch, uint32_t channel);
+static uint32_t calculate_output_pulse(PWM_Output_t *out);
 
 void pwm_set_throttle_a(uint32_t val, ThrottleMode mode)
 {
@@ -142,6 +143,40 @@ static uint32_t calculate_delta(uint32_t current, uint32_t previous, uint32_t ar
     }
 
     return delta;
+}
+
+/**
+ * @brief Calculates the pulse duration after applying throttle and capping.
+ * @param out Pointer to output configuration.
+ * @return Active pulse duration in ticks.
+ */
+static uint32_t calculate_output_pulse(PWM_Output_t *out)
+{
+    uint32_t active_pulse;
+
+    if (out->throttle_mode == ThrottleMode_Scale)
+    {
+        active_pulse = (out->pulse_ticks * out->throttle_val) / 100U;
+    }
+    else /* ThrottleMode_Fixed */
+    {
+        active_pulse = (out->period_ticks * out->throttle_val) / 100U;
+    }
+
+    /* Constraint: Resulting DC must not exceed measured input DC */
+    if (active_pulse > out->pulse_ticks)
+    {
+        active_pulse = out->pulse_ticks;
+    }
+
+    /* Safety capping (hard limit) */
+    uint32_t cap_limit = (out->period_ticks * out->cap_factor_pct) / 100U;
+    if (active_pulse > cap_limit)
+    {
+        active_pulse = cap_limit;
+    }
+    
+    return active_pulse;
 }
 
 /**
@@ -322,29 +357,7 @@ void pwm_repeater_task(void)
         pwmOutA.period_ticks = pwmChA.period_ticks;
         pwmOutA.pulse_ticks = pwmChA.pulse_ticks;
         
-        /* Apply throttling based on mode */
-        uint32_t active_pulse;
-        if (pwmOutA.throttle_mode == ThrottleMode_Scale)
-        {
-            active_pulse = (pwmOutA.pulse_ticks * pwmOutA.throttle_val) / 100U;
-        }
-        else /* ThrottleMode_Fixed */
-        {
-            active_pulse = (pwmOutA.period_ticks * pwmOutA.throttle_val) / 100U;
-        }
-
-        /* Constraint: Resulting DC must not exceed measured input DC */
-        if (active_pulse > pwmOutA.pulse_ticks)
-        {
-            active_pulse = pwmOutA.pulse_ticks;
-        }
-
-        /* Safety capping (hard limit) */
-        uint32_t cap_limit = (pwmOutA.period_ticks * pwmOutA.cap_factor_pct) / 100U;
-        if (active_pulse > cap_limit)
-        {
-            active_pulse = cap_limit;
-        }
+        uint32_t active_pulse = calculate_output_pulse(&pwmOutA);
 
         /* Apply to hardware (with division by 48 for 1MHz output timebase) */
         uint32_t output_period = (pwmOutA.period_ticks / 48U);
@@ -363,29 +376,7 @@ void pwm_repeater_task(void)
         pwmOutB.period_ticks = pwmChB.period_ticks;
         pwmOutB.pulse_ticks = pwmChB.pulse_ticks;
 
-        /* Apply throttling based on mode */
-        uint32_t active_pulse;
-        if (pwmOutB.throttle_mode == ThrottleMode_Scale)
-        {
-            active_pulse = (pwmOutB.pulse_ticks * pwmOutB.throttle_val) / 100U;
-        }
-        else /* ThrottleMode_Fixed */
-        {
-            active_pulse = (pwmOutB.period_ticks * pwmOutB.throttle_val) / 100U;
-        }
-
-        /* Constraint: Resulting DC must not exceed measured input DC */
-        if (active_pulse > pwmOutB.pulse_ticks)
-        {
-            active_pulse = pwmOutB.pulse_ticks;
-        }
-
-        /* Safety capping (hard limit) */
-        uint32_t cap_limit = (pwmOutB.period_ticks * pwmOutB.cap_factor_pct) / 100U;
-        if (active_pulse > cap_limit)
-        {
-            active_pulse = cap_limit;
-        }
+        uint32_t active_pulse = calculate_output_pulse(&pwmOutB);
 
         /* Apply to hardware (with division by 48 for 1MHz output timebase) */
         uint32_t output_period = (pwmOutB.period_ticks / 48U);
@@ -401,24 +392,90 @@ void pwm_repeater_task(void)
     /* Watchdog logic */
     if ((now - pwmChA.last_capture_ms) > timeout_ms)
     {
-        pwmOutA.htim->Instance->CCR1 = 0;
-        pwmChA.rise_captured = false;
-        pwmChA.fall_captured = false;
-        pwmChA.new_data_ready = false;
-        pwmChA.period_ticks = 0;
-        pwmChA.pulse_ticks = 0;
-        pwmChA.low_level_ticks = 0;
+        if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10) == GPIO_PIN_SET)
+        {
+            if (pwmChA.period_ticks == 0)
+            {
+                /* Pure 100% DC - frequency unknown, skip throttle */
+                pwmOutA.htim->Instance->ARR = 0xFFFF;
+                pwmOutA.htim->Instance->CCR1 = 0xFFFF;
+            }
+            else
+            {
+                /* 100% DC - use past known period and apply throttle */
+                pwmChA.pulse_ticks = pwmChA.period_ticks;
+                pwmOutA.period_ticks = pwmChA.period_ticks;
+                pwmOutA.pulse_ticks = pwmChA.pulse_ticks;
+                
+                uint32_t active_pulse = calculate_output_pulse(&pwmOutA);
+
+                /* Update hardware ARR and CCR safely (prevent 16-bit overflow) */
+                uint32_t output_period = (pwmOutA.period_ticks / 48U);
+                uint32_t target_arr = (output_period > 0xFFFFU) ? 0xFFFFU : (output_period - 1);
+                uint32_t target_ccr = (active_pulse / 48U);
+
+                /* Cap target_ccr to target_arr + 1 to ensure 100% DC is possible but not exceeded */
+                if (target_ccr > (target_arr + 1)) target_ccr = target_arr + 1;
+
+                pwmOutA.htim->Instance->ARR = target_arr;
+                pwmOutA.htim->Instance->CCR1 = target_ccr;
+            }
+        }
+        else
+        {
+            /* 0% DC / Signal Lost */
+            pwmOutA.htim->Instance->CCR1 = 0;
+            pwmChA.rise_captured = false;
+            pwmChA.fall_captured = false;
+            pwmChA.new_data_ready = false;
+            pwmChA.period_ticks = 0;
+            pwmChA.pulse_ticks = 0;
+            pwmChA.low_level_ticks = 0;
+        }
     }
 
     if ((now - pwmChB.last_capture_ms) > timeout_ms)
     {
-        pwmOutB.htim->Instance->CCR1 = 0;
-        pwmChB.rise_captured = false;
-        pwmChB.fall_captured = false;
-        pwmChB.new_data_ready = false;
-        pwmChB.period_ticks = 0;
-        pwmChB.pulse_ticks = 0;
-        pwmChB.low_level_ticks = 0;
+        if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_11) == GPIO_PIN_SET)
+        {
+            if (pwmChB.period_ticks == 0)
+            {
+                /* Pure 100% DC - frequency unknown, skip throttle */
+                pwmOutB.htim->Instance->ARR = 0xFFFF;
+                pwmOutB.htim->Instance->CCR1 = 0xFFFF;
+            }
+            else
+            {
+                /* 100% DC - use past known period and apply throttle */
+                pwmChB.pulse_ticks = pwmChB.period_ticks;
+                pwmOutB.period_ticks = pwmChB.period_ticks;
+                pwmOutB.pulse_ticks = pwmChB.pulse_ticks;
+
+                uint32_t active_pulse = calculate_output_pulse(&pwmOutB);
+
+                /* Update hardware ARR and CCR safely (prevent 16-bit overflow) */
+                uint32_t output_period = (pwmOutB.period_ticks / 48U);
+                uint32_t target_arr = (output_period > 0xFFFFU) ? 0xFFFFU : (output_period - 1);
+                uint32_t target_ccr = (active_pulse / 48U);
+
+                /* Cap target_ccr to target_arr + 1 to ensure 100% DC is possible but not exceeded */
+                if (target_ccr > (target_arr + 1)) target_ccr = target_arr + 1;
+
+                pwmOutB.htim->Instance->ARR = target_arr;
+                pwmOutB.htim->Instance->CCR1 = target_ccr;
+            }
+        }
+        else
+        {
+            /* 0% DC / Signal Lost */
+            pwmOutB.htim->Instance->CCR1 = 0;
+            pwmChB.rise_captured = false;
+            pwmChB.fall_captured = false;
+            pwmChB.new_data_ready = false;
+            pwmChB.period_ticks = 0;
+            pwmChB.pulse_ticks = 0;
+            pwmChB.low_level_ticks = 0;
+        }
     }
 }
 
