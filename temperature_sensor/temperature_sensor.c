@@ -91,7 +91,7 @@ void temperature_sensor_init(void)
     _lastTick = HAL_GetTick();
 }
 
-void temperature_sensor_tick(void)
+void temperature_sensor_task(void)
 {
     switch (_currentState)
     {

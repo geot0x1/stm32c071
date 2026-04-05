@@ -202,7 +202,7 @@ int main(void)
         // Non-blocking tasks
         usb_task();
         pwm_repeater_tick();
-        temperature_sensor_tick();
+        temperature_sensor_task();
         
         static uint32_t last_init_debug = 0;
         if (HAL_GetTick() - last_init_debug >= 1000)

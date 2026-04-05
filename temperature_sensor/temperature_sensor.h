@@ -23,7 +23,7 @@ void temperature_sensor_init(void);
  * @brief  State machine tick function, should be called in the main loop.
  *         Handles non-blocking polling, conversion, and reading.
  */
-void temperature_sensor_tick(void);
+void temperature_sensor_task(void);
 
 /**
  * @brief  Returns the last valid temperature raw value.
