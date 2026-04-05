@@ -750,24 +750,7 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
-/* USER CODE BEGIN 4 */
-/**
-  * @brief  Return the total microseconds since start.
-  */
-uint64_t get_microseconds(void)
-{
-    // uint32_t overflow = timer3_overflow_count;
-    // uint32_t cnt = htim3.Instance->CNT;
-    
-    // // Check for race condition where interrupt happened between reading overflow and CNT
-    // if (__HAL_TIM_GET_FLAG(&htim3, TIM_FLAG_UPDATE) && (cnt < 1000))
-    // {
-    //     overflow++;
-    // }
-    
-    // return ((uint64_t)overflow << 16) | cnt;
-    return 0;
-}
+
 
 /**
   * @brief  Period elapsed callback in non blocking mode
@@ -782,59 +765,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     }
 }
 
-#if 0
-/**
-  * @brief  EXTI line detection callback.
-  * @param  GPIO_Pin: Specifies the port pin connected to corresponding EXTI line.
-  * @retval None
-  */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-    uint32_t now = htim3.Instance->CNT;
-    volatile PwmMeasure *pm = NULL;
 
-    if (GPIO_Pin == GPIO_PIN_10)
-    {
-        pm = &capturePB10;
-    }
-    else if (GPIO_Pin == GPIO_PIN_11)
-    {
-        pm = &capturePB11;
-    }
-
-    if (pm != NULL)
-    {
-        if (HAL_GPIO_ReadPin(GPIOB, GPIO_Pin) == GPIO_PIN_SET)
-        {
-            /* Rising edge: calculate period */
-            if (pm->last_rising_timestamp != 0)
-            {
-                pm->last_period = (now >= pm->last_rising_timestamp) ? 
-                                 (now - pm->last_rising_timestamp) : 
-                                 (now + 65536 - pm->last_rising_timestamp);
-            }
-            pm->last_rising_timestamp = now;
-        }
-        else
-        {
-            /* Falling edge: calculate high time and duty cycle */
-            if (pm->last_rising_timestamp != 0)
-            {
-                pm->last_high_time = (now >= pm->last_rising_timestamp) ? 
-                                    (now - pm->last_rising_timestamp) : 
-                                    (now + 65536 - pm->last_rising_timestamp);
-                
-                if (pm->last_period != 0)
-                {
-                    pm->duty_cycle = ((float)pm->last_high_time * 100.0f) / (float)pm->last_period;
-                }
-            }
-            pm->last_falling_timestamp = now;
-        }
-    }
-}
-#endif
-/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.
