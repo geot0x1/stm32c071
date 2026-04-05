@@ -28,6 +28,7 @@
 #include "sys_time.h"
 #include "ds18b20.h"
 #include "delay.h"
+#include "pwm_repeater.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -59,6 +60,8 @@ I2C_HandleTypeDef hi2c2;
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim16;
+TIM_HandleTypeDef htim17;
 
 PCD_HandleTypeDef hpcd_USB_DRD_FS;
 
@@ -76,6 +79,8 @@ static Ds18b20_t ds18b20 = {
     .ow = &ow_bus
 };
 /* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM1_Init(void);
@@ -84,6 +89,8 @@ static void MX_TIM2_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_FLASH_Init(void);
+static void MX_TIM16_Init(void);
+static void MX_TIM17_Init(void);
 /* USER CODE BEGIN PFP */
 uint64_t get_microseconds(void);
 /* USER CODE END PFP */
@@ -128,6 +135,8 @@ int main(void)
   MX_I2C2_Init();
   MX_TIM3_Init();
   MX_FLASH_Init();
+  MX_TIM16_Init();
+  MX_TIM17_Init();
   /* USER CODE BEGIN 2 */
   
   // Enable USB Clock (adapted from HAL_PCD_MspInit)
@@ -162,62 +171,88 @@ int main(void)
   // Initialize DS18B20
   ds18b20_begin(&ds18b20);
 
+  // Initialize PWM Repeater
+  pwm_repeater_init();
+
   /* USER CODE END 2 */
-  
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     // Non-blocking initialization debug
+    tud_task();
+    pwm_repeater_tick();
     static uint32_t last_init_debug = 0;
     if (HAL_GetTick() - last_init_debug >= 1000)
     {
-        last_init_debug = HAL_GetTick();
-        if (tud_cdc_connected())
-        {
-            ds18b20_begin(&ds18b20); // Perform bus search
-            uint8_t count = ds18b20_get_sensors_on_bus(&ds18b20);
-            
-            char init_msg[64];
-            snprintf(init_msg, sizeof(init_msg), "INIT: Sensors=%d\r\n", count);
-            tud_cdc_write_str(init_msg);
-            tud_cdc_write_flush();
-
-            if (count > 0)
-            {
-                ds18b20_request_temperatures(&ds18b20);
-                HAL_Delay(1000);
-                int16_t raw_temp = ds18b20_get_temp(&ds18b20, NULL);
-                char temp_msg[32];
-                snprintf(temp_msg, sizeof(temp_msg), "TEMP: %d C\r\n", raw_temp);
-                tud_cdc_write_str(temp_msg);
-                tud_cdc_write_flush();
-                float celsius = ds18b20_raw_to_celsius(raw_temp);
-                
-                // Manual float to integer/fraction formatting
-                int32_t int_part = (int32_t)celsius;
-                int32_t frac_part = (int32_t)((celsius - (float)int_part) * 100.0f);
-                if (frac_part < 0) frac_part = -frac_part;
-                if (int_part == 0 && celsius < 0)
-                {
-                    char temp_msg[32];
-                    snprintf(temp_msg, sizeof(temp_msg), "TEMP: -%d.%02d C\r\n", -int_part, frac_part);
-                    tud_cdc_write_str(temp_msg);
-                }
-                else
-                {
-                    char temp_msg[32];
-                    snprintf(temp_msg, sizeof(temp_msg), "TEMP: %d.%02d C\r\n", int_part, frac_part);
-                    tud_cdc_write_str(temp_msg);
-                }
-                tud_cdc_write_flush();
-            }
-        }
+      if (tud_cdc_connected())
+      {
+        char debug_buf[128];
+        // sprintf(debug_buf, "TICKS: %lu\r\n", get_ticks());
+        // tud_cdc_write_str(debug_buf);
+        // tud_cdc_write_flush();
+        sprintf(debug_buf, "CH_A: %u Hz, %u\r\n", 
+                (unsigned int)pwm_get_frequency_a(), (unsigned int)pwm_get_duty_a());
+        tud_cdc_write_str(debug_buf);
+        tud_cdc_write_flush();
+        sprintf(debug_buf, "CH_B: %u Hz, %u\r\n", 
+                (unsigned int)pwm_get_frequency_b(), (unsigned int)pwm_get_duty_b());
+        tud_cdc_write_str(debug_buf);
+        tud_cdc_write_flush();
+      }
+      last_init_debug = HAL_GetTick();
     }
+    // {
+    //     last_init_debug = HAL_GetTick();
+    //     if (tud_cdc_connected())
+    //     {
+    //         ds18b20_begin(&ds18b20); // Perform bus search
+    //         uint8_t count = ds18b20_get_sensors_on_bus(&ds18b20);
+            
+    //         char init_msg[64];
+    //         snprintf(init_msg, sizeof(init_msg), "INIT: Sensors=%u\r\n", (unsigned int)count);
+    //         tud_cdc_write_str(init_msg);
+    //         tud_cdc_write_flush();
+
+    //         if (count > 0)
+    //         {
+    //             ds18b20_request_temperatures(&ds18b20);
+    //             HAL_Delay(1000);
+    //             int16_t raw_temp = ds18b20_get_temp(&ds18b20, NULL);
+    //             char temp_msg[32];
+    //             snprintf(temp_msg, sizeof(temp_msg), "TEMP: %d C\r\n", (int)raw_temp);
+    //             tud_cdc_write_str(temp_msg);
+    //             tud_cdc_write_flush();
+    //             float celsius = ds18b20_raw_to_celsius(raw_temp);
+                
+    //             // Manual float to integer/fraction formatting
+    //             int32_t int_part = (int32_t)celsius;
+    //             int32_t frac_part = (int32_t)((celsius - (float)int_part) * 100.0f);
+    //             if (frac_part < 0) frac_part = -frac_part;
+    //             if (int_part == 0 && celsius < 0)
+    //             {
+    //                 char temp_msg[32];
+    //                 snprintf(temp_msg, sizeof(temp_msg), "TEMP: -%ld.%02ld C\r\n", (long)(-int_part), (long)frac_part);
+    //                 tud_cdc_write_str(temp_msg);
+    //             }
+    //             else
+    //             {
+    //                 char temp_msg[32];
+    //                 snprintf(temp_msg, sizeof(temp_msg), "TEMP: %ld.%02ld C\r\n", (long)int_part, (long)frac_part);
+    //                 tud_cdc_write_str(temp_msg);
+    //             }
+    //             tud_cdc_write_flush();
+    //         }
+    //     }
+    // }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    tud_task(); // tinyusb device task
+     // tinyusb device task
+    
+    // PWM Repeater Watchdog
+    
 
     // // Periodic PWM Data Reporting
     // static uint32_t last_pwm_print = 0;
@@ -519,8 +554,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 0 */
 
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_IC_InitTypeDef sConfigIC = {0};
 
   /* USER CODE BEGIN TIM2_Init 1 */
 
@@ -531,7 +567,16 @@ static void MX_TIM2_Init(void)
   htim2.Init.Period = 4294967295;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_IC_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -541,22 +586,21 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+  sConfigIC.ICFilter = 0;
+  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_3) != HAL_OK)
   {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_4) != HAL_OK)
   {
     Error_Handler();
   }
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
-  HAL_TIM_MspPostInit(&htim2);
 
 }
 
@@ -618,6 +662,132 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 2 */
   HAL_TIM_MspPostInit(&htim3);
+
+}
+
+/**
+  * @brief TIM16 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM16_Init(void)
+{
+
+  /* USER CODE BEGIN TIM16_Init 0 */
+
+  /* USER CODE END TIM16_Init 0 */
+
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+
+  /* USER CODE BEGIN TIM16_Init 1 */
+
+  /* USER CODE END TIM16_Init 1 */
+  htim16.Instance = TIM16;
+  htim16.Init.Prescaler = 0;
+  htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim16.Init.Period = 65535;
+  htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim16.Init.RepetitionCounter = 0;
+  htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim16) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim16) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_PWM_ConfigChannel(&htim16, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+  sBreakDeadTimeConfig.BreakFilter = 0;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim16, &sBreakDeadTimeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM16_Init 2 */
+
+  /* USER CODE END TIM16_Init 2 */
+  HAL_TIM_MspPostInit(&htim16);
+
+}
+
+/**
+  * @brief TIM17 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM17_Init(void)
+{
+
+  /* USER CODE BEGIN TIM17_Init 0 */
+
+  /* USER CODE END TIM17_Init 0 */
+
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+
+  /* USER CODE BEGIN TIM17_Init 1 */
+
+  /* USER CODE END TIM17_Init 1 */
+  htim17.Instance = TIM17;
+  htim17.Init.Prescaler = 0;
+  htim17.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim17.Init.Period = 65535;
+  htim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim17.Init.RepetitionCounter = 0;
+  htim17.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim17) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim17) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_PWM_ConfigChannel(&htim17, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+  sBreakDeadTimeConfig.BreakFilter = 0;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim17, &sBreakDeadTimeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM17_Init 2 */
+
+  /* USER CODE END TIM17_Init 2 */
+  HAL_TIM_MspPostInit(&htim17);
 
 }
 
@@ -737,6 +907,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     }
 }
 
+#if 0
 /**
   * @brief  EXTI line detection callback.
   * @param  GPIO_Pin: Specifies the port pin connected to corresponding EXTI line.
@@ -787,6 +958,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         }
     }
 }
+#endif
 /* USER CODE END 4 */
 
 /**

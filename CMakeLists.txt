@@ -68,6 +68,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # TinyUSB Driver
     ${CMAKE_CURRENT_SOURCE_DIR}/tinyusb/src/portable/st/stm32_fsdev/dcd_stm32_fsdev.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tinyusb/src/portable/st/stm32_fsdev/fsdev_common.c
+    
+    # User Features
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/pwm_repeater.c
 )
 
 # Add include paths
