@@ -29,7 +29,7 @@ PWM_Channel_t pwmChB = { .rise_captured = false };
 PWM_Output_t  pwmOutA = { .htim = &htim16, .channel = TIM_CHANNEL_1, .cap_factor_pct = 100, .throttle_val = 100, .throttle_mode = ThrottleMode_Scale };
 PWM_Output_t  pwmOutB = { .htim = &htim17, .channel = TIM_CHANNEL_1, .cap_factor_pct = 100, .throttle_val = 100, .throttle_mode = ThrottleMode_Scale };
 
-static void handle_ic_capture(PWM_Channel_t *ch, uint32_t captured, uint32_t channel, uint32_t ccr_offset);
+static void handle_ic_capture(PWM_Channel_t *ch, uint32_t captured, uint32_t channel, GPIO_TypeDef *port, uint16_t pin);
 static void reset_channel_state(PWM_Channel_t *ch, uint32_t channel);
 static uint32_t calculate_output_pulse(PWM_Output_t *out);
 static void init_channel_struct(PWM_Channel_t *ch);
@@ -67,7 +67,7 @@ void pwm_repeater_init(void)
     TIM_IC_InitTypeDef sConfigIC = {0};
 
     /* 1. Configure Input Capture filters using HAL (safer than register writes) */
-    sConfigIC.ICPolarity = TIM_ICPOLARITY_RISING;
+    sConfigIC.ICPolarity = TIM_ICPOLARITY_BOTHEDGE;
     sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
     sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
     sConfigIC.ICFilter = IC_FILTER_VAL;
@@ -270,7 +270,6 @@ static void reset_channel_state(PWM_Channel_t *ch, uint32_t channel)
     ch->previous_period_ticks = 0;
     ch->pulse_stable_counter = 0;
     ch->previous_pulse_ticks = 0;
-    __HAL_TIM_SET_CAPTUREPOLARITY(&htim2, channel, TIM_ICPOLARITY_RISING);
 }
 
 /**
@@ -300,14 +299,14 @@ static uint32_t calculate_duty_pct(uint32_t period_ticks, uint32_t pulse_ticks)
 /**
  * @brief Shared logic for handling Input Capture events.
  */
-static void handle_ic_capture(PWM_Channel_t *ch, uint32_t captured, uint32_t channel, uint32_t ccr_offset)
+static void handle_ic_capture(PWM_Channel_t *ch, uint32_t captured, uint32_t channel, GPIO_TypeDef *port, uint16_t pin)
 {
-    /* Read polarity from CCER register to decide if this is Rising or Falling */
-    uint32_t poll_bit = (channel == TIM_CHANNEL_3) ? TIM_CCER_CC3P : TIM_CCER_CC4P;
-    bool is_falling = (htim2.Instance->CCER & poll_bit) ? true : false;
+    /* With BOTHEDGE, we detect Rising vs Falling by checking the current pin level.
+       At 150Hz-1kHz, the CPU entry time is fast enough that the level is stable. */
+    bool is_high = (HAL_GPIO_ReadPin(port, pin) == GPIO_PIN_SET);
     uint32_t delta;
 
-    if (!is_falling) /* RISING EDGE captured (End of Low phase) */
+    if (is_high) /* RISING EDGE captured (End of Low phase) */
     {
         if (ch->fall_captured)
         {
@@ -368,9 +367,6 @@ static void handle_ic_capture(PWM_Channel_t *ch, uint32_t captured, uint32_t cha
         ch->rise_timestamp = captured;
         ch->rise_captured = true;
         ch->last_capture_ms = HAL_GetTick();
-
-        /* Switch to FALLING edge */
-        __HAL_TIM_SET_CAPTUREPOLARITY(&htim2, channel, TIM_ICPOLARITY_FALLING);
     }
     else /* FALLING EDGE captured (End of High phase) */
     {
@@ -415,9 +411,6 @@ static void handle_ic_capture(PWM_Channel_t *ch, uint32_t captured, uint32_t cha
 
         ch->fall_timestamp = captured;
         ch->last_capture_ms = HAL_GetTick();
-
-        /* Switch back to RISING edge */
-        __HAL_TIM_SET_CAPTUREPOLARITY(&htim2, channel, TIM_ICPOLARITY_RISING);
     }
 }
 
@@ -433,12 +426,12 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
         if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3)
         {
             captured_val = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_3);
-            handle_ic_capture(&pwmChA, captured_val, TIM_CHANNEL_3, 0x00);
+            handle_ic_capture(&pwmChA, captured_val, TIM_CHANNEL_3, GPIOB, GPIO_PIN_10);
         }
         else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4)
         {
             captured_val = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_4);
-            handle_ic_capture(&pwmChB, captured_val, TIM_CHANNEL_4, 0x04);
+            handle_ic_capture(&pwmChB, captured_val, TIM_CHANNEL_4, GPIOB, GPIO_PIN_11);
         }
     }
 }

@@ -209,6 +209,28 @@ int main(void)
         temperature_sensor_task();
         
         static uint32_t last_init_debug = 0;
+        static uint32_t last_fan_test = 0;
+        static bool fan_toggle = false;
+
+        if (HAL_GetTick() - last_fan_test >= 2000)
+        {
+            last_fan_test = HAL_GetTick();
+            fan_toggle = !fan_toggle;
+
+            if (fan_toggle)
+            {
+                fan_control_set_power_channel_duty(FAN_CHANNEL2, 50);
+                fan_control_set_remote_channel_duty(FAN_CHANNEL1, 0);
+                usb_printf("FAN CH1: POWER ON, REMOTE OFF\r\n");
+            }
+            else
+            {
+                fan_control_set_power_channel_duty(FAN_CHANNEL2, 0);
+                fan_control_set_remote_channel_duty(FAN_CHANNEL1, 50);
+                usb_printf("FAN CH1: POWER OFF, REMOTE ON\r\n");
+            }
+        }
+
         if (HAL_GetTick() - last_init_debug >= 1000)
         {
             last_init_debug = HAL_GetTick();
