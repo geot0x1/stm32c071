@@ -1,6 +1,5 @@
 #include "temperature_sensor.h"
 #include "ds18b20.h"
-#include "main.h"
 #include "stm32c0xx_hal.h"
 #include <stdio.h>
 
@@ -30,6 +29,61 @@ static uint32_t _lastTick = 0;
 static uint16_t _lastTemperature = 0xFFFF;
 static uint8_t _failCount = 0;
 
+static uint16_t _setpoint_a = 0;
+static uint16_t _setpoint_b = 0;
+static uint16_t _hysteresis = 0;
+static TempSensorHandler _eventHandler = NULL;
+
+static bool _isAboveA = false;
+static bool _isAboveB = false;
+static bool _isLost = false;
+
+static void trigger_event(TempSensorEvent event)
+{
+    if (_eventHandler != NULL)
+    {
+        _eventHandler(event);
+    }
+}
+
+static void handle_setpoints(uint16_t current_temp)
+{
+    // Setpoint A
+    if (!_isAboveA && current_temp > _setpoint_a)
+    {
+        _isAboveA = true;
+        trigger_event(EVENT_ABOVE_A);
+    }
+    else if (_isAboveA && (current_temp < (_setpoint_a - _hysteresis)))
+    {
+        _isAboveA = false;
+        trigger_event(EVENT_BELOW_A);
+    }
+
+    // Setpoint B
+    if (!_isAboveB && current_temp > _setpoint_b)
+    {
+        _isAboveB = true;
+        trigger_event(EVENT_ABOVE_B);
+    }
+    else if (_isAboveB && (current_temp < (_setpoint_b - _hysteresis)))
+    {
+        _isAboveB = false;
+        trigger_event(EVENT_BELOW_B);
+    }
+}
+
+static void handle_failure(void)
+{
+    _failCount++;
+    if (_failCount >= MAX_FAILURES && !_isLost)
+    {
+        _isLost = true;
+        _lastTemperature = 0xFFFF;
+        trigger_event(EVENT_SENSOR_LOST);
+    }
+}
+
 void temperature_sensor_init(void)
 {
     ds18b20_begin(&_ds18b20);
@@ -49,11 +103,7 @@ void temperature_sensor_tick(void)
             }
             else
             {
-                _failCount++;
-                if (_failCount >= MAX_FAILURES)
-                {
-                    _lastTemperature = 0xFFFF;
-                }
+                handle_failure();
                 _currentState = StateWaitNext;
                 _lastTick = HAL_GetTick();
             }
@@ -67,11 +117,7 @@ void temperature_sensor_tick(void)
             }
             else
             {
-                _failCount++;
-                if (_failCount >= MAX_FAILURES)
-                {
-                    _lastTemperature = 0xFFFF;
-                }
+                handle_failure();
                 _currentState = StateWaitNext;
                 _lastTick = HAL_GetTick();
             }
@@ -94,14 +140,12 @@ void temperature_sensor_tick(void)
                 // Store as Celsius * 100
                 _lastTemperature = (uint16_t)((int16_t)(celsius * 100.0f));
                 _failCount = 0;
+                _isLost = false;
+                handle_setpoints(_lastTemperature);
             }
             else
             {
-                _failCount++;
-                if (_failCount >= MAX_FAILURES)
-                {
-                    _lastTemperature = 0xFFFF;
-                }
+                handle_failure();
             }
             _currentState = StateWaitNext;
             _lastTick = HAL_GetTick();
@@ -124,4 +168,24 @@ void temperature_sensor_tick(void)
 uint16_t get_temperature(void)
 {
     return _lastTemperature;
+}
+
+void temperature_sensor_set_setpoint_a(uint16_t setpoint)
+{
+    _setpoint_a = setpoint;
+}
+
+void temperature_sensor_set_setpoint_b(uint16_t setpoint)
+{
+    _setpoint_b = setpoint;
+}
+
+void temperature_sensor_set_hysteresis(uint16_t hysteresis)
+{
+    _hysteresis = hysteresis;
+}
+
+void temperature_sensor_register_handler(TempSensorHandler handler)
+{
+    _eventHandler = handler;
 }

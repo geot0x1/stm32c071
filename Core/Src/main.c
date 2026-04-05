@@ -91,6 +91,53 @@ uint64_t get_microseconds(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+void temperature_sensor_event_handler(TempSensorEvent event)
+{
+    switch (event)
+    {
+        case EVENT_SENSOR_LOST:
+            // Handle sensor lost
+            if (tud_cdc_connected())
+            {
+                tud_cdc_write_str("TEMP: SENSOR LOST\r\n");
+                tud_cdc_write_flush();
+            }
+            break;
+        case EVENT_ABOVE_A:
+            // Handle above A
+            if (tud_cdc_connected())
+            {
+                tud_cdc_write_str("TEMP: ABOVE A\r\n");
+                tud_cdc_write_flush();
+            }
+            break;
+        case EVENT_ABOVE_B:
+            // Handle above B
+            if (tud_cdc_connected())
+            {
+                tud_cdc_write_str("TEMP: ABOVE B\r\n");
+                tud_cdc_write_flush();
+            }
+            break;
+        case EVENT_BELOW_A:
+            // Handle below A
+            if (tud_cdc_connected())
+            {
+                tud_cdc_write_str("TEMP: BELOW A\r\n");
+                tud_cdc_write_flush();
+            }
+            break;
+        case EVENT_BELOW_B:
+            // Handle below B
+            if (tud_cdc_connected())
+            {
+                tud_cdc_write_str("TEMP: BELOW B\r\n");
+                tud_cdc_write_flush();
+            }
+            break;
+    }
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -171,6 +218,10 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  temperature_sensor_set_setpoint_a(2500);
+  temperature_sensor_set_setpoint_b(3000);
+  temperature_sensor_set_hysteresis(50);
+  temperature_sensor_register_handler(temperature_sensor_event_handler);
   char debug_buf[128];
   while (1)
   {
