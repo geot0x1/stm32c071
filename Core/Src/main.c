@@ -168,12 +168,13 @@ int main(void)
   // Initialize USB wrapper (calls tusb_init)
   usb_init();
 
-  // Initialize Fan Control Module (TIM1 @ 25kHz)
-  fan_control_init(25000);
-  fan_control_set_duty(FanChannel1, 50);
-  fan_control_set_duty(FanChannel2, 10);
-  fan_control_set_duty(FanChannel3, 60);
-  fan_control_set_duty(FanChannel4, 80);
+  // Initialize Fan Control Module (TIM1/TIM3 @ 25kHz)
+  fan_control_init();
+  fan_init(25000);
+  fan_control_set_unit_duty(1, 50);
+  fan_control_set_unit_duty(2, 10);
+  fan_control_set_unit_duty(3, 60);
+  fan_control_set_unit_duty(4, 80);
 
 
   // Start TIM2 PWM on all Channels
