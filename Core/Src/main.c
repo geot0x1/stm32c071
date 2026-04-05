@@ -201,7 +201,7 @@ int main(void)
     {
         // Non-blocking tasks
         usb_task();
-        pwm_repeater_tick();
+        pwm_repeater_task();
         temperature_sensor_task();
         
         static uint32_t last_init_debug = 0;

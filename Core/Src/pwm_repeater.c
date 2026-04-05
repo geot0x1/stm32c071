@@ -311,7 +311,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 /**
  * @brief Watchdog to zero outputs if signal is lost.
  */
-void pwm_repeater_tick(void)
+void pwm_repeater_task(void)
 {
     uint32_t now = HAL_GetTick();
     const uint32_t timeout_ms = 50;

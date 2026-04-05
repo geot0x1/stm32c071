@@ -67,7 +67,7 @@ extern PWM_Output_t pwmOutB;
  * @brief Initializes TIM2 channels and state variables for PWM repeating.
  */
 void pwm_repeater_init(void);
-void pwm_repeater_tick(void);
+void pwm_repeater_task(void);
 
 void pwm_set_throttle_a(uint32_t val, ThrottleMode mode);
 void pwm_set_throttle_b(uint32_t val, ThrottleMode mode);
