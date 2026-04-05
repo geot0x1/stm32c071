@@ -87,13 +87,12 @@ void temperature_sensor_tick(void)
         case StateRead:
         {
             int16_t raw_temp = ds18b20_get_temp(&_ds18b20, NULL);
-            // Check if read is actually successful. (Assuming 0x0550=85C is initial power-on value but often used as error)
-            // But user said "if the state machine loses the temperature sensor (no reads for 3 consecutive)".
-            // Usually invalid reads return a specific value or we can check the presence separately.
             
-            if (raw_temp != -127 && raw_temp != 850) // Assuming -127 or 850 (as handled in some drivers) might be errors
+            if (raw_temp != -127 && raw_temp != 850)
             {
-                _lastTemperature = (uint16_t)raw_temp;
+                float celsius = ds18b20_raw_to_celsius(raw_temp);
+                // Store as Celsius * 100
+                _lastTemperature = (uint16_t)((int16_t)(celsius * 100.0f));
                 _failCount = 0;
             }
             else

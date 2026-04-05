@@ -208,21 +208,7 @@ int main(void)
             }
             else
             {
-                float celsius = ds18b20_raw_to_celsius((int16_t)raw_temp);
-                
-                // Manual float to integer/fraction formatting
-                int32_t int_part = (int32_t)celsius;
-                int32_t frac_part = (int32_t)((celsius - (float)int_part) * 100.0f);
-                if (frac_part < 0) frac_part = -frac_part;
-                
-                if (int_part == 0 && celsius < 0)
-                {
-                    snprintf(debug_buf, sizeof(debug_buf), "TEMP: -%ld.%02ld C\r\n", (long)(-int_part), (long)frac_part);
-                }
-                else
-                {
-                    snprintf(debug_buf, sizeof(debug_buf), "TEMP: %ld.%02ld C\r\n", (long)int_part, (long)frac_part);
-                }
+                snprintf(debug_buf, sizeof(debug_buf), "TEMP: %u\r\n", raw_temp);
                 tud_cdc_write_str(debug_buf);
             }
             tud_cdc_write_flush();
