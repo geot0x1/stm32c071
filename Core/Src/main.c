@@ -26,9 +26,10 @@
 #include "tusb.h"
 #include <stdio.h>
 #include "sys_time.h"
-#include "ds18b20.h"
-#include "delay.h"
 #include "pwm_repeater.h"
+#include "temperature_sensor.h"
+#include "delay.h"
+#include "ds18b20.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -70,14 +71,6 @@ volatile PwmMeasure capturePB10 = {0};
 volatile PwmMeasure capturePB11 = {0};
 volatile uint32_t timer3_overflow_count = 0;
 
-static OneWire ow_bus = {
-    .port = GPIOB,
-    .pin = GPIO_PIN_4
-};
-
-static Ds18b20_t ds18b20 = {
-    .ow = &ow_bus
-};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -168,8 +161,8 @@ int main(void)
   // Initialize Delay (Hardware Timer)
   delay_init();
 
-  // Initialize DS18B20
-  ds18b20_begin(&ds18b20);
+  // Initialize Temperature Sensor
+  temperature_sensor_init();
 
   // Initialize PWM Repeater
   pwm_repeater_init();
@@ -178,17 +171,20 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  char debug_buf[128];
   while (1)
   {
-    // Non-blocking initialization debug
+    // Non-blocking tasks
     tud_task();
     pwm_repeater_tick();
+    temperature_sensor_tick();
     static uint32_t last_init_debug = 0;
     if (HAL_GetTick() - last_init_debug >= 1000)
     {
+      last_init_debug = HAL_GetTick();
       if (tud_cdc_connected())
       {
-        char debug_buf[128];
+        
         // sprintf(debug_buf, "TICKS: %lu\r\n", get_ticks());
         // tud_cdc_write_str(debug_buf);
         // tud_cdc_write_flush();
@@ -201,144 +197,37 @@ int main(void)
         tud_cdc_write_str(debug_buf);
         tud_cdc_write_flush();
       }
-      last_init_debug = HAL_GetTick();
+      
+
+        if (tud_cdc_connected())
+        {
+            uint16_t raw_temp = get_temperature();
+            if (raw_temp == 0xFFFF)
+            {
+                tud_cdc_write_str("TEMP: SENSOR LOST\r\n");
+            }
+            else
+            {
+                float celsius = ds18b20_raw_to_celsius((int16_t)raw_temp);
+                
+                // Manual float to integer/fraction formatting
+                int32_t int_part = (int32_t)celsius;
+                int32_t frac_part = (int32_t)((celsius - (float)int_part) * 100.0f);
+                if (frac_part < 0) frac_part = -frac_part;
+                
+                if (int_part == 0 && celsius < 0)
+                {
+                    snprintf(debug_buf, sizeof(debug_buf), "TEMP: -%ld.%02ld C\r\n", (long)(-int_part), (long)frac_part);
+                }
+                else
+                {
+                    snprintf(debug_buf, sizeof(debug_buf), "TEMP: %ld.%02ld C\r\n", (long)int_part, (long)frac_part);
+                }
+                tud_cdc_write_str(debug_buf);
+            }
+            tud_cdc_write_flush();
+        }
     }
-    // {
-    //     last_init_debug = HAL_GetTick();
-    //     if (tud_cdc_connected())
-    //     {
-    //         ds18b20_begin(&ds18b20); // Perform bus search
-    //         uint8_t count = ds18b20_get_sensors_on_bus(&ds18b20);
-            
-    //         char init_msg[64];
-    //         snprintf(init_msg, sizeof(init_msg), "INIT: Sensors=%u\r\n", (unsigned int)count);
-    //         tud_cdc_write_str(init_msg);
-    //         tud_cdc_write_flush();
-
-    //         if (count > 0)
-    //         {
-    //             ds18b20_request_temperatures(&ds18b20);
-    //             HAL_Delay(1000);
-    //             int16_t raw_temp = ds18b20_get_temp(&ds18b20, NULL);
-    //             char temp_msg[32];
-    //             snprintf(temp_msg, sizeof(temp_msg), "TEMP: %d C\r\n", (int)raw_temp);
-    //             tud_cdc_write_str(temp_msg);
-    //             tud_cdc_write_flush();
-    //             float celsius = ds18b20_raw_to_celsius(raw_temp);
-                
-    //             // Manual float to integer/fraction formatting
-    //             int32_t int_part = (int32_t)celsius;
-    //             int32_t frac_part = (int32_t)((celsius - (float)int_part) * 100.0f);
-    //             if (frac_part < 0) frac_part = -frac_part;
-    //             if (int_part == 0 && celsius < 0)
-    //             {
-    //                 char temp_msg[32];
-    //                 snprintf(temp_msg, sizeof(temp_msg), "TEMP: -%ld.%02ld C\r\n", (long)(-int_part), (long)frac_part);
-    //                 tud_cdc_write_str(temp_msg);
-    //             }
-    //             else
-    //             {
-    //                 char temp_msg[32];
-    //                 snprintf(temp_msg, sizeof(temp_msg), "TEMP: %ld.%02ld C\r\n", (long)int_part, (long)frac_part);
-    //                 tud_cdc_write_str(temp_msg);
-    //             }
-    //             tud_cdc_write_flush();
-    //         }
-    //     }
-    // }
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-     // tinyusb device task
-    
-    // PWM Repeater Watchdog
-    
-
-    // // Periodic PWM Data Reporting
-    // static uint32_t last_pwm_print = 0;
-    // if (tud_cdc_connected())
-    // {
-    //     if (HAL_GetTick() - last_pwm_print >= 500)
-    //     {
-    //         last_pwm_print = HAL_GetTick();
-    //         char msg[64];
-    //         snprintf(msg, sizeof(msg), "SYSTEM TICK: %lu\r\n", (unsigned long)millis());
-            
-    //         tud_cdc_write_str(msg);
-    //         tud_cdc_write_flush();
-    //     }
-
-    //     // Periodic DS18B20 Temperature Reporting (once every 2 seconds)
-    //     static uint32_t last_temp_read = 0;
-    //     static bool conversion_requested = false;
-        
-    //     if (!conversion_requested)
-    //     {
-    //         if (HAL_GetTick() - last_temp_read >= 2000)
-    //         {
-    //             ds18b20_begin(&ds18b20);
-    //             ds18b20_request_temperatures(&ds18b20);
-    //             last_temp_read = HAL_GetTick();
-    //             conversion_requested = true;
-    //         }
-    //     }
-    //     else
-    //     {
-    //         // Wait at least 750ms for conversion
-    //         if (HAL_GetTick() - last_temp_read >= 800)
-    //         {
-    //             int16_t raw_temp = ds18b20_get_temp(&ds18b20, NULL);
-    //             float celsius = ds18b20_raw_to_celsius(raw_temp);
-                
-    //             // Manual float to integer/fraction formatting
-    //             int32_t int_part = (int32_t)celsius;
-    //             int32_t frac_part = (int32_t)((celsius - (float)int_part) * 100.0f);
-    //             if (frac_part < 0) frac_part = -frac_part;
-    //             if (int_part == 0 && celsius < 0)
-    //             {
-    //                 // Handle special case where -0.x would lose the negative sign
-    //             }
-                
-    //             char temp_msg[64];
-    //             if (celsius < 0 && int_part == 0)
-    //             {
-    //                 snprintf(temp_msg, sizeof(temp_msg), "TEMP: -0.%02ld C\r\n", (long)frac_part);
-    //             }
-    //             else
-    //             {
-    //                 snprintf(temp_msg, sizeof(temp_msg), "TEMP: %ld.%02ld C\r\n", (long)int_part, (long)frac_part);
-    //             }
-    //             tud_cdc_write_str(temp_msg);
-    //             tud_cdc_write_flush();
-                
-    //             conversion_requested = false;
-    //         }
-    //     }
-        
-    //     if (tud_cdc_available())
-    //     {
-    //         char buf[64];
-    //         uint32_t count = tud_cdc_read(buf, sizeof(buf));
-    //         tud_cdc_write(buf, count);
-    //         tud_cdc_write_flush();
-    //     }
-    // }
-
-    // Update PWM duty cycle every second
-    // static uint32_t last_pwm_update = 0;
-    // static uint8_t duty_percent = 0;
-
-    // if (HAL_GetTick() - last_pwm_update >= 1000)
-    // {
-    //     last_pwm_update = HAL_GetTick();
-    //     set_pwm_percentage(&htim1, TIM_CHANNEL_1, duty_percent);
-
-    //     duty_percent += 10;
-    //     if (duty_percent > 100)
-    //     {
-    //         duty_percent = 0;
-    //     }
-    // }
   }
   /* USER CODE END 3 */
 }

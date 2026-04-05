@@ -44,6 +44,7 @@ add_subdirectory(nvs)
 add_subdirectory(critical)
 add_subdirectory(onewire)
 add_subdirectory(ds18b20)
+add_subdirectory(src/temperature_sensor)
 add_subdirectory(delay)
 
 # Link directories setup
@@ -77,6 +78,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/temperature_sensor
     ${CMAKE_CURRENT_SOURCE_DIR}/tinyusb/src
     ${CMAKE_CURRENT_SOURCE_DIR}/tinyusb/src/portable/st/stm32_fsdev
 )
@@ -101,6 +103,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     onewire
     ds18b20
     delay
+    temperature_sensor
 )
 
 # Include build info generator
