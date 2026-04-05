@@ -10,12 +10,12 @@
 #define TIMEOUT_TICKS           48000000U /* 1 second at 48MHz */
 #define MAX_DUTY_PCT            100U
 #define IC_FILTER_VAL           0x04U
-#define MIN_LEVEL_TICKS         10000U
+#define MIN_LEVEL_TICKS         100U
 #define MAX_LEVEL_TICKS         1200000U
-#define MIN_PERIOD_TICKS        90000U
+#define MIN_PERIOD_TICKS        1000U
 #define MAX_PERIOD_TICKS        1500000U
 #define ARR_UPDATE_THRESHOLD    100U
-#define STABILITY_THRESHOLD     1000U
+#define STABILITY_THRESHOLD     100U
 #define STABILITY_REQUIRED_COUNT 3U
 
 /* Static Timer Handles */
