@@ -22,7 +22,6 @@
 #include "stm32c0xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "tusb.h"
 #include "sys_time.h"
 /* USER CODE END Includes */
 
@@ -145,10 +144,6 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /* USER CODE BEGIN 1 */
-void USB_DRD_FS_IRQHandler(void)
-{
-  dcd_int_handler(0);
-}
 
 /**
   * @brief This function handles EXTI4 to 15 interrupts.

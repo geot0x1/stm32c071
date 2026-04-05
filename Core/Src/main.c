@@ -23,7 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include "stm32c0xx_hal.h"
 #include "stm32c0xx_hal_rcc_ex.h"
-#include "tusb.h"
+#include "usb.h"
 #include <stdio.h>
 #include "sys_time.h"
 #include "pwm_repeater.h"
@@ -96,44 +96,19 @@ void temperature_sensor_event_handler(TempSensorEvent event)
     switch (event)
     {
         case EVENT_SENSOR_LOST:
-            // Handle sensor lost
-            if (tud_cdc_connected())
-            {
-                tud_cdc_write_str("TEMP: SENSOR LOST\r\n");
-                tud_cdc_write_flush();
-            }
+            usb_printf("TEMP: SENSOR LOST\r\n");
             break;
         case EVENT_ABOVE_A:
-            // Handle above A
-            if (tud_cdc_connected())
-            {
-                tud_cdc_write_str("TEMP: ABOVE A\r\n");
-                tud_cdc_write_flush();
-            }
+            usb_printf("TEMP: ABOVE A\r\n");
             break;
         case EVENT_ABOVE_B:
-            // Handle above B
-            if (tud_cdc_connected())
-            {
-                tud_cdc_write_str("TEMP: ABOVE B\r\n");
-                tud_cdc_write_flush();
-            }
+            usb_printf("TEMP: ABOVE B\r\n");
             break;
         case EVENT_BELOW_A:
-            // Handle below A
-            if (tud_cdc_connected())
-            {
-                tud_cdc_write_str("TEMP: BELOW A\r\n");
-                tud_cdc_write_flush();
-            }
+            usb_printf("TEMP: BELOW A\r\n");
             break;
         case EVENT_BELOW_B:
-            // Handle below B
-            if (tud_cdc_connected())
-            {
-                tud_cdc_write_str("TEMP: BELOW B\r\n");
-                tud_cdc_write_flush();
-            }
+            usb_printf("TEMP: BELOW B\r\n");
             break;
     }
 }
@@ -189,8 +164,8 @@ int main(void)
   }
   __HAL_RCC_USB_CLK_ENABLE();
   HAL_Delay(20);
-  // Initialize TinyUSB
-  tusb_init();
+  // Initialize USB wrapper (calls tusb_init)
+  usb_init();
 
   // Start TIM1 PWM on all Channels
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
@@ -222,50 +197,34 @@ int main(void)
   temperature_sensor_set_setpoint_b(3000);
   temperature_sensor_set_hysteresis(50);
   temperature_sensor_register_handler(temperature_sensor_event_handler);
-  char debug_buf[128];
-  while (1)
-  {
-    // Non-blocking tasks
-    tud_task();
-    pwm_repeater_tick();
-    temperature_sensor_tick();
-    static uint32_t last_init_debug = 0;
-    if (HAL_GetTick() - last_init_debug >= 1000)
+    while (1)
     {
-      last_init_debug = HAL_GetTick();
-      if (tud_cdc_connected())
-      {
+        // Non-blocking tasks
+        usb_task();
+        pwm_repeater_tick();
+        temperature_sensor_tick();
         
-        // sprintf(debug_buf, "TICKS: %lu\r\n", get_ticks());
-        // tud_cdc_write_str(debug_buf);
-        // tud_cdc_write_flush();
-        sprintf(debug_buf, "CH_A: %u Hz, %u\r\n", 
-                (unsigned int)pwm_get_frequency_a(), (unsigned int)pwm_get_duty_a());
-        tud_cdc_write_str(debug_buf);
-        tud_cdc_write_flush();
-        sprintf(debug_buf, "CH_B: %u Hz, %u\r\n", 
-                (unsigned int)pwm_get_frequency_b(), (unsigned int)pwm_get_duty_b());
-        tud_cdc_write_str(debug_buf);
-        tud_cdc_write_flush();
-      }
-      
-
-        if (tud_cdc_connected())
+        static uint32_t last_init_debug = 0;
+        if (HAL_GetTick() - last_init_debug >= 1000)
         {
+            last_init_debug = HAL_GetTick();
+            
+            usb_printf("CH_A: %u Hz, %u\r\n", 
+                       (unsigned int)pwm_get_frequency_a(), (unsigned int)pwm_get_duty_a());
+            usb_printf("CH_B: %u Hz, %u\r\n", 
+                       (unsigned int)pwm_get_frequency_b(), (unsigned int)pwm_get_duty_b());
+
             uint16_t raw_temp = get_temperature();
             if (raw_temp == 0xFFFF)
             {
-                tud_cdc_write_str("TEMP: SENSOR LOST\r\n");
+                usb_printf("TEMP: SENSOR LOST\r\n");
             }
             else
             {
-                snprintf(debug_buf, sizeof(debug_buf), "TEMP: %u\r\n", raw_temp);
-                tud_cdc_write_str(debug_buf);
+                usb_printf("TEMP: %u\r\n", raw_temp);
             }
-            tud_cdc_write_flush();
         }
     }
-  }
   /* USER CODE END 3 */
 }
 
