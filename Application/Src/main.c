@@ -1,22 +1,22 @@
 #include "main.h"
+#include "stm32c0xx_hal.h"
+#include "stm32c0xx_hal_rcc_ex.h"
+#include "usb.h"
+#include <stdio.h>
+#include "sys_time.h"
+#include "pwm_repeater.h"
+#include "temperature_sensor.h"
 #include "delay.h"
 #include "ds18b20.h"
 #include "fan_control.h"
-#include "pwm_repeater.h"
-#include "stm32c0xx_hal.h"
-#include "stm32c0xx_hal_rcc_ex.h"
-#include "sys_time.h"
-#include "temperature_sensor.h"
-#include "usb.h"
-#include <stdio.h>
 
-
-typedef struct {
-  uint32_t last_rising_timestamp;
-  uint32_t last_falling_timestamp;
-  uint32_t last_period;
-  uint32_t last_high_time;
-  float duty_cycle;
+typedef struct
+{
+    uint32_t last_rising_timestamp;
+    uint32_t last_falling_timestamp;
+    uint32_t last_period;
+    uint32_t last_high_time;
+    float duty_cycle;
 } PwmMeasure;
 
 I2C_HandleTypeDef hi2c2;
@@ -44,31 +44,35 @@ static void MX_FLASH_Init(void);
 static void MX_TIM16_Init(void);
 static void MX_TIM17_Init(void);
 
+
 uint64_t get_microseconds(void);
 
-void temperature_sensor_event_handler(TempSensorEvent event) {
-  switch (event) {
-  case EVENT_SENSOR_LOST:
-    usb_printf("TEMP: SENSOR LOST\r\n");
-    break;
-  case EVENT_ABOVE_A:
-    usb_printf("TEMP: ABOVE A\r\n");
-    break;
-  case EVENT_ABOVE_B:
-    usb_printf("TEMP: ABOVE B\r\n");
-    break;
-  case EVENT_BELOW_A:
-    usb_printf("TEMP: BELOW A\r\n");
-    break;
-  case EVENT_BELOW_B:
-    usb_printf("TEMP: BELOW B\r\n");
-    break;
-  }
+
+void temperature_sensor_event_handler(TempSensorEvent event)
+{
+    switch (event)
+    {
+        case EVENT_SENSOR_LOST:
+            usb_printf("TEMP: SENSOR LOST\r\n");
+            break;
+        case EVENT_ABOVE_A:
+            usb_printf("TEMP: ABOVE A\r\n");
+            break;
+        case EVENT_ABOVE_B:
+            usb_printf("TEMP: ABOVE B\r\n");
+            break;
+        case EVENT_BELOW_A:
+            usb_printf("TEMP: BELOW A\r\n");
+            break;
+        case EVENT_BELOW_B:
+            usb_printf("TEMP: BELOW B\r\n");
+            break;
+    }
 }
 
-int main(void) {
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick.
-   */
+int main(void)
+{
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
   /* Configure the system clock */
@@ -89,7 +93,8 @@ int main(void) {
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
   PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSE;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+  {
     Error_Handler();
   }
   __HAL_RCC_USB_CLK_ENABLE();
@@ -104,6 +109,7 @@ int main(void) {
   fan_control_set_unit_duty(2, 10);
   fan_control_set_unit_duty(3, 60);
   fan_control_set_unit_duty(4, 80);
+
 
   // Start TIM2 PWM on all Channels
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
@@ -129,92 +135,104 @@ int main(void) {
   temperature_sensor_set_setpoint_b(3000);
   temperature_sensor_set_hysteresis(50);
   temperature_sensor_register_handler(temperature_sensor_event_handler);
-  while (1) {
-    // Non-blocking tasks
-    usb_task();
-    pwm_repeater_task();
-    temperature_sensor_task();
+    while (1)
+    {
+        // Non-blocking tasks
+        usb_task();
+        pwm_repeater_task();
+        temperature_sensor_task();
+        
+        static uint32_t last_init_debug = 0;
+        static uint32_t last_fan_test = 0;
+        static bool fan_toggle = false;
 
-    static uint32_t last_init_debug = 0;
-    static uint32_t last_fan_test = 0;
-    static bool fan_toggle = false;
+        if (HAL_GetTick() - last_fan_test >= 2000)
+        {
+            last_fan_test = HAL_GetTick();
+            fan_toggle = !fan_toggle;
 
-    if (HAL_GetTick() - last_fan_test >= 2000) {
-      last_fan_test = HAL_GetTick();
-      fan_toggle = !fan_toggle;
+            if (fan_toggle)
+            {
+                fan_control_set_power_channel_duty(FAN_CHANNEL2, 50);
+                fan_control_set_remote_channel_duty(FAN_CHANNEL1, 0);
+                usb_printf("FAN CH1: POWER ON, REMOTE OFF\r\n");
+            }
+            else
+            {
+                fan_control_set_power_channel_duty(FAN_CHANNEL2, 0);
+                fan_control_set_remote_channel_duty(FAN_CHANNEL1, 50);
+                usb_printf("FAN CH1: POWER OFF, REMOTE ON\r\n");
+            }
+        }
 
-      if (fan_toggle) {
-        fan_control_set_power_channel_duty(FAN_CHANNEL2, 50);
-        fan_control_set_remote_channel_duty(FAN_CHANNEL1, 0);
-        usb_printf("FAN CH1: POWER ON, REMOTE OFF\r\n");
-      } else {
-        fan_control_set_power_channel_duty(FAN_CHANNEL2, 0);
-        fan_control_set_remote_channel_duty(FAN_CHANNEL1, 50);
-        usb_printf("FAN CH1: POWER OFF, REMOTE ON\r\n");
-      }
+        if (HAL_GetTick() - last_init_debug >= 1000)
+        {
+            last_init_debug = HAL_GetTick();
+            
+            usb_printf("CH_A: %u Hz, %u\r\n", 
+                       (unsigned int)pwm_get_frequency_a(), (unsigned int)pwm_get_duty_a());
+            usb_printf("CH_B: %u Hz, %u\r\n", 
+                       (unsigned int)pwm_get_frequency_b(), (unsigned int)pwm_get_duty_b());
+
+            uint16_t raw_temp = get_temperature();
+            if (raw_temp == 0xFFFF)
+            {
+                usb_printf("TEMP: SENSOR LOST\r\n");
+            }
+            else
+            {
+                usb_printf("TEMP: %u\r\n", raw_temp);
+            }
+        }
     }
-
-    if (HAL_GetTick() - last_init_debug >= 1000) {
-      last_init_debug = HAL_GetTick();
-
-      usb_printf("CH_A: %u Hz, %u\r\n", (unsigned int)pwm_get_frequency_a(),
-                 (unsigned int)pwm_get_duty_a());
-      usb_printf("CH_B: %u Hz, %u\r\n", (unsigned int)pwm_get_frequency_b(),
-                 (unsigned int)pwm_get_duty_b());
-
-      uint16_t raw_temp = get_temperature();
-      if (raw_temp == 0xFFFF) {
-        usb_printf("TEMP: SENSOR LOST\r\n");
-      } else {
-        usb_printf("TEMP: %u\r\n", raw_temp);
-      }
-    }
-  }
   /* USER CODE END 3 */
 }
 
 /**
- * @brief System Clock Configuration
- * @retval None
- */
-void SystemClock_Config(void) {
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void SystemClock_Config(void)
+{
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
   __HAL_FLASH_SET_LATENCY(FLASH_LATENCY_1);
 
   /** Initializes the RCC Oscillators according to the specified parameters
-   * in the RCC_OscInitTypeDef structure.
-   */
-  RCC_OscInitStruct.OscillatorType =
-      RCC_OSCILLATORTYPE_HSE | RCC_OSCILLATORTYPE_HSI48;
+  * in the RCC_OscInitTypeDef structure.
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE|RCC_OSCILLATORTYPE_HSI48;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
 
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
     Error_Handler();
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
-   */
-  RCC_ClkInitStruct.ClockType =
-      RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1;
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSE;
   RCC_ClkInitStruct.SYSCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK) {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
+  {
     Error_Handler();
   }
 }
 
 /**
- * @brief FLASH Initialization Function
- * @param None
- * @retval None
- */
-static void MX_FLASH_Init(void) {
+  * @brief FLASH Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_FLASH_Init(void)
+{
 
   /* USER CODE BEGIN FLASH_Init 0 */
 
@@ -223,23 +241,27 @@ static void MX_FLASH_Init(void) {
   /* USER CODE BEGIN FLASH_Init 1 */
 
   /* USER CODE END FLASH_Init 1 */
-  if (HAL_FLASH_Unlock() != HAL_OK) {
+  if (HAL_FLASH_Unlock() != HAL_OK)
+  {
     Error_Handler();
   }
-  if (HAL_FLASH_Lock() != HAL_OK) {
+  if (HAL_FLASH_Lock() != HAL_OK)
+  {
     Error_Handler();
   }
   /* USER CODE BEGIN FLASH_Init 2 */
 
   /* USER CODE END FLASH_Init 2 */
+
 }
 
 /**
- * @brief I2C2 Initialization Function
- * @param None
- * @retval None
- */
-static void MX_I2C2_Init(void) {
+  * @brief I2C2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C2_Init(void)
+{
 
   /* USER CODE BEGIN I2C2_Init 0 */
 
@@ -257,32 +279,37 @@ static void MX_I2C2_Init(void) {
   hi2c2.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
   hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
   hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c2) != HAL_OK) {
+  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
+  {
     Error_Handler();
   }
 
   /** Configure Analogue filter
-   */
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c2, I2C_ANALOGFILTER_ENABLE) != HAL_OK) {
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c2, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
     Error_Handler();
   }
 
   /** Configure Digital filter
-   */
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c2, 0) != HAL_OK) {
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c2, 0) != HAL_OK)
+  {
     Error_Handler();
   }
   /* USER CODE BEGIN I2C2_Init 2 */
 
   /* USER CODE END I2C2_Init 2 */
+
 }
 
 /**
- * @brief TIM1 Initialization Function
- * @param None
- * @retval None
- */
-static void MX_TIM1_Init(void) {
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
 
   /* USER CODE BEGIN TIM1_Init 0 */
 
@@ -302,13 +329,15 @@ static void MX_TIM1_Init(void) {
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK) {
+  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
+  {
     Error_Handler();
   }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK) {
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
@@ -318,16 +347,20 @@ static void MX_TIM1_Init(void) {
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
   sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK) {
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK) {
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK) {
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_4) != HAL_OK) {
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  {
     Error_Handler();
   }
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
@@ -343,21 +376,24 @@ static void MX_TIM1_Init(void) {
   sBreakDeadTimeConfig.Break2Filter = 0;
   sBreakDeadTimeConfig.Break2AFMode = TIM_BREAK_AFMODE_INPUT;
   sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
-  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK) {
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
+  {
     Error_Handler();
   }
   /* USER CODE BEGIN TIM1_Init 2 */
 
   /* USER CODE END TIM1_Init 2 */
   HAL_TIM_MspPostInit(&htim1);
+
 }
 
 /**
- * @brief TIM2 Initialization Function
- * @param None
- * @retval None
- */
-static void MX_TIM2_Init(void) {
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
 
   /* USER CODE BEGIN TIM2_Init 0 */
 
@@ -376,42 +412,50 @@ static void MX_TIM2_Init(void) {
   htim2.Init.Period = 4294967295;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim2) != HAL_OK) {
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
     Error_Handler();
   }
   sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK) {
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
     Error_Handler();
   }
-  if (HAL_TIM_IC_Init(&htim2) != HAL_OK) {
+  if (HAL_TIM_IC_Init(&htim2) != HAL_OK)
+  {
     Error_Handler();
   }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK) {
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
     Error_Handler();
   }
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
   sConfigIC.ICFilter = 0;
-  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_3) != HAL_OK) {
+  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_3) != HAL_OK)
+  {
     Error_Handler();
   }
-  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_4) != HAL_OK) {
+  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_4) != HAL_OK)
+  {
     Error_Handler();
   }
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+
 }
 
 /**
- * @brief TIM3 Initialization Function
- * @param None
- * @retval None
- */
-static void MX_TIM3_Init(void) {
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
 
   /* USER CODE BEGIN TIM3_Init 0 */
 
@@ -429,42 +473,50 @@ static void MX_TIM3_Init(void) {
   htim3.Init.Period = 65535;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK) {
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
     Error_Handler();
   }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK) {
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK) {
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK) {
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_3) != HAL_OK) {
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_4) != HAL_OK) {
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  {
     Error_Handler();
   }
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
   HAL_TIM_MspPostInit(&htim3);
+
 }
 
 /**
- * @brief TIM16 Initialization Function
- * @param None
- * @retval None
- */
-static void MX_TIM16_Init(void) {
+  * @brief TIM16 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM16_Init(void)
+{
 
   /* USER CODE BEGIN TIM16_Init 0 */
 
@@ -483,10 +535,12 @@ static void MX_TIM16_Init(void) {
   htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim16.Init.RepetitionCounter = 0;
   htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim16) != HAL_OK) {
+  if (HAL_TIM_Base_Init(&htim16) != HAL_OK)
+  {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_Init(&htim16) != HAL_OK) {
+  if (HAL_TIM_PWM_Init(&htim16) != HAL_OK)
+  {
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
@@ -496,7 +550,8 @@ static void MX_TIM16_Init(void) {
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
   sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  if (HAL_TIM_PWM_ConfigChannel(&htim16, &sConfigOC, TIM_CHANNEL_1) != HAL_OK) {
+  if (HAL_TIM_PWM_ConfigChannel(&htim16, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
     Error_Handler();
   }
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
@@ -507,21 +562,24 @@ static void MX_TIM16_Init(void) {
   sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
   sBreakDeadTimeConfig.BreakFilter = 0;
   sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
-  if (HAL_TIMEx_ConfigBreakDeadTime(&htim16, &sBreakDeadTimeConfig) != HAL_OK) {
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim16, &sBreakDeadTimeConfig) != HAL_OK)
+  {
     Error_Handler();
   }
   /* USER CODE BEGIN TIM16_Init 2 */
 
   /* USER CODE END TIM16_Init 2 */
   HAL_TIM_MspPostInit(&htim16);
+
 }
 
 /**
- * @brief TIM17 Initialization Function
- * @param None
- * @retval None
- */
-static void MX_TIM17_Init(void) {
+  * @brief TIM17 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM17_Init(void)
+{
 
   /* USER CODE BEGIN TIM17_Init 0 */
 
@@ -540,10 +598,12 @@ static void MX_TIM17_Init(void) {
   htim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim17.Init.RepetitionCounter = 0;
   htim17.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim17) != HAL_OK) {
+  if (HAL_TIM_Base_Init(&htim17) != HAL_OK)
+  {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_Init(&htim17) != HAL_OK) {
+  if (HAL_TIM_PWM_Init(&htim17) != HAL_OK)
+  {
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
@@ -553,7 +613,8 @@ static void MX_TIM17_Init(void) {
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
   sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  if (HAL_TIM_PWM_ConfigChannel(&htim17, &sConfigOC, TIM_CHANNEL_1) != HAL_OK) {
+  if (HAL_TIM_PWM_ConfigChannel(&htim17, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
     Error_Handler();
   }
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
@@ -564,21 +625,24 @@ static void MX_TIM17_Init(void) {
   sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
   sBreakDeadTimeConfig.BreakFilter = 0;
   sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
-  if (HAL_TIMEx_ConfigBreakDeadTime(&htim17, &sBreakDeadTimeConfig) != HAL_OK) {
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim17, &sBreakDeadTimeConfig) != HAL_OK)
+  {
     Error_Handler();
   }
   /* USER CODE BEGIN TIM17_Init 2 */
 
   /* USER CODE END TIM17_Init 2 */
   HAL_TIM_MspPostInit(&htim17);
+
 }
 
 /**
- * @brief USB Initialization Function
- * @param None
- * @retval None
- */
-static void MX_USB_PCD_Init(void) {
+  * @brief USB Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USB_PCD_Init(void)
+{
 
   /* USER CODE BEGIN USB_Init 0 */
 
@@ -598,20 +662,23 @@ static void MX_USB_PCD_Init(void) {
   hpcd_USB_DRD_FS.Init.vbus_sensing_enable = DISABLE;
   hpcd_USB_DRD_FS.Init.bulk_doublebuffer_enable = DISABLE;
   hpcd_USB_DRD_FS.Init.iso_singlebuffer_enable = DISABLE;
-  if (HAL_PCD_Init(&hpcd_USB_DRD_FS) != HAL_OK) {
+  if (HAL_PCD_Init(&hpcd_USB_DRD_FS) != HAL_OK)
+  {
     Error_Handler();
   }
   /* USER CODE BEGIN USB_Init 2 */
 
   /* USER CODE END USB_Init 2 */
+
 }
 
 /**
- * @brief GPIO Initialization Function
- * @param None
- * @retval None
- */
-static void MX_GPIO_Init(void) {
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPIO_Init(void)
+{
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
@@ -653,42 +720,50 @@ static void MX_GPIO_Init(void) {
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
-/**
- * @brief  Period elapsed callback in non blocking mode
- * @param  htim: TIM handle
- * @retval None
- */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-  if (htim->Instance == TIM3) {
-    timer3_overflow_count++;
-  }
-}
+
 
 /**
- * @brief  This function is executed in case of error occurrence.
- * @retval None
- */
-void Error_Handler(void) {
+  * @brief  Period elapsed callback in non blocking mode
+  * @param  htim: TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM3)
+    {
+        timer3_overflow_count++;
+    }
+}
+
+
+
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
-  while (1) {
+  while (1)
+  {
   }
   /* USER CODE END Error_Handler_Debug */
 }
 #ifdef USE_FULL_ASSERT
 /**
- * @brief  Reports the name of the source file and the source line number
- *         where the assert_param error has occurred.
- * @param  file: pointer to the source file name
- * @param  line: assert_param error line source number
- * @retval None
- */
-void assert_failed(uint8_t *file, uint32_t line) {
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
+void assert_failed(uint8_t *file, uint32_t line)
+{
   /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line
-     number, ex: printf("Wrong parameters value: file %s on line %d\r\n", file,
-     line) */
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

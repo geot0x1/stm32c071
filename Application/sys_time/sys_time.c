@@ -1,5 +1,5 @@
 #include "sys_time.h"
-#include "main.h"
+#include "stm32c0xx_hal.h"
 
 /**
  * @brief  Global system tick counter.

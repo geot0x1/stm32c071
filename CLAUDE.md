@@ -138,6 +138,24 @@ Each module is a self-contained library linked into the final executable. Key mo
   - 3-wire: ON/OFF with tachometer feedback (not required for basic operation)
   - 4-wire: PWM control (0% or 100% logic)
 
+### DIP Switch Configuration
+
+| Switch State | Fan Type |
+|---|---|
+| `00` | 2-wire FAN (ON/OFF power control) |
+| `01` | 3-wire FAN (ON/OFF + tachometer) |
+| `10` | 4-wire FAN (PWM 0%/100%) |
+
+> **Note (4-wire):** Tacho reading is not mandatory. A future option is to use 4 switches to select Power PWM vs. Remote PWM for 4 independent fan channels.
+
+### Status LED Behavior
+
+| LED Pattern | System State |
+|-------------|--------------|
+| ON 100ms / OFF 2000ms | Fans are **OFF** |
+| ON 100ms / OFF 1000ms | Fans are **ON** |
+| ON 200ms / OFF 200ms | **ERROR** (Overheat / Sensor Lost) |
+
 ## Code Style
 
 Follow the style guide in `.agents/rules/CODING_STYLE.md`:

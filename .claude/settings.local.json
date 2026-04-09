@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmd.exe /c \"dir /a \\\\\"C:\\\\Users\\\\panos\\\\Documents\\\\PROJECTS\\\\external_stm_project\\\\stm32c071\\\\\"\")",
+      "Bash(cmd.exe /c \"dir /a /b \\\\\"C:\\\\Users\\\\panos\\\\Documents\\\\PROJECTS\\\\external_stm_project\\\\stm32c071\\\\\"\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path 'C:\\\\Users\\\\panos\\\\Documents\\\\PROJECTS\\\\external_stm_project\\\\stm32c071' -Force | Select-Object Name\")",
+      "Bash(powershell.exe -Command \"Get-Command STM32_Programmer_CLI -ErrorAction SilentlyContinue; Get-ChildItem 'C:\\\\Program Files\\\\STMicroelectronics' -Recurse -Filter 'STM32_Programmer_CLI.exe' -ErrorAction SilentlyContinue | Select-Object FullName\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem 'C:\\\\Program Files\\\\STMicroelectronics' -Recurse -Filter 'STM32_Programmer_CLI.exe' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem 'C:\\\\Program Files\\\\STMicroelectronics' -Recurse -Filter 'STM32_Programmer_CLI.exe' -ErrorAction SilentlyContinue | Select-Object FullName | Out-String\")",
+      "Bash(cmd.exe /c \"where STM32_Programmer_CLI 2>&1 && echo FOUND || echo NOT_IN_PATH\")",
+      "Bash(cmd.exe /c \"dir /s /b \\\\\"C:\\\\Program Files\\\\STMicroelectronics\\\\STM32Cube\\\\STM32CubeProgrammer\\\\\" 2>&1 | findstr /i \\\\\"CLI\\\\\"\")",
+      "Bash(powershell.exe -NoProfile -NonInteractive -Command \"Write-Output \\(Get-ChildItem 'C:\\\\Program Files' -Filter 'STM32_Programmer_CLI.exe' -Recurse -ErrorAction SilentlyContinue\\).FullName\")",
+      "Bash(pip install:*)",
+      "Bash(git mv:*)",
+      "Bash(python build.py --clean)",
+      "Bash(python build.py)",
+      "Bash(git add:*)",
+      "Bash(git rm:*)"
+    ]
+  }
+}

@@ -83,7 +83,6 @@ void ds18b20_begin(Ds18b20_t * ds)
 			if (ds18b20_valid_family(device_address))
 			{
 				ds->ds18Count++;
-
 			}
 		}
 	}
