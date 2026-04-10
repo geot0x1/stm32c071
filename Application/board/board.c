@@ -1,28 +1,31 @@
 #include "board.h"
 #include "board_config.h"
-#include "stm32c0xx_hal.h"
 #include "gpio.h"
+#include "stm32c0xx_hal.h"
 
-/* ── Private peripheral instances ─────────────────────────────────────────── */
+/* ── Private peripheral instances ───────────────────────────────────────────
+ */
 
 static Gpio_t led_gpio;
 static Gpio_t exti_gpio;
 static Gpio_t onewire_gpio;
 
-static I2c_t  sensor_i2c;
-static Usb_t  board_usb;
+static I2c_t sensor_i2c;
+static Usb_t board_usb;
 
-/* ── Forward declarations ──────────────────────────────────────────────────── */
+/* ── Forward declarations ────────────────────────────────────────────────────
+ */
 
-static void SystemClock_Config(void);
-static void MX_FLASH_Init(void);
+static void system_clock_config(void);
+static void mx_flash_init(void);
 
-/* ── Public API ────────────────────────────────────────────────────────────── */
+/* ── Public API ──────────────────────────────────────────────────────────────
+ */
 
 void board_init(void)
 {
     /* 1. System clock (must be first) */
-    SystemClock_Config();
+    system_clock_config();
 
     /* 2. GPIO — enable all port clocks once so BSP helpers are idempotent */
     __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -34,9 +37,8 @@ void board_init(void)
     gpio_output_init(&led_gpio, BOARD_LED_PORT, BOARD_LED_PIN, GPIO_PIN_RESET);
 
     /* 2b. External interrupt input */
-    gpio_exti_init(&exti_gpio, BOARD_EXTI_PORT, BOARD_EXTI_PIN,
-                   BOARD_EXTI_MODE, BOARD_EXTI_PULL,
-                   BOARD_EXTI_IRQn, 0);
+    gpio_exti_init(&exti_gpio, BOARD_EXTI_PORT, BOARD_EXTI_PIN, BOARD_EXTI_MODE,
+                   BOARD_EXTI_PULL, BOARD_EXTI_IRQn, 0);
 
     /* 2c. 1-Wire bus (open-drain + pull-up; runtime owned by onewire.c) */
     gpio_open_drain_init(&onewire_gpio, BOARD_ONEWIRE_PORT, BOARD_ONEWIRE_PIN);
@@ -49,10 +51,11 @@ void board_init(void)
     HAL_Delay(20); /* USB clock stabilization */
 
     /* 5. Flash — verify access (required before NVS use) */
-    MX_FLASH_Init();
+    mx_flash_init();
 }
 
-/* ── LED control ───────────────────────────────────────────────────────────── */
+/* ── LED control ─────────────────────────────────────────────────────────────
+ */
 
 void board_led_set(bool on)
 {
@@ -64,7 +67,8 @@ void board_led_toggle(void)
     gpio_toggle(&led_gpio);
 }
 
-/* ── Peripheral getters ────────────────────────────────────────────────────── */
+/* ── Peripheral getters ──────────────────────────────────────────────────────
+ */
 
 I2c_t *board_get_i2c(void)
 {
@@ -76,7 +80,8 @@ Usb_t *board_get_usb(void)
     return &board_usb;
 }
 
-/* ── Private init helpers ──────────────────────────────────────────────────── */
+/* ── Private init helpers ────────────────────────────────────────────────────
+ */
 
 /**
  * @brief System Clock Configuration
@@ -85,30 +90,31 @@ Usb_t *board_get_usb(void)
  * SYSCLK / HCLK / APB1  = 48 MHz (no divisors)
  * HSI48                  = ON  (required for USB)
  */
-static void SystemClock_Config(void)
+static void system_clock_config(void)
 {
-    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+    RCC_OscInitTypeDef rcc_osc_init = {0};
+    RCC_ClkInitTypeDef rcc_clk_init = {0};
 
     __HAL_FLASH_SET_LATENCY(FLASH_LATENCY_1);
 
-    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE | RCC_OSCILLATORTYPE_HSI48;
-    RCC_OscInitStruct.HSEState       = RCC_HSE_ON;
-    RCC_OscInitStruct.HSI48State     = RCC_HSI48_ON;
+    rcc_osc_init.OscillatorType =
+        RCC_OSCILLATORTYPE_HSE | RCC_OSCILLATORTYPE_HSI48;
+    rcc_osc_init.HSEState = RCC_HSE_ON;
+    rcc_osc_init.HSI48State = RCC_HSI48_ON;
 
-    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+    if (HAL_RCC_OscConfig(&rcc_osc_init) != HAL_OK)
     {
         Error_Handler();
     }
 
-    RCC_ClkInitStruct.ClockType      = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
-                                     | RCC_CLOCKTYPE_PCLK1;
-    RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_HSE;
-    RCC_ClkInitStruct.SYSCLKDivider  = RCC_SYSCLK_DIV1;
-    RCC_ClkInitStruct.AHBCLKDivider  = RCC_HCLK_DIV1;
-    RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV1;
+    rcc_clk_init.ClockType =
+        RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1;
+    rcc_clk_init.SYSCLKSource = RCC_SYSCLKSOURCE_HSE;
+    rcc_clk_init.SYSCLKDivider = RCC_SYSCLK_DIV1;
+    rcc_clk_init.AHBCLKDivider = RCC_HCLK_DIV1;
+    rcc_clk_init.APB1CLKDivider = RCC_APB1_DIV1;
 
-    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
+    if (HAL_RCC_ClockConfig(&rcc_clk_init, FLASH_LATENCY_1) != HAL_OK)
     {
         Error_Handler();
     }
@@ -117,19 +123,21 @@ static void SystemClock_Config(void)
 /**
  * @brief Verify FLASH access (unlock/lock cycle — required before NVS use).
  */
-static void MX_FLASH_Init(void)
+static void mx_flash_init(void)
 {
     if (HAL_FLASH_Unlock() != HAL_OK)
     {
         Error_Handler();
     }
+
     if (HAL_FLASH_Lock() != HAL_OK)
     {
         Error_Handler();
     }
 }
 
-/* ── Error handling ────────────────────────────────────────────────────────── */
+/* ── Error handling ──────────────────────────────────────────────────────────
+ */
 
 void Error_Handler(void)
 {

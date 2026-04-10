@@ -17,7 +17,13 @@
       "Bash(git add:*)",
       "Bash(git rm:*)",
       "Bash(xargs grep:*)",
-      "Bash(grep -E \"\\\\.\\(c|h\\)$\")"
+      "Bash(grep -E \"\\\\.\\(c|h\\)$\")",
+      "Bash(find c:/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071/Application -type f \\\\\\( -name \"*.c\" -o -name \"*.h\" \\\\\\) -exec sed -i 's/Tim_t\\\\b/Tim/g' {} \\\\;)",
+      "Bash(sed -i 's/_owBus/_ow_bus/g; s/_ds18b20/_ds18b20_dev/g; s/_currentState/_current_state/g; s/_lastTick/_last_tick/g; s/_lastTemperature/_last_temperature/g; s/_failCount/_fail_count/g; s/_eventHandler/_event_handler/g; s/_isAboveA/_is_above_a/g; s/_isAboveB/_is_above_b/g; s/_isLost/_is_lost/g' temperature_sensor/temperature_sensor.c temperature_sensor/temperature_sensor.h)",
+      "Bash(sed -i 's/totalTicks/total_ticks/g' fan_control/fan_control.c)",
+      "Bash(sed -i 's/bitMask/bit_mask/g' onewire/onewire.c)",
+      "Bash(sed -i 's/g_nvs/gNvs/g' nvs/nvs.c nvs/nvs.h)",
+      "Bash(python ../build.py)"
     ]
   }
 }

@@ -224,9 +224,9 @@ uint8_t ow_read_bit(OneWire *const ow)
 void ow_write(OneWire *const ow, uint8_t v)
 {
     ow_sem_lock(ow);
-    for (uint8_t bitMask = 0x01; bitMask; bitMask <<= 1)
+    for (uint8_t bit_mask = 0x01; bit_mask; bit_mask <<= 1)
     {
-        ow_write_bit(ow, (bitMask & v) ? 1 : 0);
+        ow_write_bit(ow, (bit_mask & v) ? 1 : 0);
     }
     ow_sem_unlock(ow);
 }
@@ -243,14 +243,14 @@ void ow_write_bytes(OneWire *const ow, const uint8_t *buf, uint16_t count)
 
 uint8_t ow_read(OneWire *const ow)
 {
-    uint8_t bitMask;
+    uint8_t bit_mask;
     uint8_t r = 0;
     ow_sem_lock(ow);
-    for (bitMask = 0x01; bitMask; bitMask <<= 1)
+    for (bit_mask = 0x01; bit_mask; bit_mask <<= 1)
     {
         if (ow_read_bit(ow))
         {
-            r |= bitMask;
+            r |= bit_mask;
         }
     }
     ow_sem_unlock(ow);

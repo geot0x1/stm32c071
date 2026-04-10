@@ -6,10 +6,10 @@
 
 typedef enum
 {
-    FAN_CHANNEL1 = 1,
-    FAN_CHANNEL2,
-    FAN_CHANNEL3,
-    FAN_CHANNEL4
+    FanChannelOne = 1,
+    FanChannelTwo,
+    FanChannelThree,
+    FanChannelFour
 } FanChannel;
 
 /**
@@ -18,7 +18,7 @@ typedef enum
  * @param power_tim  TIM1 handle from board_get_fan_power_tim()
  * @param remote_tim TIM3 handle from board_get_fan_remote_tim()
  */
-void fan_control_init(Tim_t *power_tim, Tim_t *remote_tim);
+void fan_control_init(Tim *power_tim, Tim *remote_tim);
 
 void fan_power_init(uint32_t frequency_hz);
 void fan_remote_init(uint32_t frequency_hz);

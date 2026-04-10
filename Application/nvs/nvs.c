@@ -7,17 +7,17 @@
  *  Module-level state
  *===========================================================================*/
 
-static nvs_context_t g_nvs;
+static nvs_context_t gNvs;
 
 /*===========================================================================
  *  Convenience macros for driver calls
  *===========================================================================*/
 
-#define DRV_WRITE(addr, data, len)   g_nvs.driver.write((addr), (data), (len))
-#define DRV_READ(addr, data, len)    g_nvs.driver.read((addr), (data), (len))
-#define DRV_ERASE(addr)              g_nvs.driver.erase_sector((addr))
-#define SECTOR_SIZE                  g_nvs.driver.sector_size
-#define SECTOR_COUNT                 g_nvs.driver.sector_count
+#define DRV_WRITE(addr, data, len)   gNvs.driver.write((addr), (data), (len))
+#define DRV_READ(addr, data, len)    gNvs.driver.read((addr), (data), (len))
+#define DRV_ERASE(addr)              gNvs.driver.erase_sector((addr))
+#define SECTOR_SIZE                  gNvs.driver.sector_size
+#define SECTOR_COUNT                 gNvs.driver.sector_count
 
 /*===========================================================================
  *  Internal helpers — sector addressing
@@ -303,7 +303,7 @@ static nvs_err_t nvs_gc(void)
                 uint32_t esz = entry_total_size(kl, dl);
 
                 /* Sector-boundary check for the active sector. */
-                if (g_nvs.write_offset + esz > SECTOR_SIZE)
+                if (gNvs.write_offset + esz > SECTOR_SIZE)
                 {
                     /* Cannot fit — this live entry would be lost.
                        Abort GC to prevent data loss. */
@@ -330,14 +330,14 @@ static nvs_err_t nvs_gc(void)
                 memcpy(&entry[NVS_ENTRY_HDR_SIZE + kl], data_buf, dl);
 
                 /* Flash-write the entry. */
-                DRV_WRITE(g_nvs.active_sector_addr + g_nvs.write_offset,
+                DRV_WRITE(gNvs.active_sector_addr + gNvs.write_offset,
                           entry, (uint16_t)esz);
 
                 /* Commit: flip state to Valid. */
-                set_entry_state(g_nvs.active_sector_addr + g_nvs.write_offset,
+                set_entry_state(gNvs.active_sector_addr + gNvs.write_offset,
                                 NVS_ENTRY_VALID);
 
-                g_nvs.write_offset += esz;
+                gNvs.write_offset += esz;
             }
         }
 
@@ -379,10 +379,10 @@ static nvs_err_t activate_next_sector(void)
 
         if (magic_val == 0xFFFFFFFF) /* entire header is erased */
         {
-            g_nvs.seq_counter++;
-            write_sector_hdr(base, g_nvs.seq_counter, NVS_SECTOR_ACTIVE);
-            g_nvs.active_sector_addr = base;
-            g_nvs.write_offset       = NVS_SECTOR_HDR_SIZE;
+            gNvs.seq_counter++;
+            write_sector_hdr(base, gNvs.seq_counter, NVS_SECTOR_ACTIVE);
+            gNvs.active_sector_addr = base;
+            gNvs.write_offset       = NVS_SECTOR_HDR_SIZE;
             return NVS_OK;
         }
     }
@@ -403,10 +403,10 @@ static nvs_err_t activate_next_sector(void)
 
         if (magic_val == 0xFFFFFFFF)
         {
-            g_nvs.seq_counter++;
-            write_sector_hdr(base, g_nvs.seq_counter, NVS_SECTOR_ACTIVE);
-            g_nvs.active_sector_addr = base;
-            g_nvs.write_offset       = NVS_SECTOR_HDR_SIZE;
+            gNvs.seq_counter++;
+            write_sector_hdr(base, gNvs.seq_counter, NVS_SECTOR_ACTIVE);
+            gNvs.active_sector_addr = base;
+            gNvs.write_offset       = NVS_SECTOR_HDR_SIZE;
             return NVS_OK;
         }
     }
@@ -431,8 +431,8 @@ nvs_err_t nvs_mount(const nvs_flash_driver_t *driver)
     }
 
     /* Store a copy of the driver so callers don't need to keep it alive. */
-    g_nvs.driver = *driver;
-    g_nvs.seq_counter = 0;
+    gNvs.driver = *driver;
+    gNvs.seq_counter = 0;
 
     uint32_t best_seq  = 0;
     int      best_idx  = -1;
@@ -449,9 +449,9 @@ nvs_err_t nvs_mount(const nvs_flash_driver_t *driver)
                 best_idx = (int)i;
             }
             /* Track the global highest sequence number regardless of state. */
-            if (seq > g_nvs.seq_counter)
+            if (seq > gNvs.seq_counter)
             {
-                g_nvs.seq_counter = seq;
+                gNvs.seq_counter = seq;
             }
         }
     }
@@ -459,14 +459,14 @@ nvs_err_t nvs_mount(const nvs_flash_driver_t *driver)
     if (best_idx < 0)
     {
         /* No active sector — first-time format. */
-        g_nvs.seq_counter = 1;
+        gNvs.seq_counter = 1;
         write_sector_hdr(sector_addr(0), 1, NVS_SECTOR_ACTIVE);
-        g_nvs.active_sector_addr = sector_addr(0);
-        g_nvs.write_offset       = NVS_SECTOR_HDR_SIZE;
+        gNvs.active_sector_addr = sector_addr(0);
+        gNvs.write_offset       = NVS_SECTOR_HDR_SIZE;
         return NVS_OK;
     }
 
-    g_nvs.active_sector_addr = sector_addr((uint8_t)best_idx);
+    gNvs.active_sector_addr = sector_addr((uint8_t)best_idx);
 
     /* Walk entries to find write_offset (first free byte). */
     uint32_t off = NVS_SECTOR_HDR_SIZE;
@@ -474,7 +474,7 @@ nvs_err_t nvs_mount(const nvs_flash_driver_t *driver)
     {
         uint8_t  kl, dl;
         uint32_t crc;
-        uint8_t  st = read_entry_hdr(g_nvs.active_sector_addr + off, &kl, &dl, &crc);
+        uint8_t  st = read_entry_hdr(gNvs.active_sector_addr + off, &kl, &dl, &crc);
 
         if (st == NVS_ENTRY_WRITING)
         {
@@ -491,7 +491,7 @@ nvs_err_t nvs_mount(const nvs_flash_driver_t *driver)
         off += esz;
     }
 
-    g_nvs.write_offset = off;
+    gNvs.write_offset = off;
     return NVS_OK;
 }
 
@@ -519,10 +519,10 @@ nvs_err_t nvs_write(const char *key, const void *data, uint8_t len)
     uint32_t esz = entry_total_size(key_len, len);
 
     /* ---- Sector boundary / skip logic ---- */
-    if (g_nvs.write_offset + esz > SECTOR_SIZE)
+    if (gNvs.write_offset + esz > SECTOR_SIZE)
     {
         /* Mark current sector as Full. */
-        set_sector_state(g_nvs.active_sector_addr, NVS_SECTOR_FULL);
+        set_sector_state(gNvs.active_sector_addr, NVS_SECTOR_FULL);
 
         /* Activate a new sector (may trigger GC internally). */
         nvs_err_t rc = activate_next_sector();
@@ -553,15 +553,15 @@ nvs_err_t nvs_write(const char *key, const void *data, uint8_t len)
     memcpy(&entry[NVS_ENTRY_HDR_SIZE + key_len], data, len);
 
     /* ---- Write the entry (state is still 0xFF = Writing) ---- */
-    DRV_WRITE(g_nvs.active_sector_addr + g_nvs.write_offset,
+    DRV_WRITE(gNvs.active_sector_addr + gNvs.write_offset,
               entry, (uint16_t)esz);
 
     /* ---- Commit: flip state to Valid ---- */
-    set_entry_state(g_nvs.active_sector_addr + g_nvs.write_offset,
+    set_entry_state(gNvs.active_sector_addr + gNvs.write_offset,
                     NVS_ENTRY_VALID);
 
-    uint32_t new_entry_addr = g_nvs.active_sector_addr + g_nvs.write_offset;
-    g_nvs.write_offset += esz;
+    uint32_t new_entry_addr = gNvs.active_sector_addr + gNvs.write_offset;
+    gNvs.write_offset += esz;
 
     /* ---- Invalidate older versions of this key ---- */
     for (uint8_t i = 0; i < SECTOR_COUNT; i++)

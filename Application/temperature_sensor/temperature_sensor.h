@@ -5,11 +5,11 @@
 
 typedef enum
 {
-    EVENT_SENSOR_LOST,
-    EVENT_ABOVE_A,
-    EVENT_ABOVE_B,
-    EVENT_BELOW_A,
-    EVENT_BELOW_B
+    SensorLost,
+    AboveA,
+    AboveB,
+    BelowA,
+    BelowB
 } TempSensorEvent;
 
 typedef void (*TempSensorHandler)(TempSensorEvent event);

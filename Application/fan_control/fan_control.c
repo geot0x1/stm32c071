@@ -1,8 +1,8 @@
 #include "fan_control.h"
 #include "stm32c0xx_hal.h"
 
-static Tim_t *_power_tim  = NULL;
-static Tim_t *_remote_tim = NULL;
+static Tim *_power_tim  = NULL;
+static Tim *_remote_tim = NULL;
 
 static uint8_t _power_duties[4]  = {0, 0, 0, 0};
 static uint8_t _remote_duties[4] = {0, 0, 0, 0};
@@ -14,20 +14,20 @@ typedef struct
 } FanLink;
 
 static const FanLink _fan_links[4] = {
-    {FAN_CHANNEL2, FAN_CHANNEL1}, /* Unit 1: Power (TIM1_CH2) + Remote (TIM3_CH1) */
-    {FAN_CHANNEL1, FAN_CHANNEL4}, /* Unit 2: Power (TIM1_CH1) + Remote (TIM3_CH4) */
-    {FAN_CHANNEL4, FAN_CHANNEL3}, /* Unit 3: Power (TIM1_CH4) + Remote (TIM3_CH3) */
-    {FAN_CHANNEL3, FAN_CHANNEL2}  /* Unit 4: Power (TIM1_CH3) + Remote (TIM3_CH2) */
+    {FanChannelTwo, FanChannelOne}, /* Unit 1: Power (TIM1_CH2) + Remote (TIM3_CH1) */
+    {FanChannelOne, FanChannelFour}, /* Unit 2: Power (TIM1_CH1) + Remote (TIM3_CH4) */
+    {FanChannelFour, FanChannelThree}, /* Unit 3: Power (TIM1_CH4) + Remote (TIM3_CH3) */
+    {FanChannelThree, FanChannelTwo}  /* Unit 4: Power (TIM1_CH3) + Remote (TIM3_CH2) */
 };
 
 static uint32_t get_hal_channel(FanChannel channel)
 {
     switch (channel)
     {
-        case FAN_CHANNEL1: return TIM_CHANNEL_1;
-        case FAN_CHANNEL2: return TIM_CHANNEL_2;
-        case FAN_CHANNEL3: return TIM_CHANNEL_3;
-        case FAN_CHANNEL4: return TIM_CHANNEL_4;
+        case FanChannelOne: return TIM_CHANNEL_1;
+        case FanChannelTwo: return TIM_CHANNEL_2;
+        case FanChannelThree: return TIM_CHANNEL_3;
+        case FanChannelFour: return TIM_CHANNEL_4;
         default:           return 0;
     }
 }
@@ -39,7 +39,7 @@ static uint32_t get_hal_channel(FanChannel channel)
  * ARR values above 65535 — the simpler tim_pwm_set_freq (ARR-only)
  * is not sufficient here.
  */
-static void set_timer_freq(Tim_t *tim, uint32_t frequency_hz)
+static void set_timer_freq(Tim *tim, uint32_t frequency_hz)
 {
     if (frequency_hz == 0)
     {
@@ -47,19 +47,19 @@ static void set_timer_freq(Tim_t *tim, uint32_t frequency_hz)
     }
 
     uint32_t pclk       = HAL_RCC_GetPCLK1Freq();
-    uint32_t totalTicks = pclk / frequency_hz;
+    uint32_t total_ticks = pclk / frequency_hz;
     uint32_t psc        = 0;
     uint32_t arr        = 0;
 
-    if (totalTicks > 65536)
+    if (total_ticks > 65536)
     {
-        psc = totalTicks / 65536;
-        arr = (totalTicks / (psc + 1)) - 1;
+        psc = total_ticks / 65536;
+        arr = (total_ticks / (psc + 1)) - 1;
     }
-    else if (totalTicks > 0)
+    else if (total_ticks > 0)
     {
         psc = 0;
-        arr = totalTicks - 1;
+        arr = total_ticks - 1;
     }
     else
     {
@@ -71,7 +71,7 @@ static void set_timer_freq(Tim_t *tim, uint32_t frequency_hz)
     tim->hal_handle.Instance->EGR = TIM_EGR_UG;
 }
 
-void fan_control_init(Tim_t *power_tim, Tim_t *remote_tim)
+void fan_control_init(Tim *power_tim, Tim *remote_tim)
 {
     _power_tim  = power_tim;
     _remote_tim = remote_tim;
@@ -103,10 +103,11 @@ void fan_init(uint32_t frequency_hz)
 
 void fan_control_set_power_channel_duty(FanChannel channel, uint8_t duty_pct)
 {
-    if (channel < FAN_CHANNEL1 || channel > FAN_CHANNEL4)
+    if (channel < FanChannelOne || channel > FanChannelFour)
     {
         return;
     }
+
     if (duty_pct > 100)
     {
         duty_pct = 100;
@@ -120,10 +121,11 @@ void fan_control_set_power_channel_duty(FanChannel channel, uint8_t duty_pct)
 
 void fan_control_set_remote_channel_duty(FanChannel channel, uint8_t duty_pct)
 {
-    if (channel < FAN_CHANNEL1 || channel > FAN_CHANNEL4)
+    if (channel < FanChannelOne || channel > FanChannelFour)
     {
         return;
     }
+
     if (duty_pct > 100)
     {
         duty_pct = 100;
@@ -137,7 +139,7 @@ void fan_control_set_remote_channel_duty(FanChannel channel, uint8_t duty_pct)
 
 uint8_t fan_control_get_power_channel_duty(FanChannel channel)
 {
-    if (channel < FAN_CHANNEL1 || channel > FAN_CHANNEL4)
+    if (channel < FanChannelOne || channel > FanChannelFour)
     {
         return 0;
     }
@@ -146,7 +148,7 @@ uint8_t fan_control_get_power_channel_duty(FanChannel channel)
 
 uint8_t fan_control_get_remote_channel_duty(FanChannel channel)
 {
-    if (channel < FAN_CHANNEL1 || channel > FAN_CHANNEL4)
+    if (channel < FanChannelOne || channel > FanChannelFour)
     {
         return 0;
     }

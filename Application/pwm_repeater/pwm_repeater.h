@@ -30,15 +30,15 @@ typedef struct
     volatile uint32_t pulse_stable_counter;
     volatile uint32_t previous_pulse_ticks;
     volatile uint32_t last_capture_ms;
-} PWM_Channel_t;
+} PwmChannel;
 
 /**
  * @brief Throttle mode applied to the output.
  */
 typedef enum
 {
-    ThrottleMode_Scale,
-    ThrottleMode_Fixed
+    ThrottleModeScale,
+    ThrottleModeFixed
 } ThrottleMode;
 
 /**
@@ -46,20 +46,20 @@ typedef enum
  */
 typedef struct
 {
-    Tim_t            *tim;               /* BSP timer handle (TIM16 or TIM17) */
+    Tim            *tim;               /* BSP timer handle (TIM16 or TIM17) */
     uint32_t          channel;           /* TIM_CHANNEL_x */
     volatile uint32_t period_ticks;
     volatile uint32_t pulse_ticks;
     volatile uint32_t cap_factor_pct;
     volatile uint32_t throttle_val;
     volatile ThrottleMode throttle_mode;
-} PWM_Output_t;
+} PwmOutput;
 
 /* Global channel instances (read-only from outside this module) */
-extern PWM_Channel_t pwmChA;
-extern PWM_Channel_t pwmChB;
-extern PWM_Output_t  pwmOutA;
-extern PWM_Output_t  pwmOutB;
+extern PwmChannel pwmChannelA;
+extern PwmChannel pwmChannelB;
+extern PwmOutput  pwmOutputA;
+extern PwmOutput  pwmOutputB;
 
 /**
  * @brief Initialize the PWM repeater with BSP timer handles.
@@ -68,7 +68,7 @@ extern PWM_Output_t  pwmOutB;
  * @param out_a_tim    TIM16 PWM output handle   (board_get_repeater_a_tim())
  * @param out_b_tim    TIM17 PWM output handle   (board_get_repeater_b_tim())
  */
-void pwm_repeater_init(Tim_t *capture_tim, Tim_t *out_a_tim, Tim_t *out_b_tim);
+void pwm_repeater_init(Tim *capture_tim, Tim *out_a_tim, Tim *out_b_tim);
 
 /** @brief Periodic watchdog / output update task. Call from main loop. */
 void pwm_repeater_task(void);
