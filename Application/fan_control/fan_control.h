@@ -2,6 +2,7 @@
 #define FAN_CONTROL_H
 
 #include <stdint.h>
+#include "tim.h"
 
 typedef enum
 {
@@ -11,7 +12,14 @@ typedef enum
     FAN_CHANNEL4
 } FanChannel;
 
-void fan_control_init(void);
+/**
+ * @brief Initialize fan control and store timer handles.
+ *
+ * @param power_tim  TIM1 handle from board_get_fan_power_tim()
+ * @param remote_tim TIM3 handle from board_get_fan_remote_tim()
+ */
+void fan_control_init(Tim_t *power_tim, Tim_t *remote_tim);
+
 void fan_power_init(uint32_t frequency_hz);
 void fan_remote_init(uint32_t frequency_hz);
 void fan_init(uint32_t frequency_hz);

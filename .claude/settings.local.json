@@ -15,7 +15,9 @@
       "Bash(python build.py --clean)",
       "Bash(python build.py)",
       "Bash(git add:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -E \"\\\\.\\(c|h\\)$\")"
     ]
   }
 }

@@ -79,10 +79,25 @@ static inline bool read_pin(GPIO_TypeDef* port, const uint16_t pin)
     return (port->IDR & pin) != 0;
 }
 
+static inline void ow_pin_set_high(OneWire *ow)
+{
+    ow->port->BSRR = ow->pin;
+}
+
+static inline void ow_pin_set_low(OneWire *ow)
+{
+    ow->port->BSRR = (uint32_t)ow->pin << 16;
+}
+
+static inline bool ow_pin_read(OneWire *ow)
+{
+    return read_pin(ow->port, ow->pin);
+}
+
 void ow_set_low(OneWire* ow)
 {
     ow_sem_lock(ow);
-    ow->port->BSRR = (uint32_t)ow->pin << 16;
+    ow_pin_set_low(ow);
     ow_sem_unlock(ow);
 }
 
@@ -93,7 +108,7 @@ void ow_init(OneWire* ow)
     ow_sem_lock(ow);
     
     set_pin_output(ow->port, ow->pin);
-    ow->port->BSRR = ow->pin; // Initial state High (released)
+    ow_pin_set_high(ow); /* Initial state High (released) */
    
     ow_sem_unlock(ow);
 }
@@ -122,16 +137,16 @@ uint8_t ow_reset(OneWire *const ow)
 
     ENTER_CRITICAL();
 
-    ow->port->BSRR = (uint32_t)ow->pin << 16;
+    ow_pin_set_low(ow);
 
     delay_us(TIME_DELAY_H);
 
-    ow->port->BSRR = ow->pin;
-    delay_us(TIME_DELAY_I); 
-    
-    err = !read_pin(ow->port, ow->pin); 
+    ow_pin_set_high(ow);
+    delay_us(TIME_DELAY_I);
 
-    delay_us(TIME_DELAY_J); 
+    err = !ow_pin_read(ow);
+
+    delay_us(TIME_DELAY_J);
 
     EXIT_CRITICAL();
 
@@ -157,21 +172,21 @@ static void ow_write_bit(OneWire *const ow, uint8_t v)
     if (v & 1)
     {
         ENTER_CRITICAL();
-        ow->port->BSRR = (uint32_t)ow->pin << 16;
+        ow_pin_set_low(ow);
         delay_us(TIME_DELAY_A);
 
-        ow->port->BSRR = ow->pin;
+        ow_pin_set_high(ow);
         delay_us(TIME_DELAY_B);
         EXIT_CRITICAL();
     }
     else
     {
         ENTER_CRITICAL();
-        ow->port->BSRR = (uint32_t)ow->pin << 16;
+        ow_pin_set_low(ow);
         delay_us(TIME_DELAY_C);
 
-        ow->port->BSRR = ow->pin;
-        delay_us(TIME_DELAY_D); 
+        ow_pin_set_high(ow);
+        delay_us(TIME_DELAY_D);
         EXIT_CRITICAL();
     }
     ow_sem_unlock(ow);
@@ -179,7 +194,7 @@ static void ow_write_bit(OneWire *const ow, uint8_t v)
 
 uint8_t ow_pin_status(OneWire *const ow)
 {
-    return read_pin(ow->port, ow->pin) ? 1 : 0;
+    return ow_pin_read(ow) ? 1 : 0;
 }
 
 uint8_t ow_read_bit(OneWire *const ow)
@@ -190,13 +205,13 @@ uint8_t ow_read_bit(OneWire *const ow)
 
     ENTER_CRITICAL();
 
-    ow->port->BSRR = (uint32_t)ow->pin << 16;
+    ow_pin_set_low(ow);
     delay_us(TIME_DELAY_A);
 
-    ow->port->BSRR = ow->pin;
+    ow_pin_set_high(ow);
     delay_us(TIME_DELAY_E);
 
-    r = read_pin(ow->port, ow->pin);
+    r = ow_pin_read(ow);
 
     delay_us(TIME_DELAY_F);
 

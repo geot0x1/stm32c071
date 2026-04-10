@@ -1,3 +1,6 @@
+add_subdirectory(bsp)
+add_subdirectory(board)
+add_subdirectory(timers)
 add_subdirectory(pwm_repeater)
 add_subdirectory(crc32)
 add_subdirectory(critical)

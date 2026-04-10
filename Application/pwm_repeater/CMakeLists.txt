@@ -7,4 +7,4 @@ target_sources(pwm_repeater PRIVATE
 
 target_include_directories(pwm_repeater PUBLIC .)
 
-target_link_libraries(pwm_repeater PRIVATE stm32cubemx)
+target_link_libraries(pwm_repeater PRIVATE bsp_tim stm32cubemx)

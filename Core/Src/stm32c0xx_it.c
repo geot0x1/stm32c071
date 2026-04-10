@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "sys_time.h"
+#include "pwm_repeater.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,8 +59,7 @@
 /* External variables --------------------------------------------------------*/
 
 /* USER CODE BEGIN EV */
-extern TIM_HandleTypeDef htim2;
-extern TIM_HandleTypeDef htim3;
+
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -161,14 +161,6 @@ void EXTI4_15_IRQHandler(void)
   */
 void TIM2_IRQHandler(void)
 {
-  HAL_TIM_IRQHandler(&htim2);
-}
-
-/**
-  * @brief This function handles TIM3 global interrupt.
-  */
-void TIM3_IRQHandler(void)
-{
-  HAL_TIM_IRQHandler(&htim3);
+  pwm_repeater_tim2_irq_handler();
 }
 /* USER CODE END 1 */

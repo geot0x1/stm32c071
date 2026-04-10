@@ -195,7 +195,10 @@ uint8_t ds18b20_get_resolution(Ds18b20_t * ds, const uint8_t *device_address)
 bool ds18b20_is_connected(Ds18b20_t * ds, const uint8_t *device_address,
                           uint8_t *scratch_pad)
 {
-	bool b = ds18b20_read_scratch_pad(ds, device_address, scratch_pad);
+	if (!ds18b20_read_scratch_pad(ds, device_address, scratch_pad))
+	{
+		return false;
+	}
 
     if (ds18b20_is_all_zeros(scratch_pad, SCRATCHPAD_SIZE))
     {
