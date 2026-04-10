@@ -1,5 +1,4 @@
 #include "main.h"
-#include "stm32c0xx_hal.h"
 #include "stm32c0xx_hal_rcc_ex.h"
 #include "usb.h"
 #include <stdio.h>

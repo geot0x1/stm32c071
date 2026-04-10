@@ -22,7 +22,7 @@ target_sources(usb PRIVATE
 target_include_directories(usb PUBLIC .)
 
 target_include_directories(usb PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../Inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/..
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tinyusb/src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tinyusb/src/portable/st/stm32_fsdev
 )
