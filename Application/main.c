@@ -11,21 +11,21 @@ void temperature_sensor_event_handler(TempSensorEvent event)
 {
     switch (event)
     {
-    case SensorLost:
-        usb_printf("TEMP: SENSOR LOST\r\n");
-        break;
-    case AboveA:
-        usb_printf("TEMP: ABOVE A\r\n");
-        break;
-    case AboveB:
-        usb_printf("TEMP: ABOVE B\r\n");
-        break;
-    case BelowA:
-        usb_printf("TEMP: BELOW A\r\n");
-        break;
-    case BelowB:
-        usb_printf("TEMP: BELOW B\r\n");
-        break;
+        case SensorLost:
+            usb_printf("TEMP: SENSOR LOST\r\n");
+            break;
+        case AboveA:
+            usb_printf("TEMP: ABOVE A\r\n");
+            break;
+        case AboveB:
+            usb_printf("TEMP: ABOVE B\r\n");
+            break;
+        case BelowA:
+            usb_printf("TEMP: BELOW A\r\n");
+            break;
+        case BelowB:
+            usb_printf("TEMP: BELOW B\r\n");
+            break;
     }
 }
 
@@ -48,8 +48,7 @@ int main(void)
 
     temperature_sensor_init();
 
-    pwm_repeater_init(timers_get_capture(), timers_get_repeater_a(),
-                      timers_get_repeater_b());
+    pwm_repeater_init(timers_get_capture(), timers_get_repeater_a(), timers_get_repeater_b());
 
     temperature_sensor_set_setpoint_a(2500);
     temperature_sensor_set_setpoint_b(3000);
@@ -90,9 +89,9 @@ int main(void)
             last_init_debug = HAL_GetTick();
 
             usb_printf("CH_A: %u Hz, %u\r\n", (unsigned int)pwm_get_frequency_a(),
-                       (unsigned int)pwm_get_duty_a());
+                (unsigned int)pwm_get_duty_a());
             usb_printf("CH_B: %u Hz, %u\r\n", (unsigned int)pwm_get_frequency_b(),
-                       (unsigned int)pwm_get_duty_b());
+                (unsigned int)pwm_get_duty_b());
 
             uint16_t raw_temp = get_temperature();
             if (raw_temp == 0xFFFF)
