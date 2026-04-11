@@ -3,10 +3,14 @@
 
 #include <stdint.h>
 
+/* Forward declaration — Tim is defined in tim.h */
+typedef struct TimS Tim;
+
 /**
- * @brief  Initializes TIM14 for 1us per tick delay.
+ * @brief  Registers the pre-initialised system timer handle for use by delay functions.
+ *         TIM14 must already be running at 1 MHz (done by timers_init()).
  */
-void delay_init(void);
+void delay_init(Tim *tim);
 
 /**
  * @brief  Blocking delay in microseconds.
