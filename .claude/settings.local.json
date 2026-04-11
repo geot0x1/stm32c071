@@ -24,7 +24,23 @@
       "Bash(sed -i 's/bitMask/bit_mask/g' onewire/onewire.c)",
       "Bash(sed -i 's/g_nvs/gNvs/g' nvs/nvs.c nvs/nvs.h)",
       "Bash(python ../build.py)",
-      "Bash(arm-none-eabi-nm build/pwmtest1.elf)"
+      "Bash(arm-none-eabi-nm build/pwmtest1.elf)",
+      "Bash(python flash.py)",
+      "Bash(timeout 5 python monitor_com4.py)",
+      "Bash(timeout 10 python -c ':*)",
+      "Bash(tasklist)",
+      "Bash(powershell -Command \"Get-WmiObject Win32_SerialPort | Select-Object Name, Description, DeviceID\")",
+      "Bash(python -c ':*)",
+      "Bash(taskkill /F /IM python.exe)",
+      "Bash(taskkill //F //IM python.exe)",
+      "Bash(python monitor_com4.py)",
+      "Bash(pkill -f monitor_com4.py)",
+      "Bash(tee /tmp/monitor_output.txt)",
+      "Bash(powershell -Command ':*)",
+      "Bash(powershell -Command \"Get-PnpDevice -Class Ports | Select-Object Name, Status\")",
+      "Bash(python)",
+      "Bash(timeout 8 python -c ':*)",
+      "Bash(find \"c:/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071/Application\" -name \"*.c\" -exec grep -l \"\\)\\\\s*{\" {} \\\\;)"
     ]
   }
 }

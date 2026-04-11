@@ -22,10 +22,12 @@ static uint32_t lptim_select_prescaler(uint32_t clk_freq, uint32_t tick_hz,
     uint32_t best_hz = clk_freq;
     uint32_t best_diff = (clk_freq > tick_hz) ? (clk_freq - tick_hz) : (tick_hz - clk_freq);
 
-    for (uint8_t i = 0; i < 8; i++) {
+    for (uint8_t i = 0; i < 8; i++)
+    {
         uint32_t hz = clk_freq / divs[i];
         uint32_t diff = (hz > tick_hz) ? (hz - tick_hz) : (tick_hz - hz);
-        if (diff < best_diff) {
+        if (diff < best_diff)
+        {
             best_diff = diff;
             best_hz = hz;
             best_const = consts[i];

@@ -59,9 +59,10 @@
 /* USER CODE END 0 */
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
-                                                                                /**
-  * Initializes the Global MSP.
-  */
+
+/**
+ * Initializes the Global MSP.
+ */
 void HAL_MspInit(void)
 {
 
@@ -88,7 +89,7 @@ void HAL_MspInit(void)
 void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  if(hi2c->Instance==I2C2)
+  if (hi2c->Instance ==I2C2)
   {
     /* USER CODE BEGIN I2C2_MspInit 0 */
 
@@ -121,7 +122,7 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c)
   */
 void HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c)
 {
-  if(hi2c->Instance==I2C2)
+  if (hi2c->Instance ==I2C2)
   {
     /* USER CODE BEGIN I2C2_MspDeInit 0 */
 
@@ -148,7 +149,7 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c)
   */
 void HAL_TIM_PWM_MspInit(TIM_HandleTypeDef* htim_pwm)
 {
-  if(htim_pwm->Instance==TIM1)
+  if (htim_pwm->Instance ==TIM1)
   {
     /* USER CODE BEGIN TIM1_MspInit 0 */
 
@@ -159,7 +160,7 @@ void HAL_TIM_PWM_MspInit(TIM_HandleTypeDef* htim_pwm)
 
     /* USER CODE END TIM1_MspInit 1 */
   }
-  else if(htim_pwm->Instance==TIM3)
+  else if(htim_pwm->Instance ==TIM3)
   {
     /* USER CODE BEGIN TIM3_MspInit 0 */
     /* USER CODE END TIM3_MspInit 0 */
@@ -180,7 +181,7 @@ void HAL_TIM_PWM_MspInit(TIM_HandleTypeDef* htim_pwm)
 void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  if(htim_base->Instance==TIM2)
+  if (htim_base->Instance ==TIM2)
   {
     /* USER CODE BEGIN TIM2_MspInit 0 */
 
@@ -202,7 +203,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
     /* USER CODE END TIM2_MspInit 1 */
   }
-  else if(htim_base->Instance==TIM14)
+  else if(htim_base->Instance ==TIM14)
   {
     /* USER CODE BEGIN TIM14_MspInit 0 */
 
@@ -213,7 +214,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
 
     /* USER CODE END TIM14_MspInit 1 */
   }
-  else if(htim_base->Instance==TIM16)
+  else if(htim_base->Instance ==TIM16)
   {
     /* USER CODE BEGIN TIM16_MspInit 0 */
 
@@ -224,7 +225,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
 
     /* USER CODE END TIM16_MspInit 1 */
   }
-  else if(htim_base->Instance==TIM17)
+  else if(htim_base->Instance ==TIM17)
   {
     /* USER CODE BEGIN TIM17_MspInit 0 */
 
@@ -241,7 +242,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  if(htim->Instance==TIM2)
+  if (htim->Instance ==TIM2)
   {
     /* USER CODE BEGIN TIM2_MspPostInit 0 */
 
@@ -261,7 +262,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
     /* USER CODE END TIM2_MspPostInit 1 */
   }
-  else if(htim->Instance==TIM1)
+  else if(htim->Instance ==TIM1)
   {
     /* USER CODE BEGIN TIM1_MspPostInit 0 */
 
@@ -286,7 +287,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
 
     /* USER CODE END TIM1_MspPostInit 1 */
   }
-  else if(htim->Instance==TIM3)
+  else if(htim->Instance ==TIM3)
   {
     /* USER CODE BEGIN TIM3_MspPostInit 0 */
 
@@ -320,7 +321,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
 
     /* USER CODE END TIM3_MspPostInit 1 */
   }
-  else if(htim->Instance==TIM16)
+  else if(htim->Instance ==TIM16)
   {
     /* USER CODE BEGIN TIM16_MspPostInit 0 */
 
@@ -339,7 +340,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
 
     /* USER CODE END TIM16_MspPostInit 1 */
   }
-  else if(htim->Instance==TIM17)
+  else if(htim->Instance ==TIM17)
   {
     /* USER CODE BEGIN TIM17_MspPostInit 0 */
 
@@ -368,7 +369,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
   */
 void HAL_TIM_PWM_MspDeInit(TIM_HandleTypeDef* htim_pwm)
 {
-  if(htim_pwm->Instance==TIM1)
+  if (htim_pwm->Instance ==TIM1)
   {
     /* USER CODE BEGIN TIM1_MspDeInit 0 */
 
@@ -379,7 +380,7 @@ void HAL_TIM_PWM_MspDeInit(TIM_HandleTypeDef* htim_pwm)
 
     /* USER CODE END TIM1_MspDeInit 1 */
   }
-  else if(htim_pwm->Instance==TIM3)
+  else if(htim_pwm->Instance ==TIM3)
   {
     /* USER CODE BEGIN TIM3_MspDeInit 0 */
 
@@ -401,7 +402,7 @@ void HAL_TIM_PWM_MspDeInit(TIM_HandleTypeDef* htim_pwm)
   */
 void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* htim_base)
 {
-  if(htim_base->Instance==TIM2)
+  if (htim_base->Instance ==TIM2)
   {
     /* USER CODE BEGIN TIM2_MspDeInit 0 */
 
@@ -416,7 +417,7 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* htim_base)
 
     /* USER CODE END TIM2_MspDeInit 1 */
   }
-  else if(htim_base->Instance==TIM16)
+  else if(htim_base->Instance ==TIM16)
   {
     /* USER CODE BEGIN TIM16_MspDeInit 0 */
 
@@ -427,7 +428,7 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* htim_base)
 
     /* USER CODE END TIM16_MspDeInit 1 */
   }
-  else if(htim_base->Instance==TIM17)
+  else if(htim_base->Instance ==TIM17)
   {
     /* USER CODE BEGIN TIM17_MspDeInit 0 */
 
@@ -450,7 +451,7 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* htim_base)
 void HAL_PCD_MspInit(PCD_HandleTypeDef* hpcd)
 {
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
-  if(hpcd->Instance==USB_DRD_FS)
+  if (hpcd->Instance ==USB_DRD_FS)
   {
     /* USER CODE BEGIN USB_DRD_FS_MspInit 0 */
 
@@ -459,7 +460,7 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef* hpcd)
   /** Initializes the peripherals clocks
   */
     PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
-    PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSE;
+    PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
     {
       Error_Handler();
@@ -468,7 +469,9 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef* hpcd)
     /* Peripheral clock enable */
     __HAL_RCC_USB_CLK_ENABLE();
     /* USER CODE BEGIN USB_DRD_FS_MspInit 1 */
-
+    /* Enable USB DRD interrupt */
+    HAL_NVIC_SetPriority(USB_DRD_FS_IRQn, 3, 0);
+    HAL_NVIC_EnableIRQ(USB_DRD_FS_IRQn);
     /* USER CODE END USB_DRD_FS_MspInit 1 */
 
   }
@@ -483,7 +486,7 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef* hpcd)
   */
 void HAL_PCD_MspDeInit(PCD_HandleTypeDef* hpcd)
 {
-  if(hpcd->Instance==USB_DRD_FS)
+  if (hpcd->Instance ==USB_DRD_FS)
   {
     /* USER CODE BEGIN USB_DRD_FS_MspDeInit 0 */
 

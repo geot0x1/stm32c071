@@ -202,8 +202,8 @@ static void apply_output_to_hardware(PwmOutput *out, uint32_t active_pulse)
 static void process_channel_update(PwmChannel *ch, PwmOutput *out,
                                    GPIO_TypeDef *port, uint16_t pin)
 {
-    uint32_t now          = HAL_GetTick();
-    const uint32_t timeout_ms = 50;
+    uint32_t now = HAL_GetTick();
+    const uint32_t TIMEOUT_MS = 50;
 
     if (ch->new_data_ready)
     {
@@ -216,7 +216,7 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out,
         ch->new_data_ready = false;
     }
 
-    if ((now - ch->last_capture_ms) > timeout_ms)
+    if ((now - ch->last_capture_ms) > TIMEOUT_MS)
     {
         if (HAL_GPIO_ReadPin(port, pin) == GPIO_PIN_SET)
         {
@@ -415,8 +415,27 @@ void pwm_repeater_task(void)
     process_channel_update(&pwmChannelB, &pwmOutputB, GPIOB, GPIO_PIN_11);
 }
 
-uint32_t get_ticks(void)        { return pwmChannelA.period_ticks; }
-uint32_t pwm_get_frequency_a(void) { return calculate_frequency(pwmChannelA.period_ticks); }
-uint32_t pwm_get_duty_a(void)   { return calculate_duty_pct(pwmChannelA.period_ticks, pwmChannelA.pulse_ticks); }
-uint32_t pwm_get_frequency_b(void) { return calculate_frequency(pwmChannelB.period_ticks); }
-uint32_t pwm_get_duty_b(void)   { return calculate_duty_pct(pwmChannelB.period_ticks, pwmChannelB.pulse_ticks); }
+uint32_t get_ticks(void)
+{
+    return pwmChannelA.period_ticks;
+}
+
+uint32_t pwm_get_frequency_a(void)
+{
+    return calculate_frequency(pwmChannelA.period_ticks);
+}
+
+uint32_t pwm_get_duty_a(void)
+{
+    return calculate_duty_pct(pwmChannelA.period_ticks, pwmChannelA.pulse_ticks);
+}
+
+uint32_t pwm_get_frequency_b(void)
+{
+    return calculate_frequency(pwmChannelB.period_ticks);
+}
+
+uint32_t pwm_get_duty_b(void)
+{
+    return calculate_duty_pct(pwmChannelB.period_ticks, pwmChannelB.pulse_ticks);
+}

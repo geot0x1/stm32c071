@@ -7,9 +7,20 @@ import json
 
 def find_elf(build_dir):
     # Try finding via build_info.json first
-    json_path = os.path.join(build_dir, "build_info.json")
-    if not os.path.exists(json_path):
-        print(f"Error: Could not find build information file: {json_path}")
+    json_paths_to_try = [
+        os.path.join(build_dir, "build_info.json"),
+        os.path.join(build_dir, "Debug", "build_info.json"),
+        os.path.join(build_dir, "Release", "build_info.json")
+    ]
+    
+    json_path = None
+    for path in json_paths_to_try:
+        if os.path.exists(path):
+            json_path = path
+            break
+
+    if not json_path:
+        print(f"Error: Could not find build information file (build_info.json) in {build_dir}")
         print("Please configure the project using CMake first.")
         sys.exit(1)
 
@@ -24,7 +35,7 @@ def find_elf(build_dir):
                 print("Please build the project first.")
                 sys.exit(1)
     except (json.JSONDecodeError, IOError) as e:
-        print(f"Error: Could not read build_info.json: {e}")
+        print(f"Error: Could not read {json_path}: {e}")
         sys.exit(1)
 
 def main():

@@ -2,7 +2,7 @@ import serial
 import time
 import sys
 
-PORT = 'COM4'
+PORT = 'COM5'
 BAUD = 115200
 
 def monitor_serial():

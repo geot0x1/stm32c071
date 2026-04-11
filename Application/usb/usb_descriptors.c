@@ -51,17 +51,18 @@ tusb_desc_device_t const desc_device = {
     .bNumConfigurations = 0x01
 };
 
-uint8_t const *tud_descriptor_device_cb(void) {
-  return (uint8_t const *) &desc_device;
+uint8_t const *tud_descriptor_device_cb(void)
+{
+    return (uint8_t const *)&desc_device;
 }
 
 //--------------------------------------------------------------------+
 // Configuration Descriptor
 //--------------------------------------------------------------------+
 enum {
-  ITF_NUM_CDC = 0,
-  ITF_NUM_CDC_DATA,
-  ITF_NUM_TOTAL
+    ITF_NUM_CDC = 0,
+    ITF_NUM_CDC_DATA,
+    ITF_NUM_TOTAL
 };
 
 #define EPNUM_CDC_NOTIF   0x81
@@ -78,9 +79,10 @@ static uint8_t const desc_fs_configuration[] = {
     TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, EPNUM_CDC_NOTIF, 16, EPNUM_CDC_OUT, EPNUM_CDC_IN, 64)
 };
 
-uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
-  (void) index;
-  return desc_fs_configuration;
+uint8_t const *tud_descriptor_configuration_cb(uint8_t index)
+{
+    (void)index;
+    return desc_fs_configuration;
 }
 
 //--------------------------------------------------------------------+
@@ -89,10 +91,10 @@ uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
 
 // String Descriptor Index
 enum {
-  STRID_LANGID = 0,
-  STRID_MANUFACTURER,
-  STRID_PRODUCT,
-  STRID_SERIAL,
+    STRID_LANGID = 0,
+    STRID_MANUFACTURER,
+    STRID_PRODUCT,
+    STRID_SERIAL,
 };
 
 static char const *string_desc_arr[] = {
@@ -106,7 +108,8 @@ static char const *string_desc_arr[] = {
 static uint16_t _desc_str[31 + 1];
 
 // Helper to convert UID to string
-static int get_serial_string(uint16_t *str, int max_len) {
+static int get_serial_string(uint16_t *str, int max_len)
+{
     uint32_t uid[3];
     uid[0] = HAL_GetUIDw0();
     uid[1] = HAL_GetUIDw1();
@@ -115,8 +118,10 @@ static int get_serial_string(uint16_t *str, int max_len) {
     char serial_str[25];
     // Create string from unique ID
     int len = 0;
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 8; j++) {
+    for (int i = 0; i < 3; i++)
+    {
+        for (int j = 0; j < 8; j++)
+        {
             uint8_t nibble = (uid[i] >> (j * 4)) & 0x0F;
             serial_str[len++] = (nibble < 10) ? ('0' + nibble) : ('A' + (nibble - 10));
         }
@@ -124,43 +129,56 @@ static int get_serial_string(uint16_t *str, int max_len) {
     serial_str[24] = '\0';
 
     int count = len;
-    if (count > max_len) count = max_len;
+    if (count > max_len)
+    {
+        count = max_len;
+    }
 
-    for (int i = 0; i < count; i++) {
+    for (int i = 0; i < count; i++)
+    {
         str[1 + i] = serial_str[i];
     }
     return count;
 }
 
-uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
-  (void) langid;
-  size_t chr_count;
+uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid)
+{
+    (void)langid;
+    size_t chr_count;
 
-  switch ( index ) {
+    switch (index)
+    {
     case STRID_LANGID:
-      memcpy(&_desc_str[1], string_desc_arr[0], 2);
-      chr_count = 1;
-      break;
+        memcpy(&_desc_str[1], string_desc_arr[0], 2);
+        chr_count = 1;
+        break;
 
     case STRID_SERIAL:
-      chr_count = get_serial_string(_desc_str, 31);
-      break;
+        chr_count = get_serial_string(_desc_str, 31);
+        break;
 
     default:
-      if ( !(index < sizeof(string_desc_arr) / sizeof(string_desc_arr[0])) ) { return NULL; }
+        if (!(index < sizeof(string_desc_arr) / sizeof(string_desc_arr[0])))
+        {
+            return NULL;
+        }
 
-      const char *str = string_desc_arr[index];
+        const char *str = string_desc_arr[index];
 
-      chr_count = strlen(str);
-      size_t const max_count = sizeof(_desc_str) / sizeof(_desc_str[0]) - 1;
-      if ( chr_count > max_count ) { chr_count = max_count; }
+        chr_count = strlen(str);
+        size_t const max_count = sizeof(_desc_str) / sizeof(_desc_str[0]) - 1;
+        if (chr_count > max_count)
+        {
+            chr_count = max_count;
+        }
 
-      for ( size_t i = 0; i < chr_count; i++ ) {
-        _desc_str[1 + i] = str[i];
-      }
-      break;
-  }
+        for (size_t i = 0; i < chr_count; i++)
+        {
+            _desc_str[1 + i] = str[i];
+        }
+        break;
+    }
 
-  _desc_str[0] = (uint16_t) ((TUSB_DESC_STRING << 8) | (2 * chr_count + 2));
-  return _desc_str;
+    _desc_str[0] = (uint16_t)((TUSB_DESC_STRING << 8) | (2 * chr_count + 2));
+    return _desc_str;
 }

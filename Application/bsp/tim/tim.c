@@ -6,7 +6,8 @@
  *
  * Note: STM32C0 has only APB1. All timers run on PCLK1.
  */
-static uint32_t tim_get_clock_freq(TIM_TypeDef *instance) {
+static uint32_t tim_get_clock_freq(TIM_TypeDef *instance)
+{
     (void)instance;
     return HAL_RCC_GetPCLK1Freq();
 }
@@ -14,18 +15,30 @@ static uint32_t tim_get_clock_freq(TIM_TypeDef *instance) {
 /**
  * @brief Enable peripheral clock for timer
  */
-static void tim_enable_clock(TIM_TypeDef *instance) {
-    if (instance == TIM1) {
+static void tim_enable_clock(TIM_TypeDef *instance)
+{
+    if (instance == TIM1)
+    {
         __HAL_RCC_TIM1_CLK_ENABLE();
-    } else if (instance == TIM2) {
+    }
+    else if (instance == TIM2)
+    {
         __HAL_RCC_TIM2_CLK_ENABLE();
-    } else if (instance == TIM3) {
+    }
+    else if (instance == TIM3)
+    {
         __HAL_RCC_TIM3_CLK_ENABLE();
-    } else if (instance == TIM14) {
+    }
+    else if (instance == TIM14)
+    {
         __HAL_RCC_TIM14_CLK_ENABLE();
-    } else if (instance == TIM16) {
+    }
+    else if (instance == TIM16)
+    {
         __HAL_RCC_TIM16_CLK_ENABLE();
-    } else if (instance == TIM17) {
+    }
+    else if (instance == TIM17)
+    {
         __HAL_RCC_TIM17_CLK_ENABLE();
     }
 }
@@ -33,18 +46,30 @@ static void tim_enable_clock(TIM_TypeDef *instance) {
 /**
  * @brief Enable NVIC interrupt for timer
  */
-static void tim_enable_nvic(TIM_TypeDef *instance) {
-    if (instance == TIM1) {
+static void tim_enable_nvic(TIM_TypeDef *instance)
+{
+    if (instance == TIM1)
+    {
         HAL_NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
-    } else if (instance == TIM2) {
+    }
+    else if (instance == TIM2)
+    {
         HAL_NVIC_EnableIRQ(TIM2_IRQn);
-    } else if (instance == TIM3) {
+    }
+    else if (instance == TIM3)
+    {
         HAL_NVIC_EnableIRQ(TIM3_IRQn);
-    } else if (instance == TIM14) {
+    }
+    else if (instance == TIM14)
+    {
         HAL_NVIC_EnableIRQ(TIM14_IRQn);
-    } else if (instance == TIM16) {
+    }
+    else if (instance == TIM16)
+    {
         HAL_NVIC_EnableIRQ(TIM16_IRQn);
-    } else if (instance == TIM17) {
+    }
+    else if (instance == TIM17)
+    {
         HAL_NVIC_EnableIRQ(TIM17_IRQn);
     }
 }
@@ -52,13 +77,15 @@ static void tim_enable_nvic(TIM_TypeDef *instance) {
 /**
  * @brief Map 1-based channel index to HAL TIM_CHANNEL_x constant
  */
-static uint32_t tim_channel(uint8_t channel) {
+static uint32_t tim_channel(uint8_t channel)
+{
     return (uint32_t)(channel - 1) << 2;
 }
 
 /* ── PWM output mode ──────────────────────────────────────────────────────── */
 
-void tim_pwm_init(Tim *tim, TIM_TypeDef *instance, uint32_t freq_hz, uint8_t num_channels) {
+void tim_pwm_init(Tim *tim, TIM_TypeDef *instance, uint32_t freq_hz, uint8_t num_channels)
+{
     memset(tim, 0, sizeof(Tim));
 
     tim->hal_handle.Instance = instance;
@@ -85,12 +112,14 @@ void tim_pwm_init(Tim *tim, TIM_TypeDef *instance, uint32_t freq_hz, uint8_t num
     sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
     sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
 
-    for (uint8_t ch = 1; ch <= num_channels; ch++) {
+    for (uint8_t ch = 1; ch <= num_channels; ch++)
+    {
         HAL_TIM_PWM_ConfigChannel(&tim->hal_handle, &sConfigOC, tim_channel(ch));
     }
 
     // Configure BreakDeadTime for advanced timers (TIM1, TIM16, TIM17)
-    if (instance == TIM1 || instance == TIM16 || instance == TIM17) {
+    if (instance == TIM1 || instance == TIM16 || instance == TIM17)
+    {
         TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
         sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
         sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
@@ -100,7 +129,8 @@ void tim_pwm_init(Tim *tim, TIM_TypeDef *instance, uint32_t freq_hz, uint8_t num
         sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
         sBreakDeadTimeConfig.BreakFilter = 0;
         sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
-        if (instance == TIM1) {
+        if (instance == TIM1)
+        {
             sBreakDeadTimeConfig.Break2State = TIM_BREAK2_DISABLE;
             sBreakDeadTimeConfig.Break2Polarity = TIM_BREAK2POLARITY_HIGH;
             sBreakDeadTimeConfig.Break2Filter = 0;
@@ -110,16 +140,20 @@ void tim_pwm_init(Tim *tim, TIM_TypeDef *instance, uint32_t freq_hz, uint8_t num
     }
 }
 
-void tim_pwm_set_duty(Tim *tim, uint8_t channel, uint8_t duty_pct) {
-    if (channel < 1 || channel > tim->num_channels || duty_pct > 100) {
+void tim_pwm_set_duty(Tim *tim, uint8_t channel, uint8_t duty_pct)
+{
+    if (channel < 1 || channel > tim->num_channels || duty_pct > 100)
+    {
         return;
     }
     uint32_t pulse = (tim->hal_handle.Init.Period + 1) * duty_pct / 100;
     __HAL_TIM_SET_COMPARE(&tim->hal_handle, tim_channel(channel), pulse);
 }
 
-uint8_t tim_pwm_get_duty(Tim *tim, uint8_t channel) {
-    if (channel < 1 || channel > tim->num_channels) {
+uint8_t tim_pwm_get_duty(Tim *tim, uint8_t channel)
+{
+    if (channel < 1 || channel > tim->num_channels)
+    {
         return 0;
     }
     uint32_t ccr = __HAL_TIM_GET_COMPARE(&tim->hal_handle, tim_channel(channel));
@@ -127,21 +161,26 @@ uint8_t tim_pwm_get_duty(Tim *tim, uint8_t channel) {
     return (uint8_t)((ccr * 100U) / period);
 }
 
-void tim_pwm_start(Tim *tim, uint8_t channel) {
-    if (channel < 1 || channel > tim->num_channels) {
+void tim_pwm_start(Tim *tim, uint8_t channel)
+{
+    if (channel < 1 || channel > tim->num_channels)
+    {
         return;
     }
     HAL_TIM_PWM_Start(&tim->hal_handle, tim_channel(channel));
 }
 
-void tim_pwm_stop(Tim *tim, uint8_t channel) {
-    if (channel < 1 || channel > tim->num_channels) {
+void tim_pwm_stop(Tim *tim, uint8_t channel)
+{
+    if (channel < 1 || channel > tim->num_channels)
+    {
         return;
     }
     HAL_TIM_PWM_Stop(&tim->hal_handle, tim_channel(channel));
 }
 
-void tim_pwm_set_freq(Tim *tim, uint32_t freq_hz) {
+void tim_pwm_set_freq(Tim *tim, uint32_t freq_hz)
+{
     tim->freq_hz = freq_hz;
     uint32_t clk_freq = tim_get_clock_freq(tim->hal_handle.Instance);
     uint32_t arr = (clk_freq / freq_hz) - 1;
@@ -149,20 +188,24 @@ void tim_pwm_set_freq(Tim *tim, uint32_t freq_hz) {
     __HAL_TIM_CLEAR_FLAG(&tim->hal_handle, TIM_FLAG_UPDATE);
 }
 
-void tim_pwm_start_n(Tim *tim, uint8_t channel) {
+void tim_pwm_start_n(Tim *tim, uint8_t channel)
+{
     HAL_TIMEx_PWMN_Start(&tim->hal_handle, tim_channel(channel));
 }
 
-void tim_pwm_stop_n(Tim *tim, uint8_t channel) {
+void tim_pwm_stop_n(Tim *tim, uint8_t channel)
+{
     HAL_TIMEx_PWMN_Stop(&tim->hal_handle, tim_channel(channel));
 }
 
-void tim_pwm_set_deadtime(Tim *tim, uint32_t deadtime_ns) {
+void tim_pwm_set_deadtime(Tim *tim, uint32_t deadtime_ns)
+{
     uint32_t clk_freq = tim_get_clock_freq(tim->hal_handle.Instance);
     // t_DTS in nanoseconds (CKD=DIV1)
     uint32_t t_dts_ns = 1000000000UL / clk_freq;
     uint32_t dtg = deadtime_ns / t_dts_ns;
-    if (dtg > 0x7F) {
+    if (dtg > 0x7F)
+    {
         dtg = 0x7F;
     }
 
@@ -175,7 +218,8 @@ void tim_pwm_set_deadtime(Tim *tim, uint32_t deadtime_ns) {
     cfg.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
     cfg.BreakFilter = 0;
     cfg.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
-    if (tim->hal_handle.Instance == TIM1) {
+    if (tim->hal_handle.Instance == TIM1)
+    {
         cfg.Break2State = TIM_BREAK2_DISABLE;
         cfg.Break2Polarity = TIM_BREAK2POLARITY_HIGH;
         cfg.Break2Filter = 0;
@@ -186,7 +230,8 @@ void tim_pwm_set_deadtime(Tim *tim, uint32_t deadtime_ns) {
 
 /* ── Input capture mode ───────────────────────────────────────────────────── */
 
-void tim_ic_init(Tim *tim, TIM_TypeDef *instance, uint32_t resolution_hz) {
+void tim_ic_init(Tim *tim, TIM_TypeDef *instance, uint32_t resolution_hz)
+{
     memset(tim, 0, sizeof(Tim));
 
     tim->hal_handle.Instance = instance;
@@ -207,8 +252,10 @@ void tim_ic_init(Tim *tim, TIM_TypeDef *instance, uint32_t resolution_hz) {
     // Channel configuration is the caller's responsibility via tim_ic_config_channel()
 }
 
-void tim_ic_config_channel(Tim *tim, uint8_t channel, uint32_t polarity, uint8_t filter) {
-    if (channel < 1 || channel > 4) {
+void tim_ic_config_channel(Tim *tim, uint8_t channel, uint32_t polarity, uint8_t filter)
+{
+    if (channel < 1 || channel > 4)
+    {
         return;
     }
     TIM_IC_InitTypeDef sConfigIC = {0};
@@ -220,44 +267,70 @@ void tim_ic_config_channel(Tim *tim, uint8_t channel, uint32_t polarity, uint8_t
     HAL_TIM_IC_Start(&tim->hal_handle, tim_channel(channel));
 }
 
-uint32_t tim_ic_get_count(Tim *tim) {
+uint32_t tim_ic_get_count(Tim *tim)
+{
     return __HAL_TIM_GET_COUNTER(&tim->hal_handle);
 }
 
-uint32_t tim_ic_get_channel(Tim *tim, uint8_t channel) {
-    if (channel < 1 || channel > 4) {
+uint32_t tim_ic_get_channel(Tim *tim, uint8_t channel)
+{
+    if (channel < 1 || channel > 4)
+    {
         return 0;
     }
     return HAL_TIM_ReadCapturedValue(&tim->hal_handle, tim_channel(channel));
 }
 
-void tim_ic_enable_ch_irq(Tim *tim, uint8_t channel) {
+void tim_ic_enable_ch_irq(Tim *tim, uint8_t channel)
+{
     uint32_t it_flag;
-    switch (channel) {
-        case 1: it_flag = TIM_IT_CC1; break;
-        case 2: it_flag = TIM_IT_CC2; break;
-        case 3: it_flag = TIM_IT_CC3; break;
-        case 4: it_flag = TIM_IT_CC4; break;
-        default: return;
+    switch (channel)
+    {
+    case 1:
+        it_flag = TIM_IT_CC1;
+        break;
+    case 2:
+        it_flag = TIM_IT_CC2;
+        break;
+    case 3:
+        it_flag = TIM_IT_CC3;
+        break;
+    case 4:
+        it_flag = TIM_IT_CC4;
+        break;
+    default:
+        return;
     }
     __HAL_TIM_ENABLE_IT(&tim->hal_handle, it_flag);
 }
 
-void tim_ic_disable_ch_irq(Tim *tim, uint8_t channel) {
+void tim_ic_disable_ch_irq(Tim *tim, uint8_t channel)
+{
     uint32_t it_flag;
-    switch (channel) {
-        case 1: it_flag = TIM_IT_CC1; break;
-        case 2: it_flag = TIM_IT_CC2; break;
-        case 3: it_flag = TIM_IT_CC3; break;
-        case 4: it_flag = TIM_IT_CC4; break;
-        default: return;
+    switch (channel)
+    {
+    case 1:
+        it_flag = TIM_IT_CC1;
+        break;
+    case 2:
+        it_flag = TIM_IT_CC2;
+        break;
+    case 3:
+        it_flag = TIM_IT_CC3;
+        break;
+    case 4:
+        it_flag = TIM_IT_CC4;
+        break;
+    default:
+        return;
     }
     __HAL_TIM_DISABLE_IT(&tim->hal_handle, it_flag);
 }
 
 /* ── Base counter mode ────────────────────────────────────────────────────── */
 
-void tim_base_init(Tim *tim, TIM_TypeDef *instance, uint32_t tick_hz) {
+void tim_base_init(Tim *tim, TIM_TypeDef *instance, uint32_t tick_hz)
+{
     memset(tim, 0, sizeof(Tim));
 
     tim->hal_handle.Instance = instance;
@@ -278,23 +351,27 @@ void tim_base_init(Tim *tim, TIM_TypeDef *instance, uint32_t tick_hz) {
     HAL_TIM_Base_Start(&tim->hal_handle);
 }
 
-uint32_t tim_base_get_count(Tim *tim) {
+uint32_t tim_base_get_count(Tim *tim)
+{
     return __HAL_TIM_GET_COUNTER(&tim->hal_handle);
 }
 
-void tim_base_start_it(Tim *tim) {
+void tim_base_start_it(Tim *tim)
+{
     HAL_TIM_Base_Stop(&tim->hal_handle);
     tim_enable_nvic(tim->hal_handle.Instance);
     HAL_TIM_Base_Start_IT(&tim->hal_handle);
 }
 
-void tim_base_stop_it(Tim *tim) {
+void tim_base_stop_it(Tim *tim)
+{
     HAL_TIM_Base_Stop_IT(&tim->hal_handle);
 }
 
 /* ── Encoder mode ─────────────────────────────────────────────────────────── */
 
-void tim_encoder_init(Tim *tim, TIM_TypeDef *instance, uint32_t mode) {
+void tim_encoder_init(Tim *tim, TIM_TypeDef *instance, uint32_t mode)
+{
     memset(tim, 0, sizeof(Tim));
 
     tim->hal_handle.Instance = instance;
@@ -322,18 +399,21 @@ void tim_encoder_init(Tim *tim, TIM_TypeDef *instance, uint32_t mode) {
     HAL_TIM_Encoder_Start(&tim->hal_handle, TIM_CHANNEL_ALL);
 }
 
-uint32_t tim_encoder_get_count(Tim *tim) {
+uint32_t tim_encoder_get_count(Tim *tim)
+{
     return __HAL_TIM_GET_COUNTER(&tim->hal_handle);
 }
 
-void tim_encoder_reset(Tim *tim) {
+void tim_encoder_reset(Tim *tim)
+{
     __HAL_TIM_SET_COUNTER(&tim->hal_handle, 0);
 }
 
 /* ── One-pulse mode ───────────────────────────────────────────────────────── */
 
 void tim_one_pulse_init(Tim *tim, TIM_TypeDef *instance, uint8_t channel,
-                        uint32_t delay_us, uint32_t width_us) {
+                        uint32_t delay_us, uint32_t width_us)
+{
     memset(tim, 0, sizeof(Tim));
 
     tim->hal_handle.Instance = instance;
@@ -370,14 +450,16 @@ void tim_one_pulse_init(Tim *tim, TIM_TypeDef *instance, uint8_t channel,
                                    tim_channel(channel == 1 ? 2 : 1));
 }
 
-void tim_one_pulse_trigger(Tim *tim, uint8_t channel) {
+void tim_one_pulse_trigger(Tim *tim, uint8_t channel)
+{
     HAL_TIM_OnePulse_Start(&tim->hal_handle, tim_channel(channel));
 }
 
 /* ── Output compare mode ──────────────────────────────────────────────────── */
 
 void tim_oc_init(Tim *tim, TIM_TypeDef *instance, uint32_t tick_hz,
-                 uint8_t channel, uint32_t oc_mode) {
+                 uint8_t channel, uint32_t oc_mode)
+{
     memset(tim, 0, sizeof(Tim));
 
     tim->hal_handle.Instance = instance;
@@ -407,17 +489,20 @@ void tim_oc_init(Tim *tim, TIM_TypeDef *instance, uint32_t tick_hz,
     HAL_TIM_OC_Start_IT(&tim->hal_handle, tim_channel(channel));
 }
 
-void tim_oc_set_compare(Tim *tim, uint8_t channel, uint32_t value) {
+void tim_oc_set_compare(Tim *tim, uint8_t channel, uint32_t value)
+{
     __HAL_TIM_SET_COMPARE(&tim->hal_handle, tim_channel(channel), value);
 }
 
 /* ── IRQ control ──────────────────────────────────────────────────────────── */
 
-void tim_enable_irq(Tim *tim) {
+void tim_enable_irq(Tim *tim)
+{
     tim_enable_nvic(tim->hal_handle.Instance);
     __HAL_TIM_ENABLE_IT(&tim->hal_handle, TIM_IT_UPDATE);
 }
 
-void tim_disable_irq(Tim *tim) {
+void tim_disable_irq(Tim *tim)
+{
     __HAL_TIM_DISABLE_IT(&tim->hal_handle, TIM_IT_UPDATE);
 }

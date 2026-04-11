@@ -1,7 +1,7 @@
 #include "usb.h"
 #include "tusb.h"
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 /**
  * @brief Initialize the USB module.
@@ -24,67 +24,67 @@ void usb_task(void)
 
 /**
  * @brief Send raw data over the USB CDC interface.
- * 
+ *
  * @param buffer Pointer to the data to send
  * @param size Number of bytes to send
  * @return uint32_t Number of bytes successfully sent
  */
-uint32_t usb_write(const void * buffer, uint32_t size)
+uint32_t usb_write(const void *buffer, uint32_t size)
 {
-    uint32_t totalSent = 0;
-    
+    uint32_t total_sent = 0;
+
     // Check if the FIFO has enough space
     uint32_t available = tud_cdc_write_available();
-    
+
     if (available > 0)
     {
-        totalSent = tud_cdc_write(buffer, size);
+        total_sent = tud_cdc_write(buffer, size);
         tud_cdc_write_flush();
     }
-    
-    return totalSent;
+
+    return total_sent;
 }
 
 /**
  * @brief Read raw data from the USB CDC interface.
- * 
+ *
  * @param buffer Pointer to the buffer to store received data
  * @param size Maximum number of bytes to read
  * @return uint32_t Number of bytes successfully read
  */
-uint32_t usb_read(void * buffer, uint32_t size)
+uint32_t usb_read(void *buffer, uint32_t size)
 {
     return tud_cdc_read(buffer, size);
 }
 
 /**
  * @brief Formatted printf-like function for USB CDC output.
- * 
+ *
  * @param format Printf formatting string
  * @param ... Arguments
  */
-void usb_printf(const char * format, ...)
+void usb_printf(const char *format, ...)
 {
     if (!tud_cdc_connected())
     {
         return;
     }
 
-    char _buf[164];
-    va_list _args;
-    va_start(_args, format);
-    int _len = vsnprintf(_buf, sizeof(_buf), format, _args);
-    va_end(_args);
+    char buf[164];
+    va_list args;
+    va_start(args, format);
+    int len = vsnprintf(buf, sizeof(buf), format, args);
+    va_end(args);
 
-    if (_len > 0)
+    if (len > 0)
     {
-        usb_write(_buf, (uint32_t)_len);
+        usb_write(buf, (uint32_t)len);
     }
 }
 
 /**
  * @brief Check if a CDC terminal is connected.
- * 
+ *
  * @return true if connected, false otherwise
  */
 bool usb_connected(void)
