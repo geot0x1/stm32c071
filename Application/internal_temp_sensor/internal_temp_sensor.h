@@ -8,8 +8,8 @@
  */
 typedef enum
 {
-    InternalTempSensorOk,      /**< Sensor read successfully */
-    InternalTempSensorError    /**< Sensor read failed */
+    InternalTempSensorOk, /**< Sensor read successfully */
+    InternalTempSensorError /**< Sensor read failed */
 } InternalTempStatus;
 
 /**
@@ -33,9 +33,9 @@ void internal_temp_sensor_task(void);
 /**
  * @brief Get the last valid temperature reading.
  *
- * @return Temperature in Celsius * 100 (e.g., 2500 = 25.00°C), or 0xFFFF on error/not-ready
+ * @return Temperature in Celsius * 100 (e.g., 2500 = 25.00°C), or -1 (0xFFFF) on error/not-ready
  */
-uint16_t internal_temp_sensor_get(void);
+int16_t internal_temp_sensor_get(void);
 
 /**
  * @brief Register a handler callback for sensor events.
@@ -43,6 +43,15 @@ uint16_t internal_temp_sensor_get(void);
  *
  * @param handler Callback function or NULL to disable
  */
+
 void internal_temp_sensor_register_handler(InternalTempHandler handler);
+
+/**
+ * @brief Get the last valid raw ADC reading.
+ *
+ * @return Raw ADC value, or 0xFFFF on error/not-ready
+ */
+uint16_t internal_temp_sensor_get_raw(void);
+
 
 #endif /* INTERNAL_TEMP_SENSOR_H */
