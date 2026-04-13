@@ -1,5 +1,6 @@
 #include "adc.h"
 #include "main.h"
+#include "stm32c0xx_ll_adc.h"
 
 static ADC_HandleTypeDef hadc1;
 
@@ -66,6 +67,18 @@ bool adc_read_channel(uint32_t channel, uint32_t *out_raw)
         return false;
     }
 
+    /* Workaround for SCAN_SEQ_FIXED mode cross-contamination:
+     * In SCAN_SEQ_FIXED mode, both TEMPSENSOR (ch9) and VREFINT (ch10) remain active
+     * in CHSELR after adc_init(). Since ch9 < ch10, it always converts first, and
+     * EOC fires after ch9, causing HAL_ADC_GetValue() to return ch9's result regardless
+     * of which channel was requested.
+     *
+     * Workaround: Clear CHSELR and reconfigure only the requested channel using
+     * LL functions to directly manipulate the register. This ensures only one channel
+     * is active during the conversion.
+     */
+    LL_ADC_REG_SetSequencerChannels(hadc1.Instance, channel);
+
     if (HAL_ADC_Start(&hadc1) != HAL_OK)
     {
         return false;
@@ -75,10 +88,16 @@ bool adc_read_channel(uint32_t channel, uint32_t *out_raw)
     if (HAL_ADC_PollForConversion(&hadc1, 10) != HAL_OK)
     {
         HAL_ADC_Stop(&hadc1);
+        /* Restore both channels before returning error */
+        LL_ADC_REG_SetSequencerChannels(hadc1.Instance, ADC_CHANNEL_TEMPSENSOR | ADC_CHANNEL_VREFINT);
         return false;
     }
 
     *out_raw = HAL_ADC_GetValue(&hadc1);
     HAL_ADC_Stop(&hadc1);
+
+    /* Restore both channels to CHSELR for future reads */
+    LL_ADC_REG_SetSequencerChannels(hadc1.Instance, ADC_CHANNEL_TEMPSENSOR | ADC_CHANNEL_VREFINT);
+
     return true;
 }

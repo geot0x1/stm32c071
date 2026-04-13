@@ -46,7 +46,12 @@
       "Bash(arm-none-eabi-nm pwmtest1.elf)",
       "Bash(arm-none-eabi-objdump -t pwmtest1.elf)",
       "Bash(arm-none-eabi-objdump -t Application/board/CMakeFiles/board.dir/board.c.obj)",
-      "Bash(arm-none-eabi-nm -C pwmtest1.elf)"
+      "Bash(arm-none-eabi-nm -C pwmtest1.elf)",
+      "Bash(python \"c:\\\\Users\\\\panos\\\\Documents\\\\PROJECTS\\\\external_stm_project\\\\stm32c071\\\\monitor_com4.py\")",
+      "Bash(git checkout:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(grep -n \"\\\\\\\\..*printf\\\\|printf.*\\\\\\\\.\" \"Application/main.c\")",
+      "Bash(grep -n \"printf.*\\\\\\\\\\\\.\\\\|\\\\..*printf\\\\|\\\\\"\\\\\\\\.\\\\\"\" \"Application/\"*.c \"Application/usb/\"*.c \"Core/Src/\"*.c)"
     ]
   }
 }

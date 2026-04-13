@@ -1,28 +1,36 @@
 #include "internal_temp_sensor.h"
 #include "adc.h"
 #include "stm32c0xx_hal.h"
+#include "stm32c0xx_ll_adc.h"
 
 /* ── Factory calibration constants ───────────────────────────────────────────
  * STM32C071 internal temperature sensor calibration values stored in Flash.
  * Source: STM32C0 reference manual (RM0490), Section 16.3.6, page 321
  *
  * STM32C0 has ONE factory calibration point at 30°C stored at 0x1FFF7568.
+ * VREFINT calibration (measured at Vdda=3.0V) is stored at 0x1FFF756A.
  * Temperature is calculated using the formula from RM0490, page 321:
  *   Temperature (°C) = (TS_DATA - TS_CAL1) / Avg_Slope_Code + T_CAL1
  *
  * The STM32C071 has a POSITIVE temperature coefficient (+2.5 mV/°C typical).
  * As the chip heats up, the sensor voltage (and ADC count) increases.
- * This differs from older STM32F1 which have negative coefficients.
+ * This differs from older STM32F1 which have negative coefficients (-4.3 mV/°C).
  *
- * Critical: Calibration (TS_CAL1) was performed at Vdda = 3.0V, but the board
- * runs at 3.3V. The ADC raw count scales with Vdda. The raw reading must be
- * normalized to the 3.0V reference using VREFINT before applying the formula.
+ * Critical: Both calibrations (TS_CAL1 and VREFINT_CAL) were performed at
+ * Vdda = 3.0V. The ADC raw counts scale with actual supply voltage. To ensure
+ * accuracy across varying Vdda, we dynamically measure actual Vdda using
+ * VREFINT, then normalize temperature sensor data to the 3.0V calibration point.
+ *
+ * Vdda Correction Formula:
+ *   Vdda_mV = 3000 × (*VREFINT_CAL) / vrefint_raw
+ *   corrected = ts_raw × Vdda_mV / 3000
+ *   T = (corrected - TS_CAL1) / TS_AVGSLOPE_CODE + 30°C
  */
 #define TS_CAL1_ADDR        ((const uint16_t *)0x1FFF7568UL) /* TS_CAL1: raw ADC @ 30°C, Vdda=3.0V */
 #define TS_CAL1_TEMP        30
 #define TS_AVG_SLOPE_UV     (2500)   /* Avg_Slope: +2.5 mV/°C (positive: ADC increases as temp rises) */
-#define TS_VREF_CAL_MV      3000     /* Calibration Vdda reference: 3.0V */
-#define TS_VDDA_MV          3300     /* Actual board supply voltage: 3.3V */
+#define TS_VREF_CAL_MV      (3000)   /* Calibration Vdda reference: 3.0V */
+/* VREFINT_CAL_ADDR is defined in stm32c0xx_ll_adc.h; no need to redefine here */
 #define TS_AVGSLOPE_CODE    ((TS_AVG_SLOPE_UV * 4096) / TS_VREF_CAL_MV)  /* = +3413 (counts/°C) */
 
 /* ── Configuration ───────────────────────────────────────────────────────────
@@ -49,33 +57,47 @@ static InternalTempState _state = StateConvert;
  */
 
 /**
- * @brief Convert ADC raw value to Celsius * 100 using factory calibration.
+ * @brief Convert ADC raw values to Celsius * 100 using dynamic Vdda correction.
  *
- * Uses the single-point calibration method from STM32C0 reference manual (RM0490, page 321).
+ * Uses the single-point calibration method from STM32C0 reference manual (RM0490, page 321),
+ * with dynamic Vdda measurement via VREFINT for improved accuracy.
  *
  * Procedure:
- *   1. Normalize ts_raw to 3.0V calibration reference:
- *      corrected = ts_raw × (TS_VDDA_MV / TS_VREF_CAL_MV)
- *   2. Apply single-point calibration formula:
+ *   1. Measure actual Vdda using VREFINT factory calibration:
+ *      Vdda_mV = 3000 × (*VREFINT_CAL) / vrefint_raw
+ *   2. Normalize ts_raw to 3.0V calibration reference:
+ *      corrected = ts_raw × (Vdda_mV / 3000)
+ *   3. Apply single-point calibration formula:
  *      T × 100 = (corrected - TS_CAL1) × 100000 / TS_AVGSLOPE_CODE + 30 × 100
  *
- * The Vdda correction is essential: factory calibration was at 3.0V, but the board
- * runs at 3.3V. Without correction, the raw count is scaled differently, causing
- * systematic temperature error (~15-20°C when uncorrected).
+ * The Vdda correction is essential: factory calibration was at 3.0V. ADC counts scale
+ * with actual supply voltage. Without correction, temperature error can be ±5°C or more
+ * if Vdda drifts. Dynamic VREFINT measurement provides accurate correction.
  *
- * Max intermediate: 4095 × 3300 / 3000 = 4505; Δ = 3465 × 100000 = 346.5M < INT32_MAX ✓
+ * Overflow check (int32_t safety):
+ *   Vdda_mV: max 3600 (if Vdda = 3.6V)
+ *   corrected: max 4095 × 3600 / 3000 = 4914, fits in int32
+ *   (corrected - cal1) × 100000: max 3400 × 100000 = 340M < INT32_MAX ✓
  *
  * @param ts_raw TEMPSENSOR raw ADC value (12-bit, 0-4095)
- * @return Temperature in Celsius * 100 (e.g., 2730 = 27.30°C)
+ * @param vrefint_raw VREFINT raw ADC value (12-bit, 0-4095)
+ * @return Temperature in Celsius * 100 (e.g., 2730 = 27.30°C), or -1 on error
  */
-static int16_t adc_to_celsius_100(uint32_t ts_raw)
+static int16_t adc_to_celsius_100(uint32_t ts_raw, uint32_t vrefint_raw)
 {
-    /* Step 1: Normalize ts_raw to 3.0V calibration reference.
-     * Raw counts scale with Vdda: corrected = raw × (Vdda / Vcal)
+    /* Step 1: Compute actual Vdda using VREFINT measurement.
+     * VREFINT_CAL_ADDR holds factory ADC count at Vdda=3.0V.
+     * Vdda_mV = 3000 × VREFINT_CAL / vrefint_raw
      */
-    int32_t corrected_ts = ((int32_t)ts_raw * (int32_t)TS_VDDA_MV) / (int32_t)TS_VREF_CAL_MV;
+    int32_t vdda_mv = ((int32_t)TS_VREF_CAL_MV * (int32_t)(*VREFINT_CAL_ADDR))
+                      / (int32_t)vrefint_raw;
 
-    /* Step 2: Single-point calibration formula (RM0490, Section 16.3.6).
+    /* Step 2: Normalize ts_raw to 3.0V calibration reference.
+     * corrected = ts_raw × (Vdda / 3.0V)
+     */
+    int32_t corrected_ts = ((int32_t)ts_raw * vdda_mv) / (int32_t)TS_VREF_CAL_MV;
+
+    /* Step 3: Single-point calibration formula (RM0490, Section 16.3.6).
      * T (°C) = (corrected_ts − TS_CAL1) / Avg_Slope_Code + T_CAL1
      * To get Celsius * 100 with integer arithmetic:
      *   T × 100 = (corrected_ts − TS_CAL1) × 100000 / TS_AVGSLOPE_CODE + 30 × 100
@@ -107,12 +129,18 @@ void internal_temp_sensor_task(void)
     {
         case StateConvert:
         {
-            /* Perform blocking ADC read for temperature sensor */
-            uint32_t ts_raw;
-            if (adc_read_channel(ADC_CHANNEL_TEMPSENSOR, &ts_raw))
+            /* Perform blocking ADC reads for both temperature sensor and VREFINT.
+             * VREFINT is used to dynamically measure actual Vdda for accurate
+             * temperature correction.
+             */
+            uint32_t ts_raw, vrefint_raw;
+            bool ts_ok = adc_read_channel(ADC_CHANNEL_TEMPSENSOR, &ts_raw);
+            bool vref_ok = adc_read_channel(ADC_CHANNEL_VREFINT, &vrefint_raw);
+
+            if (ts_ok && vref_ok && vrefint_raw != 0)
             {
                 _last_raw = ts_raw;
-                _last_temp = adc_to_celsius_100(ts_raw);
+                _last_temp = adc_to_celsius_100(ts_raw, vrefint_raw);
                 if (_handler)
                 {
                     _handler(InternalTempSensorOk);
