@@ -130,9 +130,8 @@ void SysTick_Handler(void)
 
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
-  sys_time_handler();
   /* USER CODE BEGIN SysTick_IRQn 1 */
-
+  sys_time_handler();
   /* USER CODE END SysTick_IRQn 1 */
 }
 

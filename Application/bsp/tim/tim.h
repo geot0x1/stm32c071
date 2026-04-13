@@ -32,6 +32,21 @@ typedef struct TimS {
 void tim_pwm_init(Tim *tim, TIM_TypeDef *instance, uint32_t freq_hz, uint8_t num_channels);
 
 /**
+ * @brief Initialize a timer as PWM with explicit prescaler and reload values
+ *
+ * Like tim_pwm_init(), but accepts prescaler (PSC) and auto-reload (ARR) values directly
+ * instead of computing them from a frequency. Use when you need full control over the
+ * timer's clock resolution and period.
+ *
+ * @param tim           Timer handle (allocated by caller)
+ * @param instance      TIM peripheral instance (TIM1, TIM3, TIM16, TIM17, etc.)
+ * @param psc           Prescaler value (0-65535)
+ * @param arr           Auto-reload register value (ARR)
+ * @param num_channels  Number of active channels (1-4)
+ */
+void tim_pwm_init_raw(Tim *tim, TIM_TypeDef *instance, uint32_t psc, uint32_t arr, uint8_t num_channels);
+
+/**
  * @brief Set PWM duty cycle on a channel (0-100%)
  *
  * @param tim       Timer handle

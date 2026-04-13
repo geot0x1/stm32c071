@@ -1,3 +1,4 @@
+add_subdirectory(adc)
 add_subdirectory(tim)
 add_subdirectory(gpio)
 add_subdirectory(i2c)

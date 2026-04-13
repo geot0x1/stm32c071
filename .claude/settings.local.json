@@ -40,7 +40,13 @@
       "Bash(powershell -Command \"Get-PnpDevice -Class Ports | Select-Object Name, Status\")",
       "Bash(python)",
       "Bash(timeout 8 python -c ':*)",
-      "Bash(find \"c:/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071/Application\" -name \"*.c\" -exec grep -l \"\\)\\\\s*{\" {} \\\\;)"
+      "Bash(find \"c:/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071/Application\" -name \"*.c\" -exec grep -l \"\\)\\\\s*{\" {} \\\\;)",
+      "Bash(python run.py)",
+      "Bash(nm pwmtest1.elf)",
+      "Bash(arm-none-eabi-nm pwmtest1.elf)",
+      "Bash(arm-none-eabi-objdump -t pwmtest1.elf)",
+      "Bash(arm-none-eabi-objdump -t Application/board/CMakeFiles/board.dir/board.c.obj)",
+      "Bash(arm-none-eabi-nm -C pwmtest1.elf)"
     ]
   }
 }

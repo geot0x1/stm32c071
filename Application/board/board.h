@@ -2,6 +2,7 @@
 #define BOARD_H
 
 #include <stdbool.h>
+#include "stm32c0xx_hal.h"
 #include "i2c.h"
 #include "bsp_usb.h"
 
@@ -28,6 +29,9 @@ I2c_t *board_get_i2c(void);
 
 /** @brief USB PCD handle (for power management / future use) */
 Usb_t *board_get_usb(void);
+
+/** @brief ADC1 handle (internal temperature sensor + VREFINT). */
+ADC_HandleTypeDef *board_get_adc(void);
 
 /* ── Error handler ───────────────────────────────────────────────────────── */
 

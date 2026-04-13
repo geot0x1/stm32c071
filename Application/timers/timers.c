@@ -29,12 +29,12 @@ void timers_init(void)
     tim_ic_init(&capture_tim, TIM2, 1000000);
     HAL_TIM_MspPostInit(&capture_tim.hal_handle);   /* PB10/PB11 AF3 + NVIC */
 
-    /* TIM16 — PWM Repeater output A, 25 kHz, 1 channel */
-    tim_pwm_init(&repeater_a_tim, TIM16, 25000, 1);
+    /* TIM16 — PWM Repeater output A, 1 µs resolution (PSC=47), placeholder ARR */
+    tim_pwm_init_raw(&repeater_a_tim, TIM16, 47, 0xFFFF, 1);
     HAL_TIM_MspPostInit(&repeater_a_tim.hal_handle);  /* PA0 AF2 */
 
-    /* TIM17 — PWM Repeater output B, 25 kHz, 1 channel */
-    tim_pwm_init(&repeater_b_tim, TIM17, 25000, 1);
+    /* TIM17 — PWM Repeater output B, 1 µs resolution (PSC=47), placeholder ARR */
+    tim_pwm_init_raw(&repeater_b_tim, TIM17, 47, 0xFFFF, 1);
     HAL_TIM_MspPostInit(&repeater_b_tim.hal_handle);  /* PA1 AF2 */
 
     /* TIM14 — System utility timer, 1 MHz free-running base counter */

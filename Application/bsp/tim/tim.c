@@ -92,14 +92,66 @@ void tim_pwm_init(Tim *tim, TIM_TypeDef *instance, uint32_t freq_hz, uint8_t num
     tim->freq_hz = freq_hz;
     tim->num_channels = num_channels;
 
-    tim_enable_clock(instance);
-
     uint32_t clk_freq = tim_get_clock_freq(instance);
     uint32_t arr = clk_freq / freq_hz;
 
     tim->hal_handle.Init.Prescaler = 0;
     tim->hal_handle.Init.CounterMode = TIM_COUNTERMODE_UP;
     tim->hal_handle.Init.Period = (arr > 0xFFFF) ? 0xFFFF : (arr - 1);
+    tim->hal_handle.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    tim->hal_handle.Init.RepetitionCounter = 0;
+    tim->hal_handle.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+
+    HAL_TIM_PWM_Init(&tim->hal_handle);
+
+    TIM_OC_InitTypeDef sConfigOC = {0};
+    sConfigOC.OCMode = TIM_OCMODE_PWM1;
+    sConfigOC.Pulse = 0;
+    sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+
+    for (uint8_t ch = 1; ch <= num_channels; ch++)
+    {
+        HAL_TIM_PWM_ConfigChannel(&tim->hal_handle, &sConfigOC, tim_channel(ch));
+    }
+
+    // Configure BreakDeadTime for advanced timers (TIM1, TIM16, TIM17)
+    if (instance == TIM1 || instance == TIM16 || instance == TIM17)
+    {
+        TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+        sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+        sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+        sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+        sBreakDeadTimeConfig.DeadTime = 0;
+        sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+        sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+        sBreakDeadTimeConfig.BreakFilter = 0;
+        sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+        if (instance == TIM1)
+        {
+            sBreakDeadTimeConfig.Break2State = TIM_BREAK2_DISABLE;
+            sBreakDeadTimeConfig.Break2Polarity = TIM_BREAK2POLARITY_HIGH;
+            sBreakDeadTimeConfig.Break2Filter = 0;
+            sBreakDeadTimeConfig.BreakAFMode = TIM_BREAK_AFMODE_INPUT;
+        }
+        HAL_TIMEx_ConfigBreakDeadTime(&tim->hal_handle, &sBreakDeadTimeConfig);
+    }
+}
+
+void tim_pwm_init_raw(Tim *tim, TIM_TypeDef *instance, uint32_t psc, uint32_t arr, uint8_t num_channels)
+{
+    memset(tim, 0, sizeof(Tim));
+
+    tim->hal_handle.Instance = instance;
+    tim->freq_hz = 0;  // Not meaningful for raw mode
+    tim->num_channels = num_channels;
+
+    uint32_t clk_freq = tim_get_clock_freq(instance);
+    (void)clk_freq;  // Suppress unused warning — PSC is pre-computed by caller
+
+    tim->hal_handle.Init.Prescaler = psc;
+    tim->hal_handle.Init.CounterMode = TIM_COUNTERMODE_UP;
+    tim->hal_handle.Init.Period = arr;
     tim->hal_handle.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     tim->hal_handle.Init.RepetitionCounter = 0;
     tim->hal_handle.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
