@@ -82,6 +82,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     ds18b20
     delay
     temperature_sensor
+    internal_temp_sensor
     usb
     fan_control
 )

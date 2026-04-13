@@ -1,9 +1,9 @@
-#include "bsp_adc.h"
+#include "adc.h"
 #include "main.h"
 
 static ADC_HandleTypeDef hadc1;
 
-void bsp_adc_init(void)
+void adc_init(void)
 {
     ADC_ChannelConfTypeDef s_config = {0};
 
@@ -45,7 +45,40 @@ void bsp_adc_init(void)
     }
 }
 
-ADC_HandleTypeDef *bsp_adc_get_handle(void)
+ADC_HandleTypeDef *adc_get_handle(void)
 {
     return &hadc1;
+}
+
+bool adc_read_channel(uint32_t channel, uint32_t *out_raw)
+{
+    if (out_raw == NULL)
+    {
+        return false;
+    }
+
+    ADC_ChannelConfTypeDef s_config = {0};
+    s_config.Channel = channel;
+    s_config.Rank    = ADC_RANK_CHANNEL_NUMBER;
+
+    if (HAL_ADC_ConfigChannel(&hadc1, &s_config) != HAL_OK)
+    {
+        return false;
+    }
+
+    if (HAL_ADC_Start(&hadc1) != HAL_OK)
+    {
+        return false;
+    }
+
+    /* Poll for conversion with 10 ms timeout (~7 µs actual conversion time) */
+    if (HAL_ADC_PollForConversion(&hadc1, 10) != HAL_OK)
+    {
+        HAL_ADC_Stop(&hadc1);
+        return false;
+    }
+
+    *out_raw = HAL_ADC_GetValue(&hadc1);
+    HAL_ADC_Stop(&hadc1);
+    return true;
 }

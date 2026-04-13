@@ -1,5 +1,5 @@
 add_library(bsp_adc STATIC
-    bsp_adc.c
+    adc.c
 )
 
 target_include_directories(bsp_adc PUBLIC
