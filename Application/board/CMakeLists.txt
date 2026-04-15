@@ -14,11 +14,9 @@ target_include_directories(board PRIVATE
     ${CMAKE_SOURCE_DIR}/Application/bsp/gpio
     ${CMAKE_SOURCE_DIR}/Application/bsp/i2c
     ${CMAKE_SOURCE_DIR}/Application/bsp/usb
-    ${CMAKE_SOURCE_DIR}/Application/bsp/adc
 )
 
 target_link_libraries(board PUBLIC
-    bsp_adc
     bsp_gpio
     bsp_i2c
     bsp_usb

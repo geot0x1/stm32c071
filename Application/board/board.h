@@ -30,9 +30,6 @@ I2c_t *board_get_i2c(void);
 /** @brief USB PCD handle (for power management / future use) */
 Usb_t *board_get_usb(void);
 
-/** @brief ADC1 handle (internal temperature sensor + VREFINT). */
-ADC_HandleTypeDef *board_get_adc(void);
-
 /* ── Error handler ───────────────────────────────────────────────────────── */
 
 void Error_Handler(void);

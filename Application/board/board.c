@@ -2,7 +2,6 @@
 #include "board_config.h"
 #include "gpio.h"
 #include "stm32c0xx_hal.h"
-#include "adc.h"
 
 /* ── Private peripheral instances ───────────────────────────────────────────
  */
@@ -53,9 +52,6 @@ void board_init(void)
 
     /* 5. Flash — verify access (required before NVS use) */
     mx_flash_init();
-
-    /* 6. ADC — internal temperature sensor + VREFINT */
-    adc_init();
 }
 
 /* ── LED control ─────────────────────────────────────────────────────────────
@@ -82,11 +78,6 @@ I2c_t *board_get_i2c(void)
 Usb_t *board_get_usb(void)
 {
     return &board_usb;
-}
-
-ADC_HandleTypeDef *board_get_adc(void)
-{
-    return adc_get_handle();
 }
 
 /* ── Private init helpers ────────────────────────────────────────────────────

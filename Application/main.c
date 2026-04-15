@@ -6,7 +6,6 @@
 #include "temperature_sensor.h"
 #include "timers/timers.h"
 #include "usb.h"
-#include "internal_temp_sensor.h"
 
 void temperature_sensor_event_handler(TempSensorEvent event)
 {
@@ -39,31 +38,6 @@ int main(void)
     delay_init(timers_get_sys_timer());
 
     usb_init();
-    internal_temp_sensor_init();
-    uint32_t last_print = 0;
-    while (true)
-    {
-        usb_task();
-        internal_temp_sensor_task();
-
-        if (HAL_GetTick() - last_print >= 1000)
-        {
-            last_print = HAL_GetTick();
-            int16_t temp = internal_temp_sensor_get();
-            board_led_toggle();
-            usb_printf("LED TOGGLE\r\n");
-            if (temp == -1)
-            {
-                usb_printf("TEMP: ERROR\r\n");
-            }
-            else
-            {
-                uint32_t raw_adc = internal_temp_sensor_get_raw();
-                usb_printf("TEMP: %d.%02d (raw ADC: %lu)\r\n", temp / 100, (int)(temp % 100 < 0 ? -(temp % 100) : temp % 100), raw_adc);
-            }
-        }
-    }
-
 
     fan_control_init(timers_get_fan_power(), timers_get_fan_remote());
     fan_init(25000);

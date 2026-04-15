@@ -18,12 +18,12 @@
 ## 2. Thermal Monitoring
 
 ### Sensors
-- **External**: 1x DS18B20 digital sensor (1-Wire interface).
-- **Internal**: 1x On-board sensor.
+- **DS18B20**: 1x digital sensor (1-Wire interface, PB3).
+- **I2C sensor**: 1x digital sensor (I2C bus, on-board).
 
 ### Processing Logic
 - Continuous reading of both sensors.
-- **Current Temperature**: Defined as the maximum value between the two sensors (`max(External, Internal)`).
+- **Current Temperature**: Defined as the maximum value between the two sensors (`max(DS18B20, I2C)`).
 
 ---
 
