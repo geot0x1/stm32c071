@@ -7,6 +7,10 @@
 #include "timers/timers.h"
 #include "usb.h"
 
+/* ── Watchdog ────────────────────────────────────────────────────────────── */
+
+static IWDG_HandleTypeDef hiwdg;
+
 void temperature_sensor_event_handler(TempSensorEvent event)
 {
     switch (event)
@@ -37,6 +41,13 @@ int main(void)
     timers_init();
     delay_init(timers_get_sys_timer());
 
+    /* IWDG — 2 second timeout (prescaler /32, reload 1999) */
+    hiwdg.Instance = IWDG;
+    hiwdg.Init.Prescaler = IWDG_PRESCALER_32;
+    hiwdg.Init.Window = 4095;
+    hiwdg.Init.Reload = 1999;
+    HAL_IWDG_Init(&hiwdg);
+
     usb_init();
 
     fan_control_init(timers_get_fan_power(), timers_get_fan_remote());
@@ -57,6 +68,8 @@ int main(void)
 
     while (1)
     {
+        HAL_IWDG_Refresh(&hiwdg);
+
         usb_task();
         pwm_repeater_task();
         temperature_sensor_task();

@@ -7,7 +7,7 @@
 #include "bsp_usb.h"
 
 /**
- * @brief Initialize board hardware (clocks, GPIO, I2C, USB, FLASH).
+ * @brief Initialize board hardware (clocks, GPIO, I2C, USB, UART, FLASH).
  *
  * Call once at startup after HAL_Init(). Timer initialization is handled
  * separately by timers_init().
@@ -29,6 +29,9 @@ I2c_t *board_get_i2c(void);
 
 /** @brief USB PCD handle (for power management / future use) */
 Usb_t *board_get_usb(void);
+
+/** @brief UART1 debug serial handle (115200 8N1, PB6/PB7) */
+UART_HandleTypeDef *board_get_uart(void);
 
 /* ── Error handler ───────────────────────────────────────────────────────── */
 
