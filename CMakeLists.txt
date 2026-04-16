@@ -84,6 +84,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     temperature_sensor
     usb
     fan_control
+    watchdog
 )
 
 # Include build info generator
