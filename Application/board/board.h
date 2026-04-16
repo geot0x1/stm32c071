@@ -22,6 +22,17 @@ void board_led_set(bool on);
 /** @brief Toggle the status LED. */
 void board_led_toggle(void);
 
+/* ── Power enable outputs ────────────────────────────────────────────────── */
+
+/** @brief Enable/disable DS18B20 VDD supply (PB5 → Q2). */
+void board_onewire_power_set(bool on);
+
+/** @brief Enable/disable 1-Wire strong pull-up resistor (PB8 → Q3). */
+void board_onewire_pullup_set(bool on);
+
+/** @brief Enable/disable LCD backlight power rail (PB15 → Q18). */
+void board_lcd_power_set(bool on);
+
 /* ── Peripheral getters ──────────────────────────────────────────────────── */
 
 /** @brief I2C sensor bus handle. */

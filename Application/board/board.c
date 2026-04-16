@@ -10,6 +10,9 @@
 static Gpio_t led_gpio;
 static Gpio_t exti_gpio;
 static Gpio_t onewire_gpio;
+static Gpio_t onewire_pwr_en_gpio;
+static Gpio_t onewire_pu_en_gpio;
+static Gpio_t lcd_pwr_en_gpio;
 
 static I2c_t sensor_i2c;
 static Usb_t board_usb;
@@ -46,6 +49,18 @@ void board_init(void)
     /* 2c. 1-Wire bus (open-drain + pull-up; runtime owned by onewire.c) */
     gpio_open_drain_init(&onewire_gpio, BOARD_ONEWIRE_PORT, BOARD_ONEWIRE_PIN);
 
+    /* 2d. 1-Wire power supply enable — start OFF until bus is ready */
+    gpio_output_init(&onewire_pwr_en_gpio, BOARD_ONEWIRE_PWR_EN_PORT,
+                     BOARD_ONEWIRE_PWR_EN_PIN, GPIO_PIN_RESET);
+
+    /* 2e. 1-Wire strong pull-up enable — start OFF */
+    gpio_output_init(&onewire_pu_en_gpio, BOARD_ONEWIRE_PU_EN_PORT,
+                     BOARD_ONEWIRE_PU_EN_PIN, GPIO_PIN_RESET);
+
+    /* 2f. LCD power enable — start OFF */
+    gpio_output_init(&lcd_pwr_en_gpio, BOARD_LCD_PWR_EN_PORT,
+                     BOARD_LCD_PWR_EN_PIN, GPIO_PIN_RESET);
+
     /* 3. I2C sensor bus (GPIO AF handled by MspInit) */
     i2c_init(&sensor_i2c, BOARD_I2C_INSTANCE, BOARD_I2C_TIMING);
 
@@ -71,6 +86,24 @@ void board_led_set(bool on)
 void board_led_toggle(void)
 {
     gpio_toggle(&led_gpio);
+}
+
+/* ── Power enable outputs ────────────────────────────────────────────────────
+ */
+
+void board_onewire_power_set(bool on)
+{
+    gpio_write(&onewire_pwr_en_gpio, on);
+}
+
+void board_onewire_pullup_set(bool on)
+{
+    gpio_write(&onewire_pu_en_gpio, on);
+}
+
+void board_lcd_power_set(bool on)
+{
+    gpio_write(&lcd_pwr_en_gpio, on);
 }
 
 /* ── Peripheral getters ──────────────────────────────────────────────────────

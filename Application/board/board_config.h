@@ -19,10 +19,10 @@
  * these macros directly.
  */
 
-/* ── Status LED ──────────────────────────────────────────────────────────── */
+/* ── Status LED (PA15 → NPN Q1 → LED1) ──────────────────────────────────── */
 
 #define BOARD_LED_PORT          GPIOA
-#define BOARD_LED_PIN           GPIO_PIN_5
+#define BOARD_LED_PIN           GPIO_PIN_15
 
 /* ── External interrupt input ────────────────────────────────────────────── */
 
@@ -34,8 +34,21 @@
 
 /* ── 1-Wire bus (DS18B20) ────────────────────────────────────────────────── */
 
-#define BOARD_ONEWIRE_PORT      GPIOB
-#define BOARD_ONEWIRE_PIN       GPIO_PIN_4
+#define BOARD_ONEWIRE_PORT          GPIOB
+#define BOARD_ONEWIRE_PIN           GPIO_PIN_4
+
+/* PB5 → NPN Q2 → DS18B20 VDD supply (active HIGH = sensor powered) */
+#define BOARD_ONEWIRE_PWR_EN_PORT   GPIOB
+#define BOARD_ONEWIRE_PWR_EN_PIN    GPIO_PIN_5
+
+/* PB8 → NPN Q3 → 1-Wire strong pull-up resistor (active HIGH = enabled) */
+#define BOARD_ONEWIRE_PU_EN_PORT    GPIOB
+#define BOARD_ONEWIRE_PU_EN_PIN     GPIO_PIN_8
+
+/* ── LCD power enable (PB15 → NPN Q18 → LCD +PWR_OUT, active HIGH) ──────── */
+
+#define BOARD_LCD_PWR_EN_PORT   GPIOB
+#define BOARD_LCD_PWR_EN_PIN    GPIO_PIN_15
 
 /* ── I2C sensor bus ──────────────────────────────────────────────────────── */
 
