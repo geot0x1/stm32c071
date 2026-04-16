@@ -1,5 +1,8 @@
-add_library(bsp_i2c STATIC
+add_library(bsp_i2c STATIC)
+
+target_sources(bsp_i2c PRIVATE
     i2c.c
+    i2c.h
 )
 
 target_include_directories(bsp_i2c PUBLIC

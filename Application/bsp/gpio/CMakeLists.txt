@@ -1,5 +1,8 @@
-add_library(bsp_gpio STATIC
+add_library(bsp_gpio STATIC)
+
+target_sources(bsp_gpio PRIVATE
     gpio.c
+    gpio.h
 )
 
 target_include_directories(bsp_gpio PUBLIC

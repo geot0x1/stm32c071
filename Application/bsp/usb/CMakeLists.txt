@@ -1,5 +1,8 @@
-add_library(bsp_usb STATIC
+add_library(bsp_usb STATIC)
+
+target_sources(bsp_usb PRIVATE
     bsp_usb.c
+    bsp_usb.h
 )
 
 target_include_directories(bsp_usb PUBLIC

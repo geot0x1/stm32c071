@@ -4,8 +4,11 @@
 # is defined, uncomment add_subdirectory(lptim) in the parent CMakeLists.txt
 # and add bsp_lptim to the executable's target_link_libraries.
 
-add_library(bsp_lptim STATIC
+add_library(bsp_lptim STATIC)
+
+target_sources(bsp_lptim PRIVATE
     lptim.c
+    lptim.h
 )
 
 target_include_directories(bsp_lptim PUBLIC

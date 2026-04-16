@@ -2,9 +2,9 @@
 #define BOARD_H
 
 #include <stdbool.h>
-#include "stm32c0xx_hal.h"
 #include "i2c.h"
 #include "bsp_usb.h"
+#include "uart.h"
 
 /**
  * @brief Initialize board hardware (clocks, GPIO, I2C, USB, UART, FLASH).
@@ -31,7 +31,7 @@ I2c_t *board_get_i2c(void);
 Usb_t *board_get_usb(void);
 
 /** @brief UART1 debug serial handle (115200 8N1, PB6/PB7) */
-UART_HandleTypeDef *board_get_uart(void);
+Uart_t *board_get_uart(void);
 
 /* ── Error handler ───────────────────────────────────────────────────────── */
 

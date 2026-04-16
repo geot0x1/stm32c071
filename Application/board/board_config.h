@@ -49,6 +49,11 @@
 #define BOARD_I2C_CLK_ENABLE()  __HAL_RCC_I2C2_CLK_ENABLE()
 #define BOARD_I2C_CLK_DISABLE() __HAL_RCC_I2C2_CLK_DISABLE()
 
+/* ── UART1 — debug serial (PB6 TX / PB7 RX) ─────────────────────────────── */
+
+#define BOARD_UART1_INSTANCE    USART1
+#define BOARD_UART1_BAUD_RATE   115200U
+
 /* ── System clock source ─────────────────────────────────────────────────── */
 /*
  * HSE = 8 MHz external crystal.

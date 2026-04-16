@@ -1,6 +1,7 @@
 #include "board.h"
 #include "board_config.h"
 #include "gpio.h"
+#include "uart.h"
 #include "stm32c0xx_hal.h"
 
 /* ── Private peripheral instances ───────────────────────────────────────────
@@ -13,7 +14,7 @@ static Gpio_t onewire_gpio;
 static I2c_t sensor_i2c;
 static Usb_t board_usb;
 
-static UART_HandleTypeDef huart1;
+static Uart_t board_uart1;
 
 /* ── Forward declarations ────────────────────────────────────────────────────
  */
@@ -52,18 +53,8 @@ void board_init(void)
     usb_pcd_init(&board_usb);
     HAL_Delay(20); /* USB clock stabilization */
 
-    /* 5. UART1 (debug serial, PB6/PB7, 115200 8N1) — MSP init handled by HAL */
-    huart1.Instance = USART1;
-    huart1.Init.BaudRate = 115200;
-    huart1.Init.WordLength = UART_WORDLENGTH_8B;
-    huart1.Init.StopBits = UART_STOPBITS_1;
-    huart1.Init.Parity = UART_PARITY_NONE;
-    huart1.Init.Mode = UART_MODE_TX_RX;
-    huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-    huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-    huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-    huart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-    HAL_UART_Init(&huart1);
+    /* 5. UART1 (debug serial, PB6/PB7) — MSP init handled by HAL */
+    uart_init(&board_uart1, BOARD_UART1_INSTANCE, BOARD_UART1_BAUD_RATE);
 
     /* 6. Flash — verify access (required before NVS use) */
     mx_flash_init();
@@ -95,9 +86,9 @@ Usb_t *board_get_usb(void)
     return &board_usb;
 }
 
-UART_HandleTypeDef *board_get_uart(void)
+Uart_t *board_get_uart(void)
 {
-    return &huart1;
+    return &board_uart1;
 }
 
 /* ── Private init helpers ────────────────────────────────────────────────────
