@@ -1,7 +1,6 @@
 #include "board.h"
 #include "board_config.h"
 #include "gpio.h"
-#include "uart.h"
 #include "stm32c0xx_hal.h"
 
 /* ── Private peripheral instances ───────────────────────────────────────────
@@ -16,8 +15,6 @@ static Gpio_t lcd_pwr_en_gpio;
 
 static I2c_t sensor_i2c;
 static Usb_t board_usb;
-
-static Uart_t board_uart1;
 
 /* ── Forward declarations ────────────────────────────────────────────────────
  */
@@ -68,10 +65,7 @@ void board_init(void)
     usb_pcd_init(&board_usb);
     HAL_Delay(20); /* USB clock stabilization */
 
-    /* 5. UART1 (debug serial, PB6/PB7) — MSP init handled by HAL */
-    uart_init(&board_uart1, BOARD_UART1_INSTANCE, BOARD_UART1_BAUD_RATE);
-
-    /* 6. Flash — verify access (required before NVS use) */
+    /* 5. Flash — verify access (required before NVS use) */
     mx_flash_init();
 }
 
@@ -117,11 +111,6 @@ I2c_t *board_get_i2c(void)
 Usb_t *board_get_usb(void)
 {
     return &board_usb;
-}
-
-Uart_t *board_get_uart(void)
-{
-    return &board_uart1;
 }
 
 /* ── Private init helpers ────────────────────────────────────────────────────

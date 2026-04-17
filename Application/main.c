@@ -6,6 +6,8 @@
 #include "temperature_sensor.h"
 #include "timers/timers.h"
 #include "usb.h"
+#include "serial.h"
+#include "board/board_config.h"
 #include "watchdog.h"
 
 void temperature_sensor_event_handler(TempSensorEvent event)
@@ -41,6 +43,7 @@ int main(void)
     watchdog_init();
 
     usb_init();
+    serial_init(BOARD_UART1_INSTANCE, BOARD_UART1_BAUD_RATE);
 
     fan_control_init(timers_get_fan_power(), timers_get_fan_remote());
     fan_init(25000);
@@ -80,12 +83,14 @@ int main(void)
                 fan_control_set_power_channel_duty(FanChannelTwo, 50);
                 fan_control_set_remote_channel_duty(FanChannelOne, 0);
                 usb_printf("FAN CH1: POWER ON, REMOTE OFF\r\n");
+                serial_printf("FAN CH1: POWER ON, REMOTE OFF\r\n");
             }
             else
             {
                 fan_control_set_power_channel_duty(FanChannelTwo, 0);
                 fan_control_set_remote_channel_duty(FanChannelOne, 50);
                 usb_printf("FAN CH1: POWER OFF, REMOTE ON\r\n");
+                serial_printf("FAN CH1: POWER OFF, REMOTE ON\r\n");
             }
         }
 
@@ -98,14 +103,21 @@ int main(void)
             usb_printf("CH_B: %u Hz, %u\r\n", (unsigned int)pwm_get_frequency_b(),
                 (unsigned int)pwm_get_duty_b());
 
+            serial_printf("CH_A: %u Hz, %u\r\n", (unsigned int)pwm_get_frequency_a(),
+                (unsigned int)pwm_get_duty_a());
+            serial_printf("CH_B: %u Hz, %u\r\n", (unsigned int)pwm_get_frequency_b(),
+                (unsigned int)pwm_get_duty_b());
+
             uint16_t raw_temp = get_temperature();
             if (raw_temp == 0xFFFF)
             {
                 usb_printf("TEMP: SENSOR LOST\r\n");
+                serial_printf("TEMP: SENSOR LOST\r\n");
             }
             else
             {
                 usb_printf("TEMP: %u\r\n", raw_temp);
+                serial_printf("TEMP: %u\r\n", raw_temp);
             }
         }
     }

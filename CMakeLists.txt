@@ -83,6 +83,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     delay
     temperature_sensor
     usb
+    serial
     fan_control
     watchdog
 )
