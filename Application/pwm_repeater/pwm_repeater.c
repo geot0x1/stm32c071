@@ -8,45 +8,45 @@
 #include <stdint.h>
 
 /* ── Tuning constants ──────────────────────────────────────────────────────── */
-#define TIMEOUT_TICKS            48000000U /* 1 second at 48 MHz */
-#define MAX_DUTY_PCT             100U
-#define IC_FILTER_VAL            0x04U
-#define MIN_LEVEL_TICKS          100U
-#define MAX_LEVEL_TICKS          1200000U
-#define MIN_PERIOD_TICKS         1000U
-#define MAX_PERIOD_TICKS         1500000U
-#define ARR_UPDATE_THRESHOLD     100U
-#define STABILITY_THRESHOLD      100U
+#define TIMEOUT_TICKS 48000000U /* 1 second at 48 MHz */
+#define MAX_DUTY_PCT 100U
+#define IC_FILTER_VAL 0x04U
+#define MIN_LEVEL_TICKS 100U
+#define MAX_LEVEL_TICKS 1200000U
+#define MIN_PERIOD_TICKS 1000U
+#define MAX_PERIOD_TICKS 1500000U
+#define ARR_UPDATE_THRESHOLD 100U
+#define STABILITY_THRESHOLD 100U
 #define STABILITY_REQUIRED_COUNT 3U
 
 /* ── Module-private timer handles (set by pwm_repeater_init) ───────────────── */
 static Tim *_capture_tim = NULL;
-static Tim *_out_a_tim   = NULL;
-static Tim *_out_b_tim   = NULL;
+static Tim *_out_a_tim = NULL;
+static Tim *_out_b_tim = NULL;
 
 /* ── Global instances ──────────────────────────────────────────────────────── */
-PwmChannel pwmChannelA = { .rise_captured = false };
-PwmChannel pwmChannelB = { .rise_captured = false };
-PwmOutput  pwmOutputA = {
-    .tim = NULL, .channel = TIM_CHANNEL_1,
-    .cap_factor_pct = 100, .throttle_val = 100,
-    .throttle_mode = ThrottleModeScale
-};
-PwmOutput  pwmOutputB = {
-    .tim = NULL, .channel = TIM_CHANNEL_1,
-    .cap_factor_pct = 100, .throttle_val = 100,
-    .throttle_mode = ThrottleModeScale
-};
+PwmChannel pwmChannelA = {.rise_captured = false};
+PwmChannel pwmChannelB = {.rise_captured = false};
+PwmOutput pwmOutputA = {.tim = NULL,
+    .channel = TIM_CHANNEL_1,
+    .cap_factor_pct = 100,
+    .throttle_val = 100,
+    .throttle_mode = ThrottleModeScale};
+PwmOutput pwmOutputB = {.tim = NULL,
+    .channel = TIM_CHANNEL_1,
+    .cap_factor_pct = 100,
+    .throttle_val = 100,
+    .throttle_mode = ThrottleModeScale};
 
 /* ── Forward declarations ──────────────────────────────────────────────────── */
-static void handle_ic_capture(PwmChannel *ch, uint32_t captured,
-                               uint32_t channel, GPIO_TypeDef *port, uint16_t pin);
+static void handle_ic_capture(
+    PwmChannel *ch, uint32_t captured, uint32_t channel, GPIO_TypeDef *port, uint16_t pin);
 static void reset_channel_state(PwmChannel *ch, uint32_t channel);
 static uint32_t calculate_output_pulse(PwmOutput *out);
 static void init_channel_struct(PwmChannel *ch);
 static void apply_output_to_hardware(PwmOutput *out, uint32_t active_pulse);
-static void process_channel_update(PwmChannel *ch, PwmOutput *out,
-                                   GPIO_TypeDef *port, uint16_t pin);
+static void process_channel_update(
+    PwmChannel *ch, PwmOutput *out, GPIO_TypeDef *port, uint16_t pin);
 static uint32_t calculate_frequency(uint32_t period_ticks);
 static uint32_t calculate_duty_pct(uint32_t period_ticks, uint32_t pulse_ticks);
 
@@ -58,7 +58,7 @@ void pwm_set_throttle_a(uint32_t val, ThrottleMode mode)
     {
         val = 100;
     }
-    pwmOutputA.throttle_val  = val;
+    pwmOutputA.throttle_val = val;
     pwmOutputA.throttle_mode = mode;
 }
 
@@ -68,15 +68,15 @@ void pwm_set_throttle_b(uint32_t val, ThrottleMode mode)
     {
         val = 100;
     }
-    pwmOutputB.throttle_val  = val;
+    pwmOutputB.throttle_val = val;
     pwmOutputB.throttle_mode = mode;
 }
 
 void pwm_repeater_init(Tim *capture_tim, Tim *out_a_tim, Tim *out_b_tim)
 {
     _capture_tim = capture_tim;
-    _out_a_tim   = out_a_tim;
-    _out_b_tim   = out_b_tim;
+    _out_a_tim = out_a_tim;
+    _out_b_tim = out_b_tim;
 
     pwmOutputA.tim = out_a_tim;
     pwmOutputB.tim = out_b_tim;
@@ -84,10 +84,10 @@ void pwm_repeater_init(Tim *capture_tim, Tim *out_a_tim, Tim *out_b_tim)
     TIM_IC_InitTypeDef sConfigIC = {0};
 
     /* 1. Configure input capture filters */
-    sConfigIC.ICPolarity  = TIM_ICPOLARITY_BOTHEDGE;
+    sConfigIC.ICPolarity = TIM_ICPOLARITY_BOTHEDGE;
     sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
     sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-    sConfigIC.ICFilter    = IC_FILTER_VAL;
+    sConfigIC.ICFilter = IC_FILTER_VAL;
 
     HAL_TIM_IC_ConfigChannel(&_capture_tim->hal_handle, &sConfigIC, TIM_CHANNEL_3);
     HAL_TIM_IC_ConfigChannel(&_capture_tim->hal_handle, &sConfigIC, TIM_CHANNEL_4);
@@ -96,11 +96,11 @@ void pwm_repeater_init(Tim *capture_tim, Tim *out_a_tim, Tim *out_b_tim)
     _capture_tim->hal_handle.Instance->CR1 |= TIM_CR1_ARPE;
 
     _out_a_tim->hal_handle.Instance->CR1 |= TIM_CR1_ARPE;
-    _out_a_tim->hal_handle.Instance->PSC  = 47; /* 48 MHz → 1 MHz (1 µs resolution) */
+    _out_a_tim->hal_handle.Instance->PSC = 47; /* 48 MHz → 1 MHz (1 µs resolution) */
     __HAL_TIM_ENABLE_OCxPRELOAD(&_out_a_tim->hal_handle, TIM_CHANNEL_1);
 
     _out_b_tim->hal_handle.Instance->CR1 |= TIM_CR1_ARPE;
-    _out_b_tim->hal_handle.Instance->PSC  = 47;
+    _out_b_tim->hal_handle.Instance->PSC = 47;
     __HAL_TIM_ENABLE_OCxPRELOAD(&_out_b_tim->hal_handle, TIM_CHANNEL_1);
 
     /* 3. Reset channel state */
@@ -116,8 +116,8 @@ void pwm_repeater_init(Tim *capture_tim, Tim *out_a_tim, Tim *out_b_tim)
     HAL_TIM_IC_Start_IT(&_capture_tim->hal_handle, TIM_CHANNEL_3);
     HAL_TIM_IC_Start_IT(&_capture_tim->hal_handle, TIM_CHANNEL_4);
 
-    pwm_set_throttle_a(50, ThrottleModeFixed);   /* Default: 50% fixed limit */
-    pwm_set_throttle_b(100, ThrottleModeScale);  /* Default: pass-through */
+    pwm_set_throttle_a(50, ThrottleModeFixed); /* Default: 50% fixed limit */
+    pwm_set_throttle_b(100, ThrottleModeScale); /* Default: pass-through */
 }
 
 void pwm_repeater_tim2_irq_handler(void)
@@ -166,25 +166,25 @@ static uint32_t calculate_output_pulse(PwmOutput *out)
 
 static void init_channel_struct(PwmChannel *ch)
 {
-    ch->rise_captured         = false;
-    ch->fall_captured         = false;
-    ch->period_ticks          = 0;
-    ch->pulse_ticks           = 0;
-    ch->low_level_ticks       = 0;
-    ch->last_capture_ms       = HAL_GetTick();
-    ch->new_data_ready        = false;
+    ch->rise_captured = false;
+    ch->fall_captured = false;
+    ch->period_ticks = 0;
+    ch->pulse_ticks = 0;
+    ch->low_level_ticks = 0;
+    ch->last_capture_ms = HAL_GetTick();
+    ch->new_data_ready = false;
     ch->period_stable_counter = 0;
     ch->previous_period_ticks = 0;
-    ch->pulse_stable_counter  = 0;
-    ch->previous_pulse_ticks  = 0;
+    ch->pulse_stable_counter = 0;
+    ch->previous_pulse_ticks = 0;
 }
 
 static void apply_output_to_hardware(PwmOutput *out, uint32_t active_pulse)
 {
     uint32_t output_period = (out->period_ticks / 48U);
-    uint32_t target_arr    = (output_period > 0xFFFFU) ? 0xFFFFU
-                           : (output_period > 0 ? output_period - 1 : 0);
-    uint32_t target_ccr    = (active_pulse / 48U);
+    uint32_t target_arr =
+        (output_period > 0xFFFFU) ? 0xFFFFU : (output_period > 0 ? output_period - 1 : 0);
+    uint32_t target_ccr = (active_pulse / 48U);
 
     if (target_ccr > target_arr)
     {
@@ -195,12 +195,11 @@ static void apply_output_to_hardware(PwmOutput *out, uint32_t active_pulse)
         target_ccr = target_arr + 1;
     }
 
-    out->tim->hal_handle.Instance->ARR  = target_arr;
+    out->tim->hal_handle.Instance->ARR = target_arr;
     out->tim->hal_handle.Instance->CCR1 = target_ccr;
 }
 
-static void process_channel_update(PwmChannel *ch, PwmOutput *out,
-                                   GPIO_TypeDef *port, uint16_t pin)
+static void process_channel_update(PwmChannel *ch, PwmOutput *out, GPIO_TypeDef *port, uint16_t pin)
 {
     uint32_t now = HAL_GetTick();
     const uint32_t TIMEOUT_MS = 50;
@@ -208,7 +207,7 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out,
     if (ch->new_data_ready)
     {
         out->period_ticks = ch->period_ticks;
-        out->pulse_ticks  = ch->pulse_ticks;
+        out->pulse_ticks = ch->pulse_ticks;
 
         uint32_t active_pulse = calculate_output_pulse(out);
         apply_output_to_hardware(out, active_pulse);
@@ -222,14 +221,14 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out,
         {
             if (ch->period_ticks == 0)
             {
-                out->tim->hal_handle.Instance->ARR  = 0xFFFE;
+                out->tim->hal_handle.Instance->ARR = 0xFFFE;
                 out->tim->hal_handle.Instance->CCR1 = 0xFFFF;
             }
             else
             {
-                ch->pulse_ticks   = ch->period_ticks;
+                ch->pulse_ticks = ch->period_ticks;
                 out->period_ticks = ch->period_ticks;
-                out->pulse_ticks  = ch->pulse_ticks;
+                out->pulse_ticks = ch->pulse_ticks;
 
                 uint32_t active_pulse = calculate_output_pulse(out);
                 apply_output_to_hardware(out, active_pulse);
@@ -241,22 +240,21 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out,
             init_channel_struct(ch);
         }
     }
-
 }
 
 static void reset_channel_state(PwmChannel *ch, uint32_t channel)
 {
     (void)channel;
-    ch->rise_captured         = false;
-    ch->fall_captured         = false;
-    ch->new_data_ready        = false;
-    ch->period_ticks          = 0;
-    ch->pulse_ticks           = 0;
-    ch->low_level_ticks       = 0;
+    ch->rise_captured = false;
+    ch->fall_captured = false;
+    ch->new_data_ready = false;
+    ch->period_ticks = 0;
+    ch->pulse_ticks = 0;
+    ch->low_level_ticks = 0;
     ch->period_stable_counter = 0;
     ch->previous_period_ticks = 0;
-    ch->pulse_stable_counter  = 0;
-    ch->previous_pulse_ticks  = 0;
+    ch->pulse_stable_counter = 0;
+    ch->previous_pulse_ticks = 0;
 }
 
 static uint32_t calculate_frequency(uint32_t period_ticks)
@@ -266,7 +264,7 @@ static uint32_t calculate_frequency(uint32_t period_ticks)
         return 0;
     }
 
-    return 48000000U / period_ticks;
+    return 1000000U / period_ticks;
 }
 
 static uint32_t calculate_duty_pct(uint32_t period_ticks, uint32_t pulse_ticks)
@@ -279,8 +277,8 @@ static uint32_t calculate_duty_pct(uint32_t period_ticks, uint32_t pulse_ticks)
     return (pulse_ticks * 100U) / period_ticks;
 }
 
-static void handle_ic_capture(PwmChannel *ch, uint32_t captured,
-                               uint32_t channel, GPIO_TypeDef *port, uint16_t pin)
+static void handle_ic_capture(
+    PwmChannel *ch, uint32_t captured, uint32_t channel, GPIO_TypeDef *port, uint16_t pin)
 {
     bool is_high = (HAL_GPIO_ReadPin(port, pin) == GPIO_PIN_SET);
     uint32_t delta;
@@ -289,8 +287,8 @@ static void handle_ic_capture(PwmChannel *ch, uint32_t captured,
     {
         if (ch->fall_captured)
         {
-            delta = calculate_delta(captured, ch->fall_timestamp,
-                                    _capture_tim->hal_handle.Instance->ARR);
+            delta = calculate_delta(
+                captured, ch->fall_timestamp, _capture_tim->hal_handle.Instance->ARR);
 
             if (delta < MIN_LEVEL_TICKS || delta > MAX_LEVEL_TICKS)
             {
@@ -317,8 +315,8 @@ static void handle_ic_capture(PwmChannel *ch, uint32_t captured,
             }
 
             uint32_t st_diff = (ch->period_ticks > ch->previous_period_ticks)
-                             ? (ch->period_ticks - ch->previous_period_ticks)
-                             : (ch->previous_period_ticks - ch->period_ticks);
+                ? (ch->period_ticks - ch->previous_period_ticks)
+                : (ch->previous_period_ticks - ch->period_ticks);
 
             if (st_diff <= STABILITY_THRESHOLD)
             {
@@ -329,26 +327,26 @@ static void handle_ic_capture(PwmChannel *ch, uint32_t captured,
                 ch->period_stable_counter = 0;
             }
 
-            if (ch->period_stable_counter >= STABILITY_REQUIRED_COUNT &&
-                ch->pulse_stable_counter  >= STABILITY_REQUIRED_COUNT)
+            if (ch->period_stable_counter >= STABILITY_REQUIRED_COUNT
+                && ch->pulse_stable_counter >= STABILITY_REQUIRED_COUNT)
             {
                 ch->new_data_ready = true;
             }
 
             ch->previous_period_ticks = ch->period_ticks;
-            ch->fall_captured         = false;
+            ch->fall_captured = false;
         }
 
         ch->rise_timestamp = captured;
-        ch->rise_captured  = true;
+        ch->rise_captured = true;
         ch->last_capture_ms = HAL_GetTick();
     }
     else /* FALLING EDGE — end of high phase */
     {
         if (ch->rise_captured)
         {
-            delta = calculate_delta(captured, ch->rise_timestamp,
-                                    _capture_tim->hal_handle.Instance->ARR);
+            delta = calculate_delta(
+                captured, ch->rise_timestamp, _capture_tim->hal_handle.Instance->ARR);
 
             if (delta < MIN_LEVEL_TICKS || delta > MAX_LEVEL_TICKS)
             {
@@ -366,8 +364,8 @@ static void handle_ic_capture(PwmChannel *ch, uint32_t captured,
             }
 
             uint32_t p_diff = (ch->pulse_ticks > ch->previous_pulse_ticks)
-                            ? (ch->pulse_ticks - ch->previous_pulse_ticks)
-                            : (ch->previous_pulse_ticks - ch->pulse_ticks);
+                ? (ch->pulse_ticks - ch->previous_pulse_ticks)
+                : (ch->previous_pulse_ticks - ch->pulse_ticks);
 
             if (p_diff <= STABILITY_THRESHOLD)
             {
@@ -378,10 +376,10 @@ static void handle_ic_capture(PwmChannel *ch, uint32_t captured,
                 ch->pulse_stable_counter = 0;
             }
             ch->previous_pulse_ticks = ch->pulse_ticks;
-            ch->fall_captured        = true;
+            ch->fall_captured = true;
         }
 
-        ch->fall_timestamp  = captured;
+        ch->fall_timestamp = captured;
         ch->last_capture_ms = HAL_GetTick();
     }
 }
