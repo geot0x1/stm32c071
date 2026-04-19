@@ -19,6 +19,11 @@
 #define STABILITY_THRESHOLD 100U
 #define STABILITY_REQUIRED_COUNT 3U
 
+#define OUTPUT_FREQ_HZ      160U
+#define OUTPUT_TIMER_HZ     1000000U
+#define OUTPUT_PERIOD_TICKS (OUTPUT_TIMER_HZ / OUTPUT_FREQ_HZ) /* 6250 */
+#define OUTPUT_ARR          (OUTPUT_PERIOD_TICKS - 1U)          /* 6249 */
+
 /* ── Module-private timer handles (set by pwm_repeater_init) ───────────────── */
 static Tim *_capture_tim = NULL;
 static Tim *_out_a_tim = NULL;
@@ -181,21 +186,20 @@ static void init_channel_struct(PwmChannel *ch)
 
 static void apply_output_to_hardware(PwmOutput *out, uint32_t active_pulse)
 {
-    uint32_t output_period = out->period_ticks;
-    uint32_t target_arr =
-        (output_period > 0xFFFFU) ? 0xFFFFU : (output_period > 0 ? output_period - 1 : 0);
-    uint32_t target_ccr = active_pulse;
-
-    if (target_ccr > target_arr)
+    if (out->period_ticks == 0)
     {
-        if (target_arr == 0xFFFFU)
-        {
-            target_arr = 0xFFFEU;
-        }
-        target_ccr = target_arr + 1;
+        return;
     }
 
-    out->tim->hal_handle.Instance->ARR = target_arr;
+    uint32_t target_ccr =
+        (uint32_t)(((uint64_t)active_pulse * OUTPUT_PERIOD_TICKS) / out->period_ticks);
+
+    if (target_ccr > OUTPUT_ARR)
+    {
+        target_ccr = OUTPUT_ARR + 1U;
+    }
+
+    out->tim->hal_handle.Instance->ARR  = OUTPUT_ARR;
     out->tim->hal_handle.Instance->CCR1 = target_ccr;
 }
 
@@ -221,8 +225,8 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out, GPIO_TypeDef 
         {
             if (ch->period_ticks == 0)
             {
-                out->tim->hal_handle.Instance->ARR = 0xFFFE;
-                out->tim->hal_handle.Instance->CCR1 = 0xFFFF;
+                out->tim->hal_handle.Instance->ARR  = OUTPUT_ARR;
+                out->tim->hal_handle.Instance->CCR1 = OUTPUT_ARR + 1U;
             }
             else
             {
