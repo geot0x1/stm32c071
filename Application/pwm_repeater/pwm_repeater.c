@@ -181,10 +181,10 @@ static void init_channel_struct(PwmChannel *ch)
 
 static void apply_output_to_hardware(PwmOutput *out, uint32_t active_pulse)
 {
-    uint32_t output_period = (out->period_ticks / 48U);
+    uint32_t output_period = out->period_ticks;
     uint32_t target_arr =
         (output_period > 0xFFFFU) ? 0xFFFFU : (output_period > 0 ? output_period - 1 : 0);
-    uint32_t target_ccr = (active_pulse / 48U);
+    uint32_t target_ccr = active_pulse;
 
     if (target_ccr > target_arr)
     {
