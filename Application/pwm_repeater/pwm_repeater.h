@@ -33,15 +33,6 @@ typedef struct
 } PwmChannel;
 
 /**
- * @brief Throttle mode applied to the output.
- */
-typedef enum
-{
-    ThrottleModeScale,
-    ThrottleModeFixed
-} ThrottleMode;
-
-/**
  * @brief Output control state for one PWM channel.
  */
 typedef struct
@@ -49,10 +40,8 @@ typedef struct
     Tim            *tim;               /* BSP timer handle (TIM16 or TIM17) */
     uint32_t          channel;           /* TIM_CHANNEL_x */
     volatile uint32_t period_ticks;
-    volatile uint32_t pulse_ticks;
-    volatile uint32_t cap_factor_pct;
-    volatile uint32_t throttle_val;
-    volatile ThrottleMode throttle_mode;
+    volatile uint32_t pulse_ticks;     /* actual input HIGH time (post-BJT correction) */
+    volatile uint32_t throttle_val;    /* limit in percent, 0–100 */
 } PwmOutput;
 
 /* Global channel instances (read-only from outside this module) */
@@ -76,8 +65,8 @@ void pwm_repeater_task(void);
 /** @brief Route TIM2 global IRQ here from stm32c0xx_it.c. */
 void pwm_repeater_tim2_irq_handler(void);
 
-void pwm_set_throttle_a(uint32_t val, ThrottleMode mode);
-void pwm_set_throttle_b(uint32_t val, ThrottleMode mode);
+void pwm_set_throttle_a(uint32_t limit_pct);
+void pwm_set_throttle_b(uint32_t limit_pct);
 
 uint32_t pwm_get_frequency_a(void);
 uint32_t pwm_get_duty_a(void);
