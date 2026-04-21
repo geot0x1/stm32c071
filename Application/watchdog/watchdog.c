@@ -5,7 +5,7 @@
 #define WATCHDOG_RELOAD    1999U
 #define WATCHDOG_WINDOW    4095U
 
-static Iwdg_t hiwdg;
+static Iwdg hiwdg;
 
 void watchdog_init(void)
 {

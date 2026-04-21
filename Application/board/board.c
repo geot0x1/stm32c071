@@ -6,15 +6,15 @@
 /* ── Private peripheral instances ───────────────────────────────────────────
  */
 
-static Gpio_t led_gpio;
-static Gpio_t exti_gpio;
-static Gpio_t onewire_gpio;
-static Gpio_t onewire_pwr_en_gpio;
-static Gpio_t onewire_pu_en_gpio;
-static Gpio_t lcd_pwr_en_gpio;
+static Gpio led_gpio;
+static Gpio exti_gpio;
+static Gpio onewire_gpio;
+static Gpio onewire_pwr_en_gpio;
+static Gpio onewire_pu_en_gpio;
+static Gpio lcd_pwr_en_gpio;
 
-static I2c_t sensor_i2c;
-static Usb_t board_usb;
+static I2c sensor_i2c;
+static Usb board_usb;
 
 /* ── Forward declarations ────────────────────────────────────────────────────
  */
@@ -103,12 +103,12 @@ void board_lcd_power_set(bool on)
 /* ── Peripheral getters ──────────────────────────────────────────────────────
  */
 
-I2c_t *board_get_i2c(void)
+I2c *board_get_i2c(void)
 {
     return &sensor_i2c;
 }
 
-Usb_t *board_get_usb(void)
+Usb *board_get_usb(void)
 {
     return &board_usb;
 }

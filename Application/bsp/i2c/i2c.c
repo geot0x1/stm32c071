@@ -1,7 +1,7 @@
 #include "i2c.h"
 #include <string.h>
 
-static I2c_err_t hal_to_i2c_err(HAL_StatusTypeDef status)
+static I2cErr hal_to_i2c_err(HAL_StatusTypeDef status)
 {
     switch (status)
     {
@@ -12,9 +12,9 @@ static I2c_err_t hal_to_i2c_err(HAL_StatusTypeDef status)
     }
 }
 
-void i2c_init(I2c_t *i2c, I2C_TypeDef *instance, uint32_t timing)
+void i2c_init(I2c *i2c, I2C_TypeDef *instance, uint32_t timing)
 {
-    memset(i2c, 0, sizeof(I2c_t));
+    memset(i2c, 0, sizeof(I2c));
 
     i2c->hal_handle.Instance              = instance;
     i2c->hal_handle.Init.Timing           = timing;
@@ -33,7 +33,7 @@ void i2c_init(I2c_t *i2c, I2C_TypeDef *instance, uint32_t timing)
     HAL_I2CEx_ConfigDigitalFilter(&i2c->hal_handle, 0);
 }
 
-I2c_err_t i2c_write(I2c_t *i2c, uint16_t dev_addr,
+I2cErr i2c_write(I2c *i2c, uint16_t dev_addr,
                     const uint8_t *data, uint16_t len, uint32_t timeout_ms)
 {
     return hal_to_i2c_err(
@@ -41,7 +41,7 @@ I2c_err_t i2c_write(I2c_t *i2c, uint16_t dev_addr,
                                 (uint8_t *)data, len, timeout_ms));
 }
 
-I2c_err_t i2c_read(I2c_t *i2c, uint16_t dev_addr,
+I2cErr i2c_read(I2c *i2c, uint16_t dev_addr,
                    uint8_t *data, uint16_t len, uint32_t timeout_ms)
 {
     return hal_to_i2c_err(
@@ -49,7 +49,7 @@ I2c_err_t i2c_read(I2c_t *i2c, uint16_t dev_addr,
                                data, len, timeout_ms));
 }
 
-I2c_err_t i2c_mem_write(I2c_t *i2c, uint16_t dev_addr, uint16_t mem_addr,
+I2cErr i2c_mem_write(I2c *i2c, uint16_t dev_addr, uint16_t mem_addr,
                          uint16_t mem_addr_size, const uint8_t *data,
                          uint16_t len, uint32_t timeout_ms)
 {
@@ -58,7 +58,7 @@ I2c_err_t i2c_mem_write(I2c_t *i2c, uint16_t dev_addr, uint16_t mem_addr,
                           mem_addr_size, (uint8_t *)data, len, timeout_ms));
 }
 
-I2c_err_t i2c_mem_read(I2c_t *i2c, uint16_t dev_addr, uint16_t mem_addr,
+I2cErr i2c_mem_read(I2c *i2c, uint16_t dev_addr, uint16_t mem_addr,
                         uint16_t mem_addr_size, uint8_t *data,
                         uint16_t len, uint32_t timeout_ms)
 {

@@ -1,9 +1,9 @@
 #include "iwdg.h"
 #include <string.h>
 
-void iwdg_init(Iwdg_t *iwdg, uint32_t prescaler, uint32_t reload, uint32_t window)
+void iwdg_init(Iwdg *iwdg, uint32_t prescaler, uint32_t reload, uint32_t window)
 {
-    memset(iwdg, 0, sizeof(Iwdg_t));
+    memset(iwdg, 0, sizeof(Iwdg));
 
     iwdg->hal_handle.Instance       = IWDG;
     iwdg->hal_handle.Init.Prescaler = prescaler;
@@ -13,7 +13,7 @@ void iwdg_init(Iwdg_t *iwdg, uint32_t prescaler, uint32_t reload, uint32_t windo
     HAL_IWDG_Init(&iwdg->hal_handle);
 }
 
-Iwdg_err_t iwdg_refresh(Iwdg_t *iwdg)
+IwdgErr iwdg_refresh(Iwdg *iwdg)
 {
     if (HAL_IWDG_Refresh(&iwdg->hal_handle) != HAL_OK)
     {

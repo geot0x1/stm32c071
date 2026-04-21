@@ -26,7 +26,7 @@
  *         .../Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_lptim.c
  *   5. In Application/bsp/lptim/CMakeLists.txt, add bsp_lptim target and
  *      link it to the main executable via CMakeLists.txt at project root.
- *   6. In Application/timers/timers.h, add: Lptim_t *timers_get_lptim(void);
+ *   6. In Application/timers/timers.h, add: Lptim *timers_get_lptim(void);
  *   7. In Application/timers/timers.c, add init call and getter.
  */
 
@@ -41,7 +41,7 @@
 typedef struct Lptim_s {
     LPTIM_HandleTypeDef hal_handle;
     uint32_t tick_hz;
-} Lptim_t;
+} Lptim;
 
 /**
  * @brief Initialize LPTIM1 as a free-running counter (polling mode)
@@ -57,7 +57,7 @@ typedef struct Lptim_s {
  * @note For low-power wake-up use, switch the clock source to LSI or LSE
  *       via HAL_RCCEx_PeriphCLKConfig() before calling this function.
  */
-void lptim_base_init(Lptim_t *lptim, uint32_t tick_hz);
+void lptim_base_init(Lptim *lptim, uint32_t tick_hz);
 
 /**
  * @brief Get current LPTIM1 counter value
@@ -65,7 +65,7 @@ void lptim_base_init(Lptim_t *lptim, uint32_t tick_hz);
  * @param lptim     LPTIM handle
  * @return          16-bit counter value (0–0xFFFF)
  */
-uint32_t lptim_get_count(Lptim_t *lptim);
+uint32_t lptim_get_count(Lptim *lptim);
 
 /**
  * @brief Start LPTIM1 with compare-match interrupt
@@ -81,13 +81,13 @@ uint32_t lptim_get_count(Lptim_t *lptim);
  * @note NVIC for LPTIM1_IRQn is configured in HAL_LPTIM_MspInit()
  *       in stm32c0xx_hal_msp.c.
  */
-void lptim_start_it(Lptim_t *lptim, uint32_t compare);
+void lptim_start_it(Lptim *lptim, uint32_t compare);
 
 /**
  * @brief Stop LPTIM1 and disable compare interrupt
  *
  * @param lptim     LPTIM handle
  */
-void lptim_stop_it(Lptim_t *lptim);
+void lptim_stop_it(Lptim *lptim);
 
 #endif // BSP_LPTIM_H

@@ -53,7 +53,8 @@
       "Bash(grep -n \"\\\\\\\\..*printf\\\\|printf.*\\\\\\\\.\" \"Application/main.c\")",
       "Bash(grep -n \"printf.*\\\\\\\\\\\\.\\\\|\\\\..*printf\\\\|\\\\\"\\\\\\\\.\\\\\"\" \"Application/\"*.c \"Application/usb/\"*.c \"Core/Src/\"*.c)",
       "Bash(xargs ls *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash([ -d \"/c/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071/Application/$dir\" ])"
     ]
   }
 }

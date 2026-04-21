@@ -95,6 +95,9 @@ void pwm_repeater_init(Tim *capture_tim, Tim *out_a_tim, Tim *out_b_tim)
 
     /* 4. Force ARR update and start peripherals */
     _capture_tim->hal_handle.Instance->ARR = UINT32_MAX;
+    /* INIT ONLY — safe here because ISRs are enabled below (HAL_TIM_IC_Start_IT).
+     * Forces ARPE preload into active ARR immediately; without this the old CubeMX
+     * ARR stays active until the first natural UEV, risking a bad first capture. */
     _capture_tim->hal_handle.Instance->EGR = TIM_EGR_UG;
 
     HAL_TIM_PWM_Start(&_out_a_tim->hal_handle, TIM_CHANNEL_1);
@@ -125,7 +128,7 @@ static uint32_t calculate_delta(uint32_t current, uint32_t previous, uint32_t ar
 
 static uint32_t calculate_output_pulse(PwmOutput *out)
 {
-    uint32_t limit_ticks = (out->period_ticks * out->throttle_val) / 100U;
+    uint32_t limit_ticks = (uint32_t)(((uint64_t)out->period_ticks * out->throttle_val) / 100U);
     return (out->pulse_ticks < limit_ticks) ? out->pulse_ticks : limit_ticks;
 }
 
@@ -159,7 +162,9 @@ static void apply_output_to_hardware(PwmOutput *out, uint32_t active_pulse)
         active_ccr = OUTPUT_PERIOD_TICKS;
     }
 
-    /* BJT on output inverts: PA0 HIGH → LCD_PWM LOW; invert CCR to compensate */
+    /* BJT on output inverts: PA0 HIGH → LCD_PWM LOW.
+     * To achieve desired duty cycle, we invert CCR so that
+     * TIM output HIGH time = desired LCD_PWM LOW time. */
     uint32_t target_ccr = OUTPUT_PERIOD_TICKS - active_ccr;
 
     out->tim->hal_handle.Instance->ARR = OUTPUT_ARR;

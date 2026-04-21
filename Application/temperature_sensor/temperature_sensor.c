@@ -137,7 +137,7 @@ void temperature_sensor_task(void)
             if (raw_temp != -127 && raw_temp != 850)
             {
                 float celsius = ds18b20_raw_to_celsius(raw_temp);
-                // Store as Celsius * 100
+                // Store as Celsius * 100; intentional: negatives wrap via int16_t (two's complement)
                 _last_temperature = (uint16_t)((int16_t)(celsius * 100.0f));
                 _fail_count = 0;
                 _is_lost = false;

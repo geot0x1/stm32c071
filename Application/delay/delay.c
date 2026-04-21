@@ -16,10 +16,15 @@ void delay_us(uint32_t us)
         return;
     }
 
-    uint16_t start = (uint16_t)tim_base_get_count(tim_handle);
-    while ((uint16_t)(tim_base_get_count(tim_handle) - start) < (uint16_t)us)
+    while (us > 0)
     {
-        __NOP();
+        uint16_t chunk = (us >= 65535U) ? 65535U : (uint16_t)us;
+        uint16_t start = (uint16_t)tim_base_get_count(tim_handle);
+        while ((uint16_t)(tim_base_get_count(tim_handle) - start) < chunk)
+        {
+            __NOP();
+        }
+        us -= chunk;
     }
 }
 

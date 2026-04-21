@@ -13,7 +13,7 @@
 typedef struct Usb_s
 {
     PCD_HandleTypeDef *hal_handle;
-} Usb_t;
+} Usb;
 
 /**
  * @brief Initialize the USB PCD peripheral.
@@ -24,6 +24,6 @@ typedef struct Usb_s
  *
  * @param usb  Handle to fill
  */
-void usb_pcd_init(Usb_t *usb);
+void usb_pcd_init(Usb *usb);
 
 #endif /* BSP_USB_H */

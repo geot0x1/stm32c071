@@ -35,10 +35,10 @@ void board_lcd_power_set(bool on);
 /* ── Peripheral getters ──────────────────────────────────────────────────── */
 
 /** @brief I2C sensor bus handle. */
-I2c_t *board_get_i2c(void);
+I2c *board_get_i2c(void);
 
 /** @brief USB PCD handle (for power management / future use) */
-Usb_t *board_get_usb(void);
+Usb *board_get_usb(void);
 
 /* ── Error handler ───────────────────────────────────────────────────────── */
 

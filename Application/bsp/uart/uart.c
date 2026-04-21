@@ -1,7 +1,7 @@
 #include "uart.h"
 #include <string.h>
 
-static Uart_err_t hal_to_uart_err(HAL_StatusTypeDef status)
+static UartErr hal_to_uart_err(HAL_StatusTypeDef status)
 {
     switch (status)
     {
@@ -12,9 +12,9 @@ static Uart_err_t hal_to_uart_err(HAL_StatusTypeDef status)
     }
 }
 
-void uart_init(Uart_t *uart, USART_TypeDef *instance, uint32_t baud_rate)
+void uart_init(Uart *uart, USART_TypeDef *instance, uint32_t baud_rate)
 {
-    memset(uart, 0, sizeof(Uart_t));
+    memset(uart, 0, sizeof(Uart));
 
     uart->hal_handle.Instance            = instance;
     uart->hal_handle.Init.BaudRate       = baud_rate;
@@ -30,13 +30,13 @@ void uart_init(Uart_t *uart, USART_TypeDef *instance, uint32_t baud_rate)
     HAL_UART_Init(&uart->hal_handle);
 }
 
-Uart_err_t uart_write(Uart_t *uart, const uint8_t *data, uint16_t len, uint32_t timeout_ms)
+UartErr uart_write(Uart *uart, const uint8_t *data, uint16_t len, uint32_t timeout_ms)
 {
     return hal_to_uart_err(
         HAL_UART_Transmit(&uart->hal_handle, (uint8_t *)data, len, timeout_ms));
 }
 
-Uart_err_t uart_read(Uart_t *uart, uint8_t *data, uint16_t len, uint32_t timeout_ms)
+UartErr uart_read(Uart *uart, uint8_t *data, uint16_t len, uint32_t timeout_ms)
 {
     return hal_to_uart_err(
         HAL_UART_Receive(&uart->hal_handle, data, len, timeout_ms));

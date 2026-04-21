@@ -31,7 +31,6 @@ void timers_init(void)
 
     /* TIM16 — PWM Repeater output A, 1 µs resolution (PSC=47), placeholder ARR */
     tim_pwm_init_raw(&repeater_a_tim, TIM16, 47, 0xFFFF, 1);
-
     HAL_TIM_MspPostInit(&repeater_a_tim.hal_handle); /* PA0 AF2 */
 
     /* TIM17 — PWM Repeater output B, 1 µs resolution (PSC=47), placeholder ARR */

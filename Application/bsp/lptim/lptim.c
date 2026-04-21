@@ -38,9 +38,9 @@ static uint32_t lptim_select_prescaler(uint32_t clk_freq, uint32_t tick_hz,
     return best_const;
 }
 
-void lptim_base_init(Lptim_t *lptim, uint32_t tick_hz)
+void lptim_base_init(Lptim *lptim, uint32_t tick_hz)
 {
-    memset(lptim, 0, sizeof(Lptim_t));
+    memset(lptim, 0, sizeof(Lptim));
 
     uint32_t clk_freq = HAL_RCC_GetPCLK1Freq();
     uint32_t actual_hz;
@@ -63,18 +63,18 @@ void lptim_base_init(Lptim_t *lptim, uint32_t tick_hz)
     HAL_LPTIM_Counter_Start(&lptim->hal_handle, 0xFFFF);
 }
 
-uint32_t lptim_get_count(Lptim_t *lptim)
+uint32_t lptim_get_count(Lptim *lptim)
 {
     return HAL_LPTIM_ReadCounter(&lptim->hal_handle);
 }
 
-void lptim_start_it(Lptim_t *lptim, uint32_t compare)
+void lptim_start_it(Lptim *lptim, uint32_t compare)
 {
     HAL_LPTIM_Counter_Stop(&lptim->hal_handle);
     HAL_LPTIM_SetOnce_Start_IT(&lptim->hal_handle, 0xFFFF, compare & 0xFFFF);
 }
 
-void lptim_stop_it(Lptim_t *lptim)
+void lptim_stop_it(Lptim *lptim)
 {
     HAL_LPTIM_SetOnce_Stop_IT(&lptim->hal_handle);
 }

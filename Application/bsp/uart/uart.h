@@ -7,7 +7,7 @@
 typedef struct Uart_s
 {
     UART_HandleTypeDef hal_handle;
-} Uart_t;
+} Uart;
 
 typedef enum
 {
@@ -15,7 +15,7 @@ typedef enum
     UART_ERR_TIMEOUT,
     UART_ERR_BUSY,
     UART_ERR_HAL
-} Uart_err_t;
+} UartErr;
 
 /**
  * @brief Initialize a UART peripheral (8N1, no flow control).
@@ -27,16 +27,16 @@ typedef enum
  * @param instance  UART peripheral (USART1, USART2, …)
  * @param baud_rate Baud rate in bits per second
  */
-void uart_init(Uart_t *uart, USART_TypeDef *instance, uint32_t baud_rate);
+void uart_init(Uart *uart, USART_TypeDef *instance, uint32_t baud_rate);
 
 /**
  * @brief Transmit bytes (blocking).
  */
-Uart_err_t uart_write(Uart_t *uart, const uint8_t *data, uint16_t len, uint32_t timeout_ms);
+UartErr uart_write(Uart *uart, const uint8_t *data, uint16_t len, uint32_t timeout_ms);
 
 /**
  * @brief Receive bytes (blocking).
  */
-Uart_err_t uart_read(Uart_t *uart, uint8_t *data, uint16_t len, uint32_t timeout_ms);
+UartErr uart_read(Uart *uart, uint8_t *data, uint16_t len, uint32_t timeout_ms);
 
 #endif /* BSP_UART_H */

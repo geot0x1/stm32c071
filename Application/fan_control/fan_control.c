@@ -1,6 +1,8 @@
 #include "fan_control.h"
 #include "stm32c0xx_hal.h"
 
+#define TIM_MAX_ARR 65536U
+
 static Tim *_power_tim  = NULL;
 static Tim *_remote_tim = NULL;
 
@@ -51,9 +53,9 @@ static void set_timer_freq(Tim *tim, uint32_t frequency_hz)
     uint32_t psc        = 0;
     uint32_t arr        = 0;
 
-    if (total_ticks > 65536)
+    if (total_ticks > TIM_MAX_ARR)
     {
-        psc = total_ticks / 65536;
+        psc = total_ticks / TIM_MAX_ARR;
         arr = (total_ticks / (psc + 1)) - 1;
     }
     else if (total_ticks > 0)

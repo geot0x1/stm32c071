@@ -8,7 +8,7 @@ typedef struct Gpio_s
 {
     GPIO_TypeDef *port;
     uint16_t      pin;
-} Gpio_t;
+} Gpio;
 
 /**
  * @brief Initialize a push-pull output GPIO pin.
@@ -18,7 +18,7 @@ typedef struct Gpio_s
  * @param pin           GPIO_PIN_x bitmask
  * @param initial_state GPIO_PIN_SET or GPIO_PIN_RESET
  */
-void gpio_output_init(Gpio_t *gpio, GPIO_TypeDef *port, uint16_t pin,
+void gpio_output_init(Gpio *gpio, GPIO_TypeDef *port, uint16_t pin,
                       GPIO_PinState initial_state);
 
 /**
@@ -27,12 +27,12 @@ void gpio_output_init(Gpio_t *gpio, GPIO_TypeDef *port, uint16_t pin,
  * @param gpio  Initialized output handle
  * @param state true → HIGH, false → LOW
  */
-void gpio_write(Gpio_t *gpio, bool state);
+void gpio_write(Gpio *gpio, bool state);
 
 /**
  * @brief Toggle a GPIO output pin.
  */
-void gpio_toggle(Gpio_t *gpio);
+void gpio_toggle(Gpio *gpio);
 
 /**
  * @brief Initialize an EXTI / interrupt input pin and enable its IRQ.
@@ -45,7 +45,7 @@ void gpio_toggle(Gpio_t *gpio);
  * @param irqn      IRQ number (e.g. EXTI4_15_IRQn)
  * @param priority  NVIC priority level
  */
-void gpio_exti_init(Gpio_t *gpio, GPIO_TypeDef *port, uint16_t pin,
+void gpio_exti_init(Gpio *gpio, GPIO_TypeDef *port, uint16_t pin,
                     uint32_t mode, uint32_t pull,
                     IRQn_Type irqn, uint32_t priority);
 
@@ -59,6 +59,6 @@ void gpio_exti_init(Gpio_t *gpio, GPIO_TypeDef *port, uint16_t pin,
  * @param port  GPIO port
  * @param pin   GPIO_PIN_x bitmask
  */
-void gpio_open_drain_init(Gpio_t *gpio, GPIO_TypeDef *port, uint16_t pin);
+void gpio_open_drain_init(Gpio *gpio, GPIO_TypeDef *port, uint16_t pin);
 
 #endif /* BSP_GPIO_H */

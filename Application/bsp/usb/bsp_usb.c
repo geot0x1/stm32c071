@@ -5,7 +5,7 @@
  * and configures the USB clock source + clock enable. */
 PCD_HandleTypeDef hpcd_USB_DRD_FS;
 
-void usb_pcd_init(Usb_t *usb)
+void usb_pcd_init(Usb *usb)
 {
     hpcd_USB_DRD_FS.Instance                      = USB_DRD_FS;
     hpcd_USB_DRD_FS.Init.dev_endpoints            = 8;

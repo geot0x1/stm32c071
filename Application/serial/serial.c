@@ -6,9 +6,9 @@
 #define SERIAL_PRINTF_BUF_SIZE   256U
 #define SERIAL_PRINTF_TIMEOUT_MS 100U
 
-static Uart_t serialUart;
+static Uart serialUart;
 
-static Serial_err_t map_err(Uart_err_t e)
+static Serial_err_t map_err(UartErr e)
 {
     switch (e)
     {
