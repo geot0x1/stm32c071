@@ -39,12 +39,48 @@
 ---
 
 ## 4. Control Logic (Automation)
-The fan operation is based on temperature hysteresis to prevent rapid switching (flickering):
 
-| Threshold | Action |
-| :--- | :--- |
-| **Upper Threshold ($T_{high}$)** | All fans turn **ON** when temperature exceeds this limit. |
-| **Lower Threshold ($T_{low}$)** | All fans turn **OFF** when temperature drops below this limit. |
+### Temperature Thresholds & Hysteresis
+The system implements a three-tier temperature control strategy with hysteresis to prevent rapid switching (flickering):
+
+**Threshold Hierarchy**: `T_critical > T_high > T_low`
+
+| Threshold | Condition | Action |
+| :--- | :--- | :--- |
+| **$T_{critical}$** | Temperature ≥ $T_{critical}$ | **Backlight switch turns OFF**. Fans remain **ON** to cool the device. Hysteresis: ±2°C. |
+| **$T_{high}$** | Temperature ≥ $T_{high}$ | All fans turn **ON**. PWM throttling begins. |
+| **$T_{low}$** | Temperature < $T_{low}$ | All fans turn **OFF**. |
+
+**Note on Hysteresis**: 
+- Fans turn ON when temperature exceeds $T_{high}$ and turn OFF when it drops below $T_{low}$ (preventing oscillation).
+- $T_{critical}$ has an additional ±2°C hysteresis around the threshold to stabilize backlight switching behavior.
+
+### Temperature Control Diagram
+
+```
+Temperature
+    ↑
+    │
+    │  ┌────────────────────────────────────────────────────┐
+    │  │ T_critical (±2°C hysteresis)                       │
+    │  │ • Backlight SWITCH OFF                             │
+    │  │ • Fans remain ON (cooling)                         │
+    │  └────────────────────────────────────────────────────┘
+    │
+    │  ┌────────────────────────────────────────────────────┐
+    │  │ T_high                                             │
+    │  │ • Fans turn ON                                     │
+    │  │ • PWM throttling starts                            │
+    │  └────────────────────────────────────────────────────┘
+    │
+    │  ┌────────────────────────────────────────────────────┐
+    │  │ T_low                                              │
+    │  │ • Fans turn OFF                                    │
+    │  │ • Normal PWM operation (no throttling)             │
+    │  └────────────────────────────────────────────────────┘
+    │
+    └──────────────────────────────────────────────────────→ Time
+```
 
 ---
 
