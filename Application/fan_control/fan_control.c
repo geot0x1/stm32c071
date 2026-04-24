@@ -1,100 +1,61 @@
 #include "fan_control.h"
-#include "stm32c0xx_hal.h"
-
-#define TIM_MAX_ARR 65536U
+#include "gpio.h"
+#include "board_config.h"
 
 static Tim *_power_tim  = NULL;
 static Tim *_remote_tim = NULL;
 
-static uint8_t _power_duties[4]  = {0, 0, 0, 0};
-static uint8_t _remote_duties[4] = {0, 0, 0, 0};
+static FanType _fan_types[4];
 
 typedef struct
 {
     FanChannel tim1_pwr_channel;  /**< Power channel on TIM1 */
-    FanChannel tim3_ctrl_channel; /**< Remote/Control channel on TIM3 */
+    FanChannel tim3_ctrl_channel; /**< Control channel on TIM3 */
 } FanLink;
 
 static const FanLink _fan_links[4] = {
-    {FanChannelTwo, FanChannelOne}, /* Unit 1: Power (TIM1_CH2) + Remote (TIM3_CH1) */
-    {FanChannelOne, FanChannelFour}, /* Unit 2: Power (TIM1_CH1) + Remote (TIM3_CH4) */
-    {FanChannelFour, FanChannelThree}, /* Unit 3: Power (TIM1_CH4) + Remote (TIM3_CH3) */
-    {FanChannelThree, FanChannelTwo}  /* Unit 4: Power (TIM1_CH3) + Remote (TIM3_CH2) */
+    {FanChannelTwo,   FanChannelOne},   /* Unit 1: TIM1_CH2 (PA9) + TIM3_CH1 (PC6) */
+    {FanChannelOne,   FanChannelFour},  /* Unit 2: TIM1_CH1 (PA8) + TIM3_CH4 (PB1) */
+    {FanChannelFour,  FanChannelThree}, /* Unit 3: TIM1_CH4 (PA3) + TIM3_CH3 (PB0) */
+    {FanChannelThree, FanChannelTwo},   /* Unit 4: TIM1_CH3 (PA2) + TIM3_CH2 (PB9) */
 };
 
-static uint32_t get_hal_channel(FanChannel channel)
-{
-    switch (channel)
-    {
-        case FanChannelOne: return TIM_CHANNEL_1;
-        case FanChannelTwo: return TIM_CHANNEL_2;
-        case FanChannelThree: return TIM_CHANNEL_3;
-        case FanChannelFour: return TIM_CHANNEL_4;
-        default:           return 0;
-    }
-}
-
-/**
- * @brief Set timer frequency by writing PSC/ARR/EGR directly.
- *
- * This uses a PSC calculation that supports frequencies requiring
- * ARR values above 65535 — the simpler tim_pwm_set_freq (ARR-only)
- * is not sufficient here.
- */
-static void set_timer_freq(Tim *tim, uint32_t frequency_hz)
-{
-    if (frequency_hz == 0)
-    {
-        return;
-    }
-
-    uint32_t pclk       = HAL_RCC_GetPCLK1Freq();
-    uint32_t total_ticks = pclk / frequency_hz;
-    uint32_t psc        = 0;
-    uint32_t arr        = 0;
-
-    if (total_ticks > TIM_MAX_ARR)
-    {
-        psc = total_ticks / TIM_MAX_ARR;
-        arr = (total_ticks / (psc + 1)) - 1;
-    }
-    else if (total_ticks > 0)
-    {
-        psc = 0;
-        arr = total_ticks - 1;
-    }
-    else
-    {
-        return;
-    }
-
-    tim->hal_handle.Instance->PSC = psc;
-    tim->hal_handle.Instance->ARR = arr;
-    tim->hal_handle.Instance->EGR = TIM_EGR_UG;
-}
+static const uint16_t _type_pins[4] = {
+    BOARD_FAN1_TYPE_PIN,
+    BOARD_FAN2_TYPE_PIN,
+    BOARD_FAN3_TYPE_PIN,
+    BOARD_FAN4_TYPE_PIN,
+};
 
 void fan_control_init(Tim *power_tim, Tim *remote_tim)
 {
     _power_tim  = power_tim;
     _remote_tim = remote_tim;
+
+    for (uint8_t i = 0; i < 4; i++)
+    {
+        Gpio g;
+        gpio_input_init(&g, BOARD_FAN_TYPE_PORT, _type_pins[i], GPIO_PULLUP);
+        _fan_types[i] = (gpio_read(&g) == GPIO_PIN_RESET) ? FanType34Wire : FanType2Wire;
+    }
 }
 
 void fan_power_init(uint32_t frequency_hz)
 {
-    set_timer_freq(_power_tim, frequency_hz);
-    HAL_TIM_PWM_Start(&_power_tim->hal_handle, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start(&_power_tim->hal_handle, TIM_CHANNEL_2);
-    HAL_TIM_PWM_Start(&_power_tim->hal_handle, TIM_CHANNEL_3);
-    HAL_TIM_PWM_Start(&_power_tim->hal_handle, TIM_CHANNEL_4);
+    tim_pwm_set_freq(_power_tim, frequency_hz);
+    tim_pwm_start(_power_tim, FanChannelOne);
+    tim_pwm_start(_power_tim, FanChannelTwo);
+    tim_pwm_start(_power_tim, FanChannelThree);
+    tim_pwm_start(_power_tim, FanChannelFour);
 }
 
 void fan_remote_init(uint32_t frequency_hz)
 {
-    set_timer_freq(_remote_tim, frequency_hz);
-    HAL_TIM_PWM_Start(&_remote_tim->hal_handle, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start(&_remote_tim->hal_handle, TIM_CHANNEL_2);
-    HAL_TIM_PWM_Start(&_remote_tim->hal_handle, TIM_CHANNEL_3);
-    HAL_TIM_PWM_Start(&_remote_tim->hal_handle, TIM_CHANNEL_4);
+    tim_pwm_set_freq(_remote_tim, frequency_hz);
+    tim_pwm_start(_remote_tim, FanChannelOne);
+    tim_pwm_start(_remote_tim, FanChannelTwo);
+    tim_pwm_start(_remote_tim, FanChannelThree);
+    tim_pwm_start(_remote_tim, FanChannelFour);
 }
 
 void fan_init(uint32_t frequency_hz)
@@ -109,16 +70,11 @@ void fan_control_set_power_channel_duty(FanChannel channel, uint8_t duty_pct)
     {
         return;
     }
-
     if (duty_pct > 100)
     {
         duty_pct = 100;
     }
-
-    _power_duties[channel - 1] = duty_pct;
-    uint32_t arr   = _power_tim->hal_handle.Instance->ARR;
-    uint32_t pulse = (uint32_t)(((uint64_t)duty_pct * (arr + 1)) / 100);
-    __HAL_TIM_SET_COMPARE(&_power_tim->hal_handle, get_hal_channel(channel), pulse);
+    tim_pwm_set_duty(_power_tim, (uint8_t)channel, duty_pct);
 }
 
 void fan_control_set_remote_channel_duty(FanChannel channel, uint8_t duty_pct)
@@ -127,16 +83,11 @@ void fan_control_set_remote_channel_duty(FanChannel channel, uint8_t duty_pct)
     {
         return;
     }
-
     if (duty_pct > 100)
     {
         duty_pct = 100;
     }
-
-    _remote_duties[channel - 1] = duty_pct;
-    uint32_t arr   = _remote_tim->hal_handle.Instance->ARR;
-    uint32_t pulse = (uint32_t)(((uint64_t)duty_pct * (arr + 1)) / 100);
-    __HAL_TIM_SET_COMPARE(&_remote_tim->hal_handle, get_hal_channel(channel), pulse);
+    tim_pwm_set_duty(_remote_tim, (uint8_t)channel, duty_pct);
 }
 
 uint8_t fan_control_get_power_channel_duty(FanChannel channel)
@@ -145,7 +96,7 @@ uint8_t fan_control_get_power_channel_duty(FanChannel channel)
     {
         return 0;
     }
-    return _power_duties[channel - 1];
+    return tim_pwm_get_duty(_power_tim, (uint8_t)channel);
 }
 
 uint8_t fan_control_get_remote_channel_duty(FanChannel channel)
@@ -154,7 +105,7 @@ uint8_t fan_control_get_remote_channel_duty(FanChannel channel)
     {
         return 0;
     }
-    return _remote_duties[channel - 1];
+    return tim_pwm_get_duty(_remote_tim, (uint8_t)channel);
 }
 
 void fan_control_set_unit_duty(uint8_t unit_idx, uint8_t duty_pct)
@@ -163,7 +114,28 @@ void fan_control_set_unit_duty(uint8_t unit_idx, uint8_t duty_pct)
     {
         return;
     }
-    uint8_t idx = unit_idx - 1;
-    fan_control_set_power_channel_duty(_fan_links[idx].tim1_pwr_channel, duty_pct);
-    fan_control_set_remote_channel_duty(_fan_links[idx].tim3_ctrl_channel, duty_pct);
+    uint8_t idx    = unit_idx - 1;
+    uint8_t on_off = (duty_pct > 0) ? 100 : 0;
+
+    FanChannel pwr_ch  = _fan_links[idx].tim1_pwr_channel;
+    FanChannel ctrl_ch = _fan_links[idx].tim3_ctrl_channel;
+
+    if (_fan_types[idx] == FanType2Wire)
+    {
+        fan_control_set_power_channel_duty(pwr_ch, on_off);
+    }
+    else
+    {
+        fan_control_set_power_channel_duty(pwr_ch, on_off);
+        fan_control_set_remote_channel_duty(ctrl_ch, on_off);
+    }
+}
+
+FanType fan_control_get_type(uint8_t unit_idx)
+{
+    if (unit_idx < 1 || unit_idx > 4)
+    {
+        return FanType2Wire;
+    }
+    return _fan_types[unit_idx - 1];
 }

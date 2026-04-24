@@ -128,4 +128,27 @@
 #define BOARD_TIM3_CH2_PIN      GPIO_PIN_9
 #define BOARD_TIM3_CH2_AF       GPIO_AF3_TIM3
 
+/* ── FAN TYPE SELECT DIP switches (one bit per fan unit) ─────────────────── */
+/*
+ * LOW (switch closed to GND) = 3/4-wire fan
+ * HIGH (switch open, pull-up active) = 2-wire fan
+ *
+ * PD0 = Fan Unit 1, PD1 = Fan Unit 2, PD2 = Fan Unit 3, PD3 = Fan Unit 4
+ */
+#define BOARD_FAN_TYPE_PORT     GPIOD
+#define BOARD_FAN1_TYPE_PIN     GPIO_PIN_0
+#define BOARD_FAN2_TYPE_PIN     GPIO_PIN_1
+#define BOARD_FAN3_TYPE_PIN     GPIO_PIN_2
+#define BOARD_FAN4_TYPE_PIN     GPIO_PIN_3
+
+/* ── FAN TACHO inputs (reserved — not yet implemented) ───────────────────── */
+#define BOARD_FAN1_TACHO_PORT   GPIOC
+#define BOARD_FAN1_TACHO_PIN    GPIO_PIN_7
+#define BOARD_FAN2_TACHO_PORT   GPIOB
+#define BOARD_FAN2_TACHO_PIN    GPIO_PIN_14
+#define BOARD_FAN3_TACHO_PORT   GPIOA
+#define BOARD_FAN3_TACHO_PIN    GPIO_PIN_5
+#define BOARD_FAN4_TACHO_PORT   GPIOC
+#define BOARD_FAN4_TACHO_PIN    GPIO_PIN_15
+
 #endif /* BOARD_CONFIG_H */

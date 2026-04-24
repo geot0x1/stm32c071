@@ -61,4 +61,22 @@ void gpio_exti_init(Gpio *gpio, GPIO_TypeDef *port, uint16_t pin,
  */
 void gpio_open_drain_init(Gpio *gpio, GPIO_TypeDef *port, uint16_t pin);
 
+/**
+ * @brief Initialize a GPIO pin as a digital input.
+ *
+ * @param gpio  Handle to fill
+ * @param port  GPIO port (GPIOA, GPIOB, …)
+ * @param pin   GPIO_PIN_x bitmask
+ * @param pull  GPIO_PULLUP, GPIO_PULLDOWN, or GPIO_NOPULL
+ */
+void gpio_input_init(Gpio *gpio, GPIO_TypeDef *port, uint16_t pin, uint32_t pull);
+
+/**
+ * @brief Read the current state of a GPIO pin.
+ *
+ * @param gpio  Initialized handle (input or output)
+ * @return      GPIO_PIN_SET or GPIO_PIN_RESET
+ */
+GPIO_PinState gpio_read(const Gpio *gpio);
+
 #endif /* BSP_GPIO_H */

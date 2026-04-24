@@ -14,6 +14,10 @@ static void gpio_enable_clock(GPIO_TypeDef *port)
     {
         __HAL_RCC_GPIOC_CLK_ENABLE();
     }
+    else if (port == GPIOD)
+    {
+        __HAL_RCC_GPIOD_CLK_ENABLE();
+    }
     else if (port == GPIOF)
     {
         __HAL_RCC_GPIOF_CLK_ENABLE();
@@ -83,4 +87,23 @@ void gpio_open_drain_init(Gpio *gpio, GPIO_TypeDef *port, uint16_t pin)
 
     /* Drive high (released / idle-high for 1-Wire) */
     HAL_GPIO_WritePin(port, pin, GPIO_PIN_SET);
+}
+
+void gpio_input_init(Gpio *gpio, GPIO_TypeDef *port, uint16_t pin, uint32_t pull)
+{
+    gpio->port = port;
+    gpio->pin  = pin;
+
+    gpio_enable_clock(port);
+
+    GPIO_InitTypeDef init = {0};
+    init.Pin  = pin;
+    init.Mode = GPIO_MODE_INPUT;
+    init.Pull = pull;
+    HAL_GPIO_Init(port, &init);
+}
+
+GPIO_PinState gpio_read(const Gpio *gpio)
+{
+    return HAL_GPIO_ReadPin(gpio->port, gpio->pin);
 }
