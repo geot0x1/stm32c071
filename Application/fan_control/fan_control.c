@@ -87,7 +87,8 @@ void fan_control_set_remote_channel_duty(FanChannel channel, uint8_t duty_pct)
     {
         duty_pct = 100;
     }
-    tim_pwm_set_duty(_remote_tim, (uint8_t)channel, duty_pct);
+    uint8_t inverted = 100 - duty_pct;
+    tim_pwm_set_duty(_remote_tim, (uint8_t)channel, inverted);
 }
 
 uint8_t fan_control_get_power_channel_duty(FanChannel channel)
@@ -105,7 +106,8 @@ uint8_t fan_control_get_remote_channel_duty(FanChannel channel)
     {
         return 0;
     }
-    return tim_pwm_get_duty(_remote_tim, (uint8_t)channel);
+    uint8_t raw = tim_pwm_get_duty(_remote_tim, (uint8_t)channel);
+    return 100 - raw;
 }
 
 void fan_control_set_unit_duty(uint8_t unit_idx, uint8_t duty_pct)
