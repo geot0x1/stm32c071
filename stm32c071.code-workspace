@@ -21,7 +21,7 @@
 				},
 				{
 					"name": "$(terminal) Monitor",
-					"command": "python monitor_com4.py",
+					"command": "python monitor_com.py",
 					"tooltip": "Open serial monitor on COM4"
 				}
 			]
