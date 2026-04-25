@@ -105,3 +105,41 @@ Temperature
 
 ### Implementation Note
 For **4-wire fans** (with Tacho), Tacho reading is not mandatory for basic operation. We can potentially simplify the configuration by using 4 switches to select between **Power PWM** or **Remote PWM** for 4 independent fan channels, either through firmware detection or manual selection.
+
+---
+
+## 7. Settings Storage
+
+All user-configurable parameters are persisted to internal flash and restored on power-up. This includes:
+
+- PWM throttle limits (per channel)
+- Temperature thresholds ($T_{low}$, $T_{high}$, $T_{critical}$)
+- Fan type selection (override of DIP switch, if applicable)
+
+**Defaults**: If no valid settings exist in flash (e.g., first boot or corrupted storage), the firmware boots with compile-time defaults and writes them to flash.
+
+---
+
+## 8. USB Interface
+
+A USB CDC (virtual serial port) interface provides two services using a simple human-readable ASCII protocol.
+
+### 8.1 Settings (Command/Response)
+
+The device accepts ASCII commands over USB to read and write all user-configurable settings (PWM throttle limits, temperature thresholds, fan type). Changes can be saved to flash or reset to compile-time defaults via command.
+
+### 8.2 Telemetry (Periodic Output)
+
+The device periodically emits ASCII telemetry (default interval: 1 s) reporting current system temperature, fan state, input and output duty cycles for both channels, and the current thermal state. Telemetry output can be enabled or disabled via command.
+
+---
+
+## 9. Push Button (Test / Override)
+
+A momentary push button provides a manual fan test function:
+
+- **Held pressed**: All fans are forced **ON**, regardless of temperature or automation logic.
+- **Released**: Fans return to the state determined by normal automation logic (as if the button was never pressed). No settings are modified.
+
+**Debounce**: Software debounce of ≥ 20 ms is required to avoid spurious triggering.  
+**LED**: While the button is held, the status LED follows the "Fans ON" pattern (`ON 100ms / OFF 1000ms`).
