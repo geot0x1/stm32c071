@@ -75,6 +75,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     board
     timers
     pwm_repeater
+    flash
     nvs
     sys_time
     critical
