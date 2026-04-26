@@ -149,10 +149,10 @@ void SysTick_Handler(void)
   */
 void EXTI4_15_IRQHandler(void)
 {
-  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_10);
-  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_11);
-  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
-  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_14);
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_5);
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_7);
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_14);
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_15);
 }
 
 /**

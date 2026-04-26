@@ -7,7 +7,6 @@
  */
 
 static Gpio led_gpio;
-static Gpio exti_gpio;
 static Gpio onewire_gpio;
 static Gpio onewire_pwr_en_gpio;
 static Gpio onewire_pu_en_gpio;
@@ -39,11 +38,7 @@ void board_init(void)
     /* 2a. Status LED (output, starts LOW) */
     gpio_output_init(&led_gpio, BOARD_LED_PORT, BOARD_LED_PIN, GPIO_PIN_RESET);
 
-    /* 2b. External interrupt input */
-    gpio_exti_init(&exti_gpio, BOARD_EXTI_PORT, BOARD_EXTI_PIN, BOARD_EXTI_MODE,
-                   BOARD_EXTI_PULL, BOARD_EXTI_IRQn, 0);
-
-    /* 2c. 1-Wire bus (open-drain + pull-up; runtime owned by onewire.c) */
+    /* 2b. 1-Wire bus (open-drain + pull-up; runtime owned by onewire.c) */
     gpio_open_drain_init(&onewire_gpio, BOARD_ONEWIRE_PORT, BOARD_ONEWIRE_PIN);
 
     /* 2d. 1-Wire power supply enable — start OFF until bus is ready */

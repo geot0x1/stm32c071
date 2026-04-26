@@ -24,14 +24,6 @@
 #define BOARD_LED_PORT          GPIOA
 #define BOARD_LED_PIN           GPIO_PIN_15
 
-/* ── External interrupt input ────────────────────────────────────────────── */
-
-#define BOARD_EXTI_PORT         GPIOC
-#define BOARD_EXTI_PIN          GPIO_PIN_15
-#define BOARD_EXTI_MODE         GPIO_MODE_IT_RISING
-#define BOARD_EXTI_PULL         GPIO_PULLUP
-#define BOARD_EXTI_IRQn         EXTI4_15_IRQn
-
 /* ── 1-Wire bus (DS18B20) ────────────────────────────────────────────────── */
 
 #define BOARD_ONEWIRE_PORT          GPIOB
@@ -141,7 +133,7 @@
 #define BOARD_FAN3_TYPE_PIN     GPIO_PIN_2
 #define BOARD_FAN4_TYPE_PIN     GPIO_PIN_3
 
-/* ── FAN TACHO inputs (reserved — not yet implemented) ───────────────────── */
+/* ── FAN TACHO inputs ────────────────────────────────────────────────────── */
 #define BOARD_FAN1_TACHO_PORT   GPIOC
 #define BOARD_FAN1_TACHO_PIN    GPIO_PIN_7
 #define BOARD_FAN2_TACHO_PORT   GPIOB
