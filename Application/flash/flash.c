@@ -2,18 +2,44 @@
 #include "stm32c0xx_hal.h"
 #include <string.h>
 
+#define FLASH_STORAGE_END_ADDR \
+    (FLASH_STORAGE_START_ADDR + (FLASH_STORAGE_SECTOR_COUNT * FLASH_STORAGE_SECTOR_SIZE))
+
+_Static_assert(FLASH_STORAGE_SECTOR_SIZE == FLASH_PAGE_SIZE,
+    "FLASH_STORAGE_SECTOR_SIZE / FLASH_PAGE_SIZE mismatch");
+
 static uint32_t addr_to_page(uint32_t addr)
 {
     return (addr - FLASH_BASE) / FLASH_PAGE_SIZE;
 }
 
-void flash_write(uint32_t addr, const void *data, uint16_t len)
+bool flash_write(uint32_t addr, const void *data, uint16_t len)
 {
-    const uint8_t *src  = (const uint8_t *)data;
-    uint32_t       dst  = addr;
-    uint16_t       remaining = len;
+    if (len == 0)
+    {
+        return true;
+    }
 
-    HAL_FLASH_Unlock();
+    /* Validate: 8-byte alignment */
+    if (addr & 0x7U)
+    {
+        return false;
+    }
+
+    /* Validate: range must lie entirely within the storage region */
+    if (addr < FLASH_STORAGE_START_ADDR || addr + (uint32_t)len > FLASH_STORAGE_END_ADDR)
+    {
+        return false;
+    }
+
+    const uint8_t *src = (const uint8_t *)data;
+    uint32_t dst = addr;
+    uint16_t remaining = len;
+
+    if (HAL_FLASH_Unlock() != HAL_OK)
+    {
+        return false;
+    }
 
     while (remaining > 0)
     {
@@ -26,33 +52,54 @@ void flash_write(uint32_t addr, const void *data, uint16_t len)
         uint64_t dword;
         memcpy(&dword, chunk, sizeof(dword));
 
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, dst, dword);
+        HAL_StatusTypeDef st = HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, dst, dword);
+        if (st != HAL_OK)
+        {
+            HAL_FLASH_Lock();
+            return false;
+        }
 
-        src       += n;
-        dst       += 8U;
+        src += n;
+        dst += 8U;
         remaining -= n;
     }
 
     HAL_FLASH_Lock();
+    return true;
 }
 
-void flash_read(uint32_t addr, void *data, uint16_t len)
+bool flash_read(uint32_t addr, void *data, uint16_t len)
 {
-    memcpy(data, (const void *)addr, len);
-}
-
-void flash_erase_page(uint32_t addr)
-{
-    FLASH_EraseInitTypeDef erase =
+    if (addr < FLASH_STORAGE_START_ADDR || addr + (uint32_t)len > FLASH_STORAGE_END_ADDR)
     {
+        return false;
+    }
+    memcpy(data, (const void *)addr, len);
+    return true;
+}
+
+bool flash_erase_page(uint32_t addr)
+{
+    /* Validate: addr must fall within the storage region */
+    if (addr < FLASH_STORAGE_START_ADDR || addr >= FLASH_STORAGE_END_ADDR)
+    {
+        return false;
+    }
+
+    FLASH_EraseInitTypeDef erase = {
         .TypeErase = FLASH_TYPEERASE_PAGES,
-        .Page      = addr_to_page(addr),
-        .NbPages   = 1U,
+        .Page = addr_to_page(addr),
+        .NbPages = 1U,
     };
 
-    uint32_t page_error;
+    uint32_t page_error = 0;
 
-    HAL_FLASH_Unlock();
-    HAL_FLASHEx_Erase(&erase, &page_error);
+    if (HAL_FLASH_Unlock() != HAL_OK)
+    {
+        return false;
+    }
+    HAL_StatusTypeDef st = HAL_FLASHEx_Erase(&erase, &page_error);
     HAL_FLASH_Lock();
+
+    return (st == HAL_OK) && (page_error == 0xFFFFFFFFU);
 }

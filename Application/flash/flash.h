@@ -2,6 +2,7 @@
 #define FLASH_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /*
  * Storage region: last FLASH_STORAGE_SECTOR_COUNT pages of flash.
@@ -24,23 +25,26 @@
  * @param addr  Absolute flash address (must be 8-byte aligned).
  * @param data  Source buffer.
  * @param len   Number of bytes to write.
+ * @return true on success, false if addr is misaligned, out of storage range, or a HAL error occurs.
  */
-void flash_write(uint32_t addr, const void *data, uint16_t len);
+bool flash_write(uint32_t addr, const void *data, uint16_t len);
 
 /**
  * @brief Read bytes from internal flash (direct memory-mapped copy).
  *
- * @param addr  Absolute flash address.
+ * @param addr  Absolute flash address (must be within storage region).
  * @param data  Destination buffer.
  * @param len   Number of bytes to read.
+ * @return true on success, false if the range falls outside the storage region.
  */
-void flash_read(uint32_t addr, void *data, uint16_t len);
+bool flash_read(uint32_t addr, void *data, uint16_t len);
 
 /**
  * @brief Erase the 2 KB page that contains the given address.
  *
- * @param addr  Any address within the target page.
+ * @param addr  Any address within the target page (must be within storage region).
+ * @return true on success, false if addr is out of storage range or a HAL error occurs.
  */
-void flash_erase_page(uint32_t addr);
+bool flash_erase_page(uint32_t addr);
 
 #endif /* FLASH_H */
