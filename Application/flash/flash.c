@@ -9,9 +9,9 @@ static uint32_t addr_to_page(uint32_t addr)
 
 void flash_write(uint32_t addr, const void *data, uint16_t len)
 {
-    const uint8_t *src = (const uint8_t *)data;
-    uint32_t dst = addr;
-    uint16_t remaining = len;
+    const uint8_t *src  = (const uint8_t *)data;
+    uint32_t       dst  = addr;
+    uint16_t       remaining = len;
 
     HAL_FLASH_Unlock();
 
@@ -28,8 +28,8 @@ void flash_write(uint32_t addr, const void *data, uint16_t len)
 
         HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, dst, dword);
 
-        src += n;
-        dst += 8U;
+        src       += n;
+        dst       += 8U;
         remaining -= n;
     }
 
