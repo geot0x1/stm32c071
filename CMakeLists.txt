@@ -88,6 +88,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     fan_control
     fan_tacho
     watchdog
+    settings
 )
 
 # Include build info generator
