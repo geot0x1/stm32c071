@@ -73,6 +73,4 @@ uint32_t pwm_get_duty_a(void);
 uint32_t pwm_get_frequency_b(void);
 uint32_t pwm_get_duty_b(void);
 
-uint32_t get_ticks(void);
-
 #endif /* PWM_REPEATER_H */

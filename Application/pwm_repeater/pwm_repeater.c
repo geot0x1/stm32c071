@@ -4,6 +4,8 @@
  */
 
 #include "pwm_repeater.h"
+#include "gpio.h"
+#include "sys_time.h"
 #include "stm32c0xx_hal.h"
 #include <stdint.h>
 
@@ -29,6 +31,10 @@ static Tim *_capture_tim = NULL;
 static Tim *_out_a_tim = NULL;
 static Tim *_out_b_tim = NULL;
 
+/* ── Input pin handles (PB10 = ch A, PB11 = ch B) ─────────────────────────── */
+static Gpio _ic_pin_a;
+static Gpio _ic_pin_b;
+
 /* ── Global instances ──────────────────────────────────────────────────────── */
 PwmChannel pwmChannelA = {.rise_captured = false};
 PwmChannel pwmChannelB = {.rise_captured = false};
@@ -37,7 +43,7 @@ PwmOutput pwmOutputB = {.tim = NULL, .channel = TIM_CHANNEL_1, .throttle_val = 5
 
 /* ── Forward declarations ──────────────────────────────────────────────────── */
 static void handle_ic_capture(
-    PwmChannel *ch, uint32_t captured, uint32_t channel, GPIO_TypeDef *port, uint16_t pin);
+    PwmChannel *ch, uint32_t captured, uint32_t channel, const Gpio *gpio);
 static void reset_channel_state(PwmChannel *ch, uint32_t channel);
 static uint32_t calculate_output_pulse(PwmOutput *out);
 static void init_channel_struct(PwmChannel *ch);
@@ -67,18 +73,15 @@ void pwm_repeater_init(Tim *capture_tim, Tim *out_a_tim, Tim *out_b_tim)
     pwmOutputA.tim = out_a_tim;
     pwmOutputB.tim = out_b_tim;
 
-    TIM_IC_InitTypeDef sConfigIC = {0};
+    /* 1. Bind port/pin for edge-polarity reads (pins stay in TIM2-AF mode set by CubeMX) */
+    _ic_pin_a = (Gpio){.port = GPIOB, .pin = GPIO_PIN_10};
+    _ic_pin_b = (Gpio){.port = GPIOB, .pin = GPIO_PIN_11};
 
-    /* 1. Configure input capture filters */
-    sConfigIC.ICPolarity = TIM_ICPOLARITY_BOTHEDGE;
-    sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
-    sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-    sConfigIC.ICFilter = IC_FILTER_VAL;
+    /* 2. Configure input capture channels (also starts capture + IRQ) */
+    tim_ic_config_channel(_capture_tim, 3, TIM_ICPOLARITY_BOTHEDGE, IC_FILTER_VAL);
+    tim_ic_config_channel(_capture_tim, 4, TIM_ICPOLARITY_BOTHEDGE, IC_FILTER_VAL);
 
-    HAL_TIM_IC_ConfigChannel(&_capture_tim->hal_handle, &sConfigIC, TIM_CHANNEL_3);
-    HAL_TIM_IC_ConfigChannel(&_capture_tim->hal_handle, &sConfigIC, TIM_CHANNEL_4);
-
-    /* 2. Enable ARR preload on capture timer and both output timers */
+    /* 3. Enable ARR preload on capture timer and both output timers */
     _capture_tim->hal_handle.Instance->CR1 |= TIM_CR1_ARPE;
 
     _out_a_tim->hal_handle.Instance->CR1 |= TIM_CR1_ARPE;
@@ -89,21 +92,22 @@ void pwm_repeater_init(Tim *capture_tim, Tim *out_a_tim, Tim *out_b_tim)
     _out_b_tim->hal_handle.Instance->PSC = 47;
     __HAL_TIM_ENABLE_OCxPRELOAD(&_out_b_tim->hal_handle, TIM_CHANNEL_1);
 
-    /* 3. Reset channel state */
+    /* 4. Reset channel state */
     init_channel_struct(&pwmChannelA);
     init_channel_struct(&pwmChannelB);
 
-    /* 4. Force ARR update and start peripherals */
+    /* 5. Force ARR update and start peripherals */
     _capture_tim->hal_handle.Instance->ARR = UINT32_MAX;
-    /* INIT ONLY — safe here because ISRs are enabled below (HAL_TIM_IC_Start_IT).
-     * Forces ARPE preload into active ARR immediately; without this the old CubeMX
-     * ARR stays active until the first natural UEV, risking a bad first capture. */
+    /* INIT ONLY — safe here because CC interrupts are not yet enabled (tim_ic_enable_ch_irq
+     * is called below, after this write). Forces ARPE preload into active ARR immediately;
+     * without this the old CubeMX ARR stays active until the first natural UEV, risking a
+     * bad first capture. */
     _capture_tim->hal_handle.Instance->EGR = TIM_EGR_UG;
 
-    HAL_TIM_PWM_Start(&_out_a_tim->hal_handle, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start(&_out_b_tim->hal_handle, TIM_CHANNEL_1);
-    HAL_TIM_IC_Start_IT(&_capture_tim->hal_handle, TIM_CHANNEL_3);
-    HAL_TIM_IC_Start_IT(&_capture_tim->hal_handle, TIM_CHANNEL_4);
+    tim_pwm_start(_out_a_tim, 1);
+    tim_pwm_start(_out_b_tim, 1);
+    tim_ic_enable_ch_irq(_capture_tim, 3);
+    tim_ic_enable_ch_irq(_capture_tim, 4);
 
     pwm_set_throttle_a(50);
     pwm_set_throttle_b(50);
@@ -139,7 +143,7 @@ static void init_channel_struct(PwmChannel *ch)
     ch->period_ticks = 0;
     ch->pulse_ticks = 0;
     ch->low_level_ticks = 0;
-    ch->last_capture_ms = HAL_GetTick();
+    ch->last_capture_ms = (uint32_t)millis();
     ch->new_data_ready = false;
     ch->period_stable_counter = 0;
     ch->previous_period_ticks = 0;
@@ -173,7 +177,7 @@ static void apply_output_to_hardware(PwmOutput *out, uint32_t active_pulse)
 
 static void process_channel_update(PwmChannel *ch, PwmOutput *out)
 {
-    uint32_t now = HAL_GetTick();
+    uint32_t now = (uint32_t)millis();
     const uint32_t TIMEOUT_MS = 50;
 
     if (ch->new_data_ready)
@@ -232,9 +236,9 @@ static uint32_t calculate_duty_pct(uint32_t period_ticks, uint32_t pulse_ticks)
 }
 
 static void handle_ic_capture(
-    PwmChannel *ch, uint32_t captured, uint32_t channel, GPIO_TypeDef *port, uint16_t pin)
+    PwmChannel *ch, uint32_t captured, uint32_t channel, const Gpio *gpio)
 {
-    bool is_high = (HAL_GPIO_ReadPin(port, pin) == GPIO_PIN_SET);
+    bool is_high = (gpio_read(gpio) == GPIO_PIN_SET);
     uint32_t delta;
 
     if (is_high) /* RISING EDGE — end of low phase */
@@ -293,7 +297,7 @@ static void handle_ic_capture(
 
         ch->rise_timestamp = captured;
         ch->rise_captured = true;
-        ch->last_capture_ms = HAL_GetTick();
+        ch->last_capture_ms = (uint32_t)millis();
     }
     else /* FALLING EDGE — end of high phase */
     {
@@ -334,7 +338,7 @@ static void handle_ic_capture(
         }
 
         ch->fall_timestamp = captured;
-        ch->last_capture_ms = HAL_GetTick();
+        ch->last_capture_ms = (uint32_t)millis();
     }
 }
 
@@ -348,13 +352,13 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 
         if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3)
         {
-            captured_val = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_3);
-            handle_ic_capture(&pwmChannelA, captured_val, TIM_CHANNEL_3, GPIOB, GPIO_PIN_10);
+            captured_val = tim_ic_get_channel(_capture_tim, 3);
+            handle_ic_capture(&pwmChannelA, captured_val, TIM_CHANNEL_3, &_ic_pin_a);
         }
         else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4)
         {
-            captured_val = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_4);
-            handle_ic_capture(&pwmChannelB, captured_val, TIM_CHANNEL_4, GPIOB, GPIO_PIN_11);
+            captured_val = tim_ic_get_channel(_capture_tim, 4);
+            handle_ic_capture(&pwmChannelB, captured_val, TIM_CHANNEL_4, &_ic_pin_b);
         }
     }
 }
@@ -365,11 +369,6 @@ void pwm_repeater_task(void)
 {
     process_channel_update(&pwmChannelA, &pwmOutputA);
     process_channel_update(&pwmChannelB, &pwmOutputB);
-}
-
-uint32_t get_ticks(void)
-{
-    return pwmChannelA.period_ticks;
 }
 
 uint32_t pwm_get_frequency_a(void)
