@@ -58,6 +58,7 @@ bool flash_write(uint32_t addr, const void *data, uint16_t len)
             HAL_FLASH_Lock();
             return false;
         }
+        __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP);
 
         src += n;
         dst += 8U;
