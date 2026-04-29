@@ -126,6 +126,42 @@ void temperature_sensor_event_handler(TempSensorEvent event)
     }
 }
 
+static void flash_debug_addresses(void)
+{
+    uint32_t storage_start = FLASH_STORAGE_START_ADDR;
+    uint32_t storage_end   = FLASH_STORAGE_START_ADDR +
+                             ((uint32_t)FLASH_STORAGE_SECTOR_COUNT * FLASH_STORAGE_SECTOR_SIZE);
+    uint32_t settings_size = sizeof(Settings) + 8U; /* magic(4) + crc32(4) + Settings */
+
+    serial_printf("---- Flash Address Map ----\r\n");
+    serial_printf("  FLASH_BASE             : 0x%08X\r\n", (unsigned int)FLASH_BASE);
+    serial_printf("  storage start          : 0x%08X\r\n", (unsigned int)storage_start);
+    serial_printf("  storage end            : 0x%08X\r\n", (unsigned int)storage_end);
+    serial_printf("  storage size           : %u bytes (%u sectors x %u bytes)\r\n",
+        (unsigned int)((uint32_t)FLASH_STORAGE_SECTOR_COUNT * FLASH_STORAGE_SECTOR_SIZE),
+        (unsigned int)FLASH_STORAGE_SECTOR_COUNT,
+        (unsigned int)FLASH_STORAGE_SECTOR_SIZE);
+    serial_printf("  page range             : %u - %u\r\n",
+        (unsigned int)((storage_start - FLASH_BASE) / FLASH_STORAGE_SECTOR_SIZE),
+        (unsigned int)((storage_end - FLASH_BASE) / FLASH_STORAGE_SECTOR_SIZE - 1U));
+
+    for (uint8_t i = 0U; i < FLASH_STORAGE_SECTOR_COUNT; i++)
+    {
+        uint32_t s = storage_start + (uint32_t)i * FLASH_STORAGE_SECTOR_SIZE;
+        serial_printf("  sector[%u]              : 0x%08X - 0x%08X\r\n",
+            (unsigned int)i, (unsigned int)s, (unsigned int)(s + FLASH_STORAGE_SECTOR_SIZE));
+    }
+
+    serial_printf("  settings addr          : 0x%08X\r\n", (unsigned int)storage_start);
+    serial_printf("  settings record size   : %u bytes\r\n", (unsigned int)settings_size);
+
+    bool in_bounds = (settings_size <= FLASH_STORAGE_SECTOR_SIZE);
+    bool aligned   = ((storage_start & 0x7U) == 0U);
+    serial_printf("  settings in sector[0]  : %s\r\n", in_bounds ? "PASS" : "FAIL");
+    serial_printf("  settings 8-byte aligned: %s\r\n", aligned ? "PASS" : "FAIL");
+    serial_printf("---------------------------\r\n");
+}
+
 static void settings_test_print(void)
 {
     static const char *const fan_names[] = {"Auto", "2Wire", "3/4Wire"};
@@ -159,6 +195,8 @@ int main(void)
     serial_init(BOARD_UART1_INSTANCE, BOARD_UART1_BAUD_RATE);
 
     serial_printf("Program started\r\n");
+
+    flash_debug_addresses();
 
     settings_init();
     const Settings *s = settings_get();
