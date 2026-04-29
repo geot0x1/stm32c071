@@ -20,6 +20,9 @@ typedef struct
     Settings data;
 } SettingsRecord;
 
+_Static_assert(sizeof(Settings) == 16U, "Settings struct size changed — update flash layout comment");
+_Static_assert(sizeof(SettingsRecord) % 8U == 0U, "SettingsRecord must be a multiple of 8 bytes for flash doubleword writes");
+
 static Settings current;
 
 static const Settings defaults =
@@ -59,8 +62,20 @@ void settings_init(void)
             uint32_t computed = crc32_gen(&record.data, sizeof(record.data));
             if (computed == record.crc32)
             {
-                current = record.data;
-                valid = true;
+                bool override_ok = true;
+                for (uint8_t i = 0U; i < 4U; i++)
+                {
+                    if (record.data.fan_type_override[i] > (uint8_t)FanOverride34Wire)
+                    {
+                        override_ok = false;
+                        break;
+                    }
+                }
+                if (override_ok)
+                {
+                    current = record.data;
+                    valid = true;
+                }
             }
         }
     }
