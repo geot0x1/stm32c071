@@ -24,15 +24,13 @@ static Settings current;
 
 static const Settings defaults =
 {
-    .version           = SETTINGS_VERSION,
     .pwm_throttle_a    = SETTINGS_DEFAULT_PWM_THROTTLE_A,
     .pwm_throttle_b    = SETTINGS_DEFAULT_PWM_THROTTLE_B,
     .fan_type_override = {FanOverrideAuto, FanOverrideAuto, FanOverrideAuto, FanOverrideAuto},
-    ._pad              = 0,
     .temp_fan_on       = SETTINGS_DEFAULT_TEMP_FAN_ON,
     .temp_fan_off      = SETTINGS_DEFAULT_TEMP_FAN_OFF,
     .temp_critical     = SETTINGS_DEFAULT_TEMP_CRITICAL,
-    ._pad2             = 0,
+    ._pad              = {0},
 };
 
 static bool settings_save(void)
