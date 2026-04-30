@@ -61,7 +61,18 @@
       "WebSearch",
       "WebFetch(domain:www.st.com)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(where gcc *)",
+      "Bash(gcc --version)",
+      "Bash(cmake --version)",
+      "Bash(ninja --version)",
+      "Bash(git -C /c/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071 log --oneline --all)",
+      "Bash(git -C /c/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071 show --name-only origin/test_nvs)",
+      "Bash(git -C /c/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071 show --name-only origin/test_main)",
+      "Bash(git -C /c/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071 diff HEAD origin/test_main -- .)",
+      "Bash(git -C /c/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071 stash list)",
+      "Bash(git -C /c/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071 branch -a)",
+      "Bash(git -C /c/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071 show origin/nvs_test --name-only)"
     ]
   }
 }

@@ -5,6 +5,7 @@
 #include "flash.h"
 #include "pwm_repeater.h"
 #include "settings.h"
+#include "commands.h"
 #include "stm32c0xx_hal.h"
 #include "temperature_sensor.h"
 #include "timers/timers.h"
@@ -199,6 +200,7 @@ int main(void)
     flash_debug_addresses();
 
     settings_init();
+    commands_init();
     const Settings *s = settings_get();
 
     // while (true)
@@ -232,6 +234,8 @@ int main(void)
     while (true)
     {
         watchdog_kick();
+        usb_task();
+        commands_task();
 
         if (first)
         {
