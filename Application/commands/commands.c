@@ -1,5 +1,6 @@
 #include "commands.h"
 #include "settings.h"
+#include "telemetry.h"
 #include "usb.h"
 #include "stm32c0xx_hal.h"
 #include <stdint.h>
@@ -366,6 +367,62 @@ static void handle_reset(void)
     HAL_NVIC_SystemReset();
 }
 
+static void handle_telemetry(char **tokens, uint8_t count)
+{
+    if (count < 2U)
+    {
+        usb_printf("ERR WRONG_ARG_COUNT TELEMETRY\r\n");
+        return;
+    }
+
+    if (strcmp(tokens[1], "ON") == 0)
+    {
+        if (count != 2U)
+        {
+            usb_printf("ERR WRONG_ARG_COUNT TELEMETRY ON takes no arguments\r\n");
+            return;
+        }
+        telemetry_enable(true);
+        usb_printf("OK TELEMETRY ON\r\n");
+    }
+    else if (strcmp(tokens[1], "OFF") == 0)
+    {
+        if (count != 2U)
+        {
+            usb_printf("ERR WRONG_ARG_COUNT TELEMETRY OFF takes no arguments\r\n");
+            return;
+        }
+        telemetry_enable(false);
+        usb_printf("OK TELEMETRY OFF\r\n");
+    }
+    else if (strcmp(tokens[1], "INTERVAL") == 0)
+    {
+        if (count != 3U)
+        {
+            usb_printf("ERR WRONG_ARG_COUNT TELEMETRY INTERVAL needs a value\r\n");
+            return;
+        }
+        int32_t val;
+        if (!parse_int(tokens[2], &val))
+        {
+            usb_printf("ERR INVALID_VALUE TELEMETRY INTERVAL %s\r\n", tokens[2]);
+            return;
+        }
+        if (val < (int32_t)TELEMETRY_MIN_INTERVAL_MS || val > (int32_t)TELEMETRY_MAX_INTERVAL_MS)
+        {
+            usb_printf("ERR OUT_OF_RANGE TELEMETRY INTERVAL %ld (min %lu max %lu)\r\n", (long)val,
+                (unsigned long)TELEMETRY_MIN_INTERVAL_MS, (unsigned long)TELEMETRY_MAX_INTERVAL_MS);
+            return;
+        }
+        telemetry_set_interval_ms((uint32_t)val);
+        usb_printf("OK TELEMETRY INTERVAL %lu\r\n", (unsigned long)val);
+    }
+    else
+    {
+        usb_printf("ERR UNKNOWN_SUBCMD TELEMETRY %s\r\n", tokens[1]);
+    }
+}
+
 static void process_line(void)
 {
     lineBuf[lineLen] = '\0';
@@ -386,6 +443,12 @@ static void process_line(void)
             return;
         }
         handle_reset();
+        return;
+    }
+
+    if (strcmp(tokens[0], "TELEMETRY") == 0)
+    {
+        handle_telemetry(tokens, count);
         return;
     }
 

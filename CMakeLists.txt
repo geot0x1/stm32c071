@@ -90,6 +90,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     watchdog
     settings
     commands
+    telemetry
 )
 
 # Include build info generator

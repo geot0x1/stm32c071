@@ -235,8 +235,7 @@ static uint32_t calculate_duty_pct(uint32_t period_ticks, uint32_t pulse_ticks)
     return (pulse_ticks * 100U) / period_ticks;
 }
 
-static void handle_ic_capture(
-    PwmChannel *ch, uint32_t captured, uint32_t channel, const Gpio *gpio)
+static void handle_ic_capture(PwmChannel *ch, uint32_t captured, uint32_t channel, const Gpio *gpio)
 {
     bool is_high = (gpio_read(gpio) == GPIO_PIN_SET);
     uint32_t delta;
@@ -389,4 +388,28 @@ uint32_t pwm_get_frequency_b(void)
 uint32_t pwm_get_duty_b(void)
 {
     return calculate_duty_pct(pwmChannelB.period_ticks, pwmChannelB.low_level_ticks);
+}
+
+uint32_t pwm_get_output_duty_a(void)
+{
+    if (pwmOutputA.period_ticks == 0U)
+    {
+        return 0U;
+    }
+    uint32_t limit =
+        (uint32_t)(((uint64_t)pwmOutputA.period_ticks * pwmOutputA.throttle_val) / 100U);
+    uint32_t active = (pwmOutputA.pulse_ticks < limit) ? pwmOutputA.pulse_ticks : limit;
+    return (uint32_t)((uint64_t)active * 100ULL / pwmOutputA.period_ticks);
+}
+
+uint32_t pwm_get_output_duty_b(void)
+{
+    if (pwmOutputB.period_ticks == 0U)
+    {
+        return 0U;
+    }
+    uint32_t limit =
+        (uint32_t)(((uint64_t)pwmOutputB.period_ticks * pwmOutputB.throttle_val) / 100U);
+    uint32_t active = (pwmOutputB.pulse_ticks < limit) ? pwmOutputB.pulse_ticks : limit;
+    return (uint32_t)((uint64_t)active * 100ULL / pwmOutputB.period_ticks);
 }
