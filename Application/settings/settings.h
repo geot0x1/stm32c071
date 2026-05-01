@@ -14,9 +14,8 @@
 
 typedef enum
 {
-    FanOverrideAuto   = 0,
-    FanOverride2Wire  = 1,
-    FanOverride34Wire = 2
+    FanOverride2Wire  = 0,
+    FanOverride34Wire = 1
 } FanTypeOverride;
 
 /* Total size: 16 bytes (2 × 8-byte flash write blocks). */

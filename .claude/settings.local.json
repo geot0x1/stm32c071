@@ -72,7 +72,9 @@
       "Bash(git -C /c/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071 diff HEAD origin/test_main -- .)",
       "Bash(git -C /c/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071 stash list)",
       "Bash(git -C /c/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071 branch -a)",
-      "Bash(git -C /c/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071 show origin/nvs_test --name-only)"
+      "Bash(git -C /c/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071 show origin/nvs_test --name-only)",
+      "Bash(git -C . describe --tags --always)",
+      "Bash(git -C . log -1 --format=\"%h %ai\")"
     ]
   }
 }

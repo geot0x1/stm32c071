@@ -189,7 +189,7 @@ static void handle_fan_type(char **tokens, uint8_t count)
             usb_printf("ERR INVALID_VALUE fantype[%u] %s\r\n", (unsigned int)i, tokens[2U + i]);
             return;
         }
-        if ((vals[i] < 0) || (vals[i] > 2))
+        if ((vals[i] < 0) || (vals[i] > 1))
         {
             usb_printf("ERR OUT_OF_RANGE fantype[%u] %d\r\n", (unsigned int)i, (int)vals[i]);
             return;
@@ -370,10 +370,19 @@ void commands_task(void)
 
         if ((b == '\r') || (b == '\n'))
         {
+            usb_write("\r\n", 2U);
             if (lineLen > 0U)
             {
                 process_line();
                 lineLen = 0U;
+            }
+        }
+        else if ((b == 0x08U) || (b == 0x7FU))
+        {
+            if (lineLen > 0U)
+            {
+                lineLen--;
+                usb_write("\b \b", 3U);
             }
         }
         else if ((b >= 0x20U) && (b <= 0x7EU))
@@ -381,6 +390,7 @@ void commands_task(void)
             if (lineLen < (CMD_LINE_BUF_SIZE - 1U))
             {
                 lineBuf[lineLen++] = (char)b;
+                usb_write(&b, 1U);
             }
             else
             {

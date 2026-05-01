@@ -29,7 +29,7 @@ static const Settings defaults =
 {
     .pwm_throttle_a    = SETTINGS_DEFAULT_PWM_THROTTLE_A,
     .pwm_throttle_b    = SETTINGS_DEFAULT_PWM_THROTTLE_B,
-    .fan_type_override = {FanOverrideAuto, FanOverrideAuto, FanOverrideAuto, FanOverrideAuto},
+    .fan_type_override = {FanOverride2Wire, FanOverride2Wire, FanOverride2Wire, FanOverride2Wire},
     .temp_fan_on       = SETTINGS_DEFAULT_TEMP_FAN_ON,
     .temp_fan_off      = SETTINGS_DEFAULT_TEMP_FAN_OFF,
     .temp_critical     = SETTINGS_DEFAULT_TEMP_CRITICAL,
@@ -148,7 +148,7 @@ bool settings_set_fan_type_override(uint8_t unit, FanTypeOverride type)
     {
         return false;
     }
-    if (type != FanOverrideAuto && type != FanOverride2Wire && type != FanOverride34Wire)
+    if (type != FanOverride2Wire && type != FanOverride34Wire)
     {
         return false;
     }

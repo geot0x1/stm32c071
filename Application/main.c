@@ -165,7 +165,7 @@ static void flash_debug_addresses(void)
 
 static void settings_test_print(void)
 {
-    static const char *const fan_names[] = {"Auto", "2Wire", "3/4Wire"};
+    static const char *const fan_names[] = {"2Wire", "3/4Wire"};
     const Settings *s = settings_get();
     serial_printf("---- Settings ----\r\n");
     serial_printf("  pwm_throttle_a   : %u%%\r\n", (unsigned int)s->pwm_throttle_a);
@@ -192,7 +192,6 @@ int main(void)
 
     watchdog_init();
 
-    usb_init();
     serial_init(BOARD_UART1_INSTANCE, BOARD_UART1_BAUD_RATE);
 
     serial_printf("Program started\r\n");
@@ -227,8 +226,9 @@ int main(void)
     fan_tacho_enable(3);
     fan_tacho_enable(4);
 
+    usb_init();
+
     static uint32_t last_step = 0;
-    static uint8_t step = 0;
     bool first = true;
 
     while (true)
@@ -248,48 +248,7 @@ int main(void)
         if (HAL_GetTick() - last_step >= 5000U)
         {
             last_step = HAL_GetTick();
-            bool ok = false;
-
-            switch (step)
-            {
-                case 0U:
-                    ok = settings_set_pwm_throttle_a(75U);
-                    serial_printf("SETTINGS TEST: set pwm_throttle_a=75 -> %s\r\n", ok ? "OK" : "FAIL");
-                    break;
-                case 1U:
-                    ok = settings_set_pwm_throttle_b(30U);
-                    serial_printf("SETTINGS TEST: set pwm_throttle_b=30 -> %s\r\n", ok ? "OK" : "FAIL");
-                    break;
-                case 2U:
-                    ok = settings_set_fan_type_override(0U, FanOverride2Wire);
-                    serial_printf("SETTINGS TEST: set fan_override[0]=2Wire -> %s\r\n", ok ? "OK" : "FAIL");
-                    break;
-                case 3U:
-                    ok = settings_set_fan_type_override(1U, FanOverride34Wire);
-                    serial_printf("SETTINGS TEST: set fan_override[1]=3/4Wire -> %s\r\n", ok ? "OK" : "FAIL");
-                    break;
-                case 4U:
-                    ok = settings_set_temp_fan_on(3500);
-                    serial_printf("SETTINGS TEST: set temp_fan_on=3500 -> %s\r\n", ok ? "OK" : "FAIL");
-                    break;
-                case 5U:
-                    ok = settings_set_temp_fan_off(2000);
-                    serial_printf("SETTINGS TEST: set temp_fan_off=2000 -> %s\r\n", ok ? "OK" : "FAIL");
-                    break;
-                case 6U:
-                    ok = settings_set_temp_critical(7000);
-                    serial_printf("SETTINGS TEST: set temp_critical=7000 -> %s\r\n", ok ? "OK" : "FAIL");
-                    break;
-                case 7U:
-                    ok = settings_reset_to_defaults();
-                    serial_printf("SETTINGS TEST: reset to defaults -> %s\r\n", ok ? "OK" : "FAIL");
-                    break;
-                default:
-                    break;
-            }
-
             settings_test_print();
-            step = (uint8_t)((step + 1U) % 8U);
         }
     }
 
