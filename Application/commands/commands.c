@@ -25,7 +25,8 @@ typedef enum
     SubCmdFanType,
     SubCmdTempOn,
     SubCmdTempOff,
-    SubCmdTempCrit
+    SubCmdTempCrit,
+    SubCmdDefault
 } CommandSubType;
 
 static char lineBuf[CMD_LINE_BUF_SIZE];
@@ -137,6 +138,10 @@ static CommandSubType identify_sub_cmd(const char *s)
     if (strcmp(s, "tempcrit") == 0)
     {
         return SubCmdTempCrit;
+    }
+    if (strcmp(s, "default") == 0)
+    {
+        return SubCmdDefault;
     }
     return SubCmdUnknown;
 }
@@ -334,6 +339,21 @@ static void handle_temp_crit(char **tokens, uint8_t count)
     usb_printf("OK SETTINGSCHANGE tempcrit %d\r\n", (int)val);
 }
 
+static void handle_default(uint8_t count)
+{
+    if (count != 2U)
+    {
+        usb_printf("ERR WRONG_ARG_COUNT default takes no arguments\r\n");
+        return;
+    }
+    if (!settings_reset_to_defaults())
+    {
+        usb_printf("ERR SAVE_FAILED default\r\n");
+        return;
+    }
+    usb_printf("OK SETTINGSCHANGE default\r\n");
+}
+
 // need review if this reset should happen in this module.
 static void handle_reset(void)
 {
@@ -401,6 +421,9 @@ static void process_line(void)
             break;
         case SubCmdTempCrit:
             handle_temp_crit(tokens, count);
+            break;
+        case SubCmdDefault:
+            handle_default(count);
             break;
         default:
             usb_printf("ERR UNKNOWN_SUBCMD %s\r\n", tokens[1]);
