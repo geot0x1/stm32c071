@@ -1,24 +1,25 @@
 #include "commands.h"
 #include "settings.h"
 #include "usb.h"
+#include "stm32c0xx_hal.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 
-#define CMD_LINE_BUF_SIZE    128U
-#define CMD_USB_CHUNK_SIZE    64U
-#define CMD_MAX_TOKENS         8U
+#define CMD_LINE_BUF_SIZE 128U
+#define CMD_USB_CHUNK_SIZE 64U
+#define CMD_MAX_TOKENS 8U
 
-#define CMD_TEMPON_MIN    1
-#define CMD_TEMPON_MAX   80
-#define CMD_TEMPOFF_MIN   0
-#define CMD_TEMPOFF_MAX  79
-#define CMD_TEMPCRIT_MIN  2
+#define CMD_TEMPON_MIN 1
+#define CMD_TEMPON_MAX 80
+#define CMD_TEMPOFF_MIN 0
+#define CMD_TEMPOFF_MAX 79
+#define CMD_TEMPCRIT_MIN 2
 #define CMD_TEMPCRIT_MAX 90
 
 typedef enum
 {
-    SubCmdUnknown  = 0,
+    SubCmdUnknown = 0,
     SubCmdPwmA,
     SubCmdPwmB,
     SubCmdFanType,
@@ -27,7 +28,7 @@ typedef enum
     SubCmdTempCrit
 } CommandSubType;
 
-static char    lineBuf[CMD_LINE_BUF_SIZE];
+static char lineBuf[CMD_LINE_BUF_SIZE];
 static uint8_t lineLen;
 
 static bool parse_int(const char *s, int32_t *out)
@@ -113,12 +114,30 @@ static uint8_t tokenize(char *buf, char **tokens, uint8_t max)
 
 static CommandSubType identify_sub_cmd(const char *s)
 {
-    if (strcmp(s, "pwma")     == 0) { return SubCmdPwmA; }
-    if (strcmp(s, "pwmb")     == 0) { return SubCmdPwmB; }
-    if (strcmp(s, "fantype")  == 0) { return SubCmdFanType; }
-    if (strcmp(s, "tempon")   == 0) { return SubCmdTempOn; }
-    if (strcmp(s, "tempoff")  == 0) { return SubCmdTempOff; }
-    if (strcmp(s, "tempcrit") == 0) { return SubCmdTempCrit; }
+    if (strcmp(s, "pwma") == 0)
+    {
+        return SubCmdPwmA;
+    }
+    if (strcmp(s, "pwmb") == 0)
+    {
+        return SubCmdPwmB;
+    }
+    if (strcmp(s, "fantype") == 0)
+    {
+        return SubCmdFanType;
+    }
+    if (strcmp(s, "tempon") == 0)
+    {
+        return SubCmdTempOn;
+    }
+    if (strcmp(s, "tempoff") == 0)
+    {
+        return SubCmdTempOff;
+    }
+    if (strcmp(s, "tempcrit") == 0)
+    {
+        return SubCmdTempCrit;
+    }
     return SubCmdUnknown;
 }
 
@@ -203,8 +222,8 @@ static void handle_fan_type(char **tokens, uint8_t count)
             return;
         }
     }
-    usb_printf("OK SETTINGSCHANGE fantype %d %d %d %d\r\n",
-        (int)vals[0], (int)vals[1], (int)vals[2], (int)vals[3]);
+    usb_printf("OK SETTINGSCHANGE fantype %d %d %d %d\r\n", (int)vals[0], (int)vals[1],
+        (int)vals[2], (int)vals[3]);
 }
 
 static void handle_temp_on(char **tokens, uint8_t count)
@@ -229,14 +248,14 @@ static void handle_temp_on(char **tokens, uint8_t count)
     const Settings *s = settings_get();
     if (centideg <= s->temp_fan_off)
     {
-        usb_printf("ERR ORDERING tempon %d must be > tempoff %d\r\n",
-            (int)val, (int)(s->temp_fan_off / 100));
+        usb_printf("ERR ORDERING tempon %d must be > tempoff %d\r\n", (int)val,
+            (int)(s->temp_fan_off / 100));
         return;
     }
     if (centideg >= s->temp_critical)
     {
-        usb_printf("ERR ORDERING tempon %d must be < tempcrit %d\r\n",
-            (int)val, (int)(s->temp_critical / 100));
+        usb_printf("ERR ORDERING tempon %d must be < tempcrit %d\r\n", (int)val,
+            (int)(s->temp_critical / 100));
         return;
     }
     if (!settings_set_temp_fan_on(centideg))
@@ -269,8 +288,8 @@ static void handle_temp_off(char **tokens, uint8_t count)
     const Settings *s = settings_get();
     if (centideg >= s->temp_fan_on)
     {
-        usb_printf("ERR ORDERING tempoff %d must be < tempon %d\r\n",
-            (int)val, (int)(s->temp_fan_on / 100));
+        usb_printf("ERR ORDERING tempoff %d must be < tempon %d\r\n", (int)val,
+            (int)(s->temp_fan_on / 100));
         return;
     }
     if (!settings_set_temp_fan_off(centideg))
@@ -303,8 +322,8 @@ static void handle_temp_crit(char **tokens, uint8_t count)
     const Settings *s = settings_get();
     if (centideg <= s->temp_fan_on)
     {
-        usb_printf("ERR ORDERING tempcrit %d must be > tempon %d\r\n",
-            (int)val, (int)(s->temp_fan_on / 100));
+        usb_printf("ERR ORDERING tempcrit %d must be > tempon %d\r\n", (int)val,
+            (int)(s->temp_fan_on / 100));
         return;
     }
     if (!settings_set_temp_critical(centideg))
@@ -313,6 +332,18 @@ static void handle_temp_crit(char **tokens, uint8_t count)
         return;
     }
     usb_printf("OK SETTINGSCHANGE tempcrit %d\r\n", (int)val);
+}
+
+// need review if this reset should happen in this module.
+static void handle_reset(void)
+{
+    usb_printf("OK RESET\r\n");
+    for (uint8_t i = 0U; i < 10U; i++)
+    {
+        usb_task();
+        HAL_Delay(10U);
+    }
+    HAL_NVIC_SystemReset();
 }
 
 static void process_line(void)
@@ -324,6 +355,17 @@ static void process_line(void)
 
     if (count == 0U)
     {
+        return;
+    }
+
+    if (strcmp(tokens[0], "RESET") == 0)
+    {
+        if (count != 1U)
+        {
+            usb_printf("ERR WRONG_ARG_COUNT RESET takes no arguments\r\n");
+            return;
+        }
+        handle_reset();
         return;
     }
 
@@ -342,12 +384,24 @@ static void process_line(void)
     CommandSubType sub = identify_sub_cmd(tokens[1]);
     switch (sub)
     {
-        case SubCmdPwmA:    handle_pwm_a(tokens, count);    break;
-        case SubCmdPwmB:    handle_pwm_b(tokens, count);    break;
-        case SubCmdFanType: handle_fan_type(tokens, count); break;
-        case SubCmdTempOn:  handle_temp_on(tokens, count);  break;
-        case SubCmdTempOff: handle_temp_off(tokens, count); break;
-        case SubCmdTempCrit: handle_temp_crit(tokens, count); break;
+        case SubCmdPwmA:
+            handle_pwm_a(tokens, count);
+            break;
+        case SubCmdPwmB:
+            handle_pwm_b(tokens, count);
+            break;
+        case SubCmdFanType:
+            handle_fan_type(tokens, count);
+            break;
+        case SubCmdTempOn:
+            handle_temp_on(tokens, count);
+            break;
+        case SubCmdTempOff:
+            handle_temp_off(tokens, count);
+            break;
+        case SubCmdTempCrit:
+            handle_temp_crit(tokens, count);
+            break;
         default:
             usb_printf("ERR UNKNOWN_SUBCMD %s\r\n", tokens[1]);
             break;
