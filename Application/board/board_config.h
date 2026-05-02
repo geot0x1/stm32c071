@@ -19,10 +19,15 @@
  * these macros directly.
  */
 
-/* ── Status LED (PA15 → NPN Q1 → LED1) ──────────────────────────────────── */
+/* ── Status LED — LED_EN net (PA15 → NPN Q1 → LED1, active HIGH) ─────────── */
 
 #define BOARD_LED_PORT          GPIOA
 #define BOARD_LED_PIN           GPIO_PIN_15
+
+/* ── FAN_FORCE_EN push button — SW1 (PC13 → GND, active LOW, 10K pull-up) ── */
+
+#define BOARD_FAN_FORCE_EN_PORT     GPIOC
+#define BOARD_FAN_FORCE_EN_PIN      GPIO_PIN_13
 
 /* ── 1-Wire bus (DS18B20) ────────────────────────────────────────────────── */
 

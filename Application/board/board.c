@@ -7,6 +7,7 @@
  */
 
 static Gpio led_gpio;
+static Gpio fan_force_en_gpio;
 static Gpio onewire_gpio;
 static Gpio onewire_pwr_en_gpio;
 static Gpio onewire_pu_en_gpio;
@@ -53,6 +54,10 @@ void board_init(void)
     gpio_output_init(&lcd_pwr_en_gpio, BOARD_LCD_PWR_EN_PORT,
                      BOARD_LCD_PWR_EN_PIN, GPIO_PIN_RESET);
 
+    /* 2g. FAN_FORCE_EN button — input, no MCU pull (external 10K to +3V3) */
+    gpio_input_init(&fan_force_en_gpio, BOARD_FAN_FORCE_EN_PORT,
+                    BOARD_FAN_FORCE_EN_PIN, GPIO_NOPULL);
+
     /* 3. I2C sensor bus (GPIO AF handled by MspInit) */
     i2c_init(&sensor_i2c, BOARD_I2C_INSTANCE, BOARD_I2C_TIMING);
 
@@ -75,6 +80,14 @@ void board_led_set(bool on)
 void board_led_toggle(void)
 {
     gpio_toggle(&led_gpio);
+}
+
+/* ── FAN_FORCE_EN button ─────────────────────────────────────────────────────
+ */
+
+bool board_fan_force_en_read(void)
+{
+    return gpio_read(&fan_force_en_gpio) == GPIO_PIN_RESET; /* active-LOW */
 }
 
 /* ── Power enable outputs ────────────────────────────────────────────────────

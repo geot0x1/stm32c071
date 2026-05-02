@@ -21,6 +21,11 @@ void board_led_set(bool on);
 /** @brief Toggle the status LED. */
 void board_led_toggle(void);
 
+/* ── FAN_FORCE_EN button ─────────────────────────────────────────────────── */
+
+/** @brief Read the FAN_FORCE_EN push button. Returns true when pressed (active-LOW). */
+bool board_fan_force_en_read(void);
+
 /* ── Power enable outputs ────────────────────────────────────────────────── */
 
 /** @brief Enable/disable DS18B20 VDD supply (PB5 → Q2). */

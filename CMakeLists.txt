@@ -91,6 +91,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     settings
     commands
     telemetry
+    program_led
 )
 
 # Include build info generator
