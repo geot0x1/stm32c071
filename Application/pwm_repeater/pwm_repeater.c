@@ -196,6 +196,8 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out)
         /* No valid PWM edges for 50 ms — shut off output */
         out->tim->hal_handle.Instance->ARR = OUTPUT_ARR;
         out->tim->hal_handle.Instance->CCR1 = OUTPUT_ARR + 1U;
+        out->period_ticks = 0;
+        out->pulse_ticks = 0;
         init_channel_struct(ch);
     }
 }

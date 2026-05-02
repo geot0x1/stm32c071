@@ -62,12 +62,15 @@ static ThermalState compute_thermal_state(void)
     return ThermalBelowLow;
 }
 
-static bool get_fan_state(void)
+static const char *get_fan_state_str(void)
 {
-    return fan_control_get_power_channel_duty(FanChannelOne) > 0U
-        || fan_control_get_power_channel_duty(FanChannelTwo) > 0U
-        || fan_control_get_power_channel_duty(FanChannelThree) > 0U
-        || fan_control_get_power_channel_duty(FanChannelFour) > 0U;
+    static char buf[5];
+    buf[0] = fan_control_get_power_channel_duty(FanChannelOne) > 0U ? '1' : '0';
+    buf[1] = fan_control_get_power_channel_duty(FanChannelTwo) > 0U ? '1' : '0';
+    buf[2] = fan_control_get_power_channel_duty(FanChannelThree) > 0U ? '1' : '0';
+    buf[3] = fan_control_get_power_channel_duty(FanChannelFour) > 0U ? '1' : '0';
+    buf[4] = '\0';
+    return buf;
 }
 
 void telemetry_init(void)
@@ -86,13 +89,11 @@ void telemetry_create(char *buf, size_t buf_size)
 
     uint16_t raw_temp = get_temperature();
     uint32_t boot_s = (uint32_t)(millis() / 1000U);
-    bool fan_on = get_fan_state();
+    const char *fan_str = get_fan_state_str();
     uint32_t in_dc_a = pwm_get_duty_a();
     uint32_t out_dc_a = pwm_get_output_duty_a();
     uint32_t in_dc_b = pwm_get_duty_b();
     uint32_t out_dc_b = pwm_get_output_duty_b();
-
-    const char *fan_str = fan_on ? "ON" : "OFF";
 
     const char *state_str;
     switch (compute_thermal_state())
