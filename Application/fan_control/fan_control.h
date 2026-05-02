@@ -33,8 +33,8 @@ void fan_control_set_unit_duty(uint8_t unit_idx, uint8_t duty_pct);
 
 typedef enum
 {
-    FanType2Wire   = 0,
-    FanType34Wire  = 1,
+    FanType2Wire = 0,
+    FanType34Wire = 1,
 } FanType;
 
 /**

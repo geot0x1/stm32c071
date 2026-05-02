@@ -3,7 +3,7 @@
 #include "delay.h"
 
 #define ENTER_CRITICAL() critical_enter()
-#define EXIT_CRITICAL()  critical_exit()
+#define EXIT_CRITICAL() critical_exit()
 
 #define TIME_DELAY_A (3)
 #define TIME_DELAY_B (60)
@@ -16,11 +16,11 @@
 #define TIME_DELAY_I (70)
 #define TIME_DELAY_J (410)
 
-static void ow_sem_lock(OneWire* ow);
-static void ow_sem_unlock(OneWire* ow);
+static void ow_sem_lock(OneWire *ow);
+static void ow_sem_unlock(OneWire *ow);
 static void ow_write_bit(OneWire *const ow, uint8_t v);
 
-static void ow_enable_gpio_clock(GPIO_TypeDef* port)
+static void ow_enable_gpio_clock(GPIO_TypeDef *port)
 {
     if (port == GPIOA)
     {
@@ -48,10 +48,10 @@ static void ow_enable_gpio_clock(GPIO_TypeDef* port)
 #endif
 }
 
-static inline void set_pin_output(GPIO_TypeDef* port, const uint16_t pin)
+static inline void set_pin_output(GPIO_TypeDef *port, const uint16_t pin)
 {
     uint32_t pin_pos = __builtin_ctz(pin);
-    
+
     // Open-Drain (1)
     port->OTYPER |= pin;
 
@@ -67,14 +67,14 @@ static inline void set_pin_output(GPIO_TypeDef* port, const uint16_t pin)
     port->MODER |= (1U << (pin_pos * 2));
 }
 
-static inline void set_pin_input(GPIO_TypeDef* port, const uint16_t pin)
+static inline void set_pin_input(GPIO_TypeDef *port, const uint16_t pin)
 {
     // Keeping pin in Output Open-Drain mode is sufficient for reading.
     // However, ensure it's high impedance by setting BSRR.
     port->BSRR = pin;
 }
 
-static inline bool read_pin(GPIO_TypeDef* port, const uint16_t pin)
+static inline bool read_pin(GPIO_TypeDef *port, const uint16_t pin)
 {
     return (port->IDR & pin) != 0;
 }
@@ -94,33 +94,33 @@ static inline bool ow_pin_read(OneWire *ow)
     return read_pin(ow->port, ow->pin);
 }
 
-void ow_set_low(OneWire* ow)
+void ow_set_low(OneWire *ow)
 {
     ow_sem_lock(ow);
     ow_pin_set_low(ow);
     ow_sem_unlock(ow);
 }
 
-void ow_init(OneWire* ow)
+void ow_init(OneWire *ow)
 {
     ow->lock_count = 0;
     ow_enable_gpio_clock(ow->port);
     ow_sem_lock(ow);
-    
+
     set_pin_output(ow->port, ow->pin);
     ow_pin_set_high(ow); /* Initial state High (released) */
-   
+
     ow_sem_unlock(ow);
 }
 
-static void ow_sem_lock(OneWire* ow)
+static void ow_sem_lock(OneWire *ow)
 {
     ENTER_CRITICAL();
     ow->lock_count++;
     EXIT_CRITICAL();
 }
 
-static void ow_sem_unlock(OneWire* ow)
+static void ow_sem_unlock(OneWire *ow)
 {
     ENTER_CRITICAL();
     if (ow->lock_count > 0)
@@ -157,8 +157,8 @@ uint8_t ow_reset(OneWire *const ow)
 
 void ow_reset_search(OneWire *const ow)
 {
-    ow->LastDiscrepancy       = 0;
-    ow->LastDeviceFlag        = false;
+    ow->LastDiscrepancy = 0;
+    ow->LastDeviceFlag = false;
     ow->LastFamilyDiscrepancy = 0;
     for (int i = 7; i >= 0; i--)
     {
@@ -278,20 +278,20 @@ void ow_skip(OneWire *const ow)
 bool ow_search(OneWire *const ow, uint8_t *new_addr, bool search_mode)
 {
     ow_sem_lock(ow);
-    uint8_t id_bit_number   = 1;
-    uint8_t last_zero       = 0;
+    uint8_t id_bit_number = 1;
+    uint8_t last_zero = 0;
     uint8_t rom_byte_number = 0;
-    bool    search_result   = false;
-    uint8_t rom_byte_mask   = 1;
+    bool search_result = false;
+    uint8_t rom_byte_mask = 1;
     uint8_t search_direction;
     uint8_t id_bit, cmp_id_bit;
 
     if (!ow->LastDeviceFlag)
-    {       
+    {
         if (!ow_reset(ow))
         {
-            ow->LastDiscrepancy       = 0;
-            ow->LastDeviceFlag        = false;
+            ow->LastDiscrepancy = 0;
+            ow->LastDeviceFlag = false;
             ow->LastFamilyDiscrepancy = 0;
             search_result = false;
             goto exit;
@@ -299,16 +299,16 @@ bool ow_search(OneWire *const ow, uint8_t *new_addr, bool search_mode)
 
         if (search_mode == true)
         {
-            ow_write(ow, 0xF0);  
+            ow_write(ow, 0xF0);
         }
         else
         {
-            ow_write(ow, 0xEC);  
+            ow_write(ow, 0xEC);
         }
 
         do
         {
-            id_bit     = ow_read_bit(ow);
+            id_bit = ow_read_bit(ow);
             cmp_id_bit = ow_read_bit(ow);
 
             if ((id_bit == 1) && (cmp_id_bit == 1))
@@ -319,7 +319,7 @@ bool ow_search(OneWire *const ow, uint8_t *new_addr, bool search_mode)
             {
                 if (id_bit != cmp_id_bit)
                 {
-                    search_direction = id_bit;  
+                    search_direction = id_bit;
                 }
                 else
                 {
@@ -362,7 +362,7 @@ bool ow_search(OneWire *const ow, uint8_t *new_addr, bool search_mode)
                     rom_byte_mask = 1;
                 }
             }
-        } while (rom_byte_number < 8);  
+        } while (rom_byte_number < 8);
 
         if (!(id_bit_number < 65))
         {
@@ -378,10 +378,10 @@ bool ow_search(OneWire *const ow, uint8_t *new_addr, bool search_mode)
 
     if (!search_result)
     {
-        ow->LastDiscrepancy       = 0;
-        ow->LastDeviceFlag        = false;
+        ow->LastDiscrepancy = 0;
+        ow->LastDeviceFlag = false;
         ow->LastFamilyDiscrepancy = 0;
-        search_result             = false;
+        search_result = false;
     }
     else
     {
@@ -417,19 +417,19 @@ uint8_t ow_crc8(const uint8_t *addr, uint8_t len)
     return crc;
 }
 
-void ow_set_input(OneWire* ow)
+void ow_set_input(OneWire *ow)
 {
     ow_sem_lock(ow);
     set_pin_input(ow->port, ow->pin);
     ow_sem_unlock(ow);
 }
 
-void ow_lock_bus(OneWire* ow)
+void ow_lock_bus(OneWire *ow)
 {
     ow_sem_lock(ow);
 }
 
-void ow_unlock_bus(OneWire* ow)
+void ow_unlock_bus(OneWire *ow)
 {
     ow_sem_unlock(ow);
 }

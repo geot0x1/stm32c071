@@ -12,17 +12,12 @@ typedef enum
     StateWaitNext
 } TempSensorState;
 
-#define MAX_FAILURES    3
-#define TICK_1S         1000
+#define MAX_FAILURES 3
+#define TICK_1S 1000
 
-static OneWire _ow_bus = {
-    .port = GPIOB,
-    .pin = GPIO_PIN_4
-};
+static OneWire _ow_bus = {.port = GPIOB, .pin = GPIO_PIN_4};
 
-static Ds18b20_t _ds18b20_dev = {
-    .ow = &_ow_bus
-};
+static Ds18b20_t _ds18b20_dev = {.ow = &_ow_bus};
 
 static TempSensorState _current_state = StatePoll;
 static uint32_t _last_tick = 0;
@@ -133,11 +128,12 @@ void temperature_sensor_task(void)
         case StateRead:
         {
             int16_t raw_temp = ds18b20_get_temp(&_ds18b20_dev, NULL);
-            
+
             if (raw_temp != -127 && raw_temp != 850)
             {
                 float celsius = ds18b20_raw_to_celsius(raw_temp);
-                // Store as Celsius * 100; intentional: negatives wrap via int16_t (two's complement)
+                // Store as Celsius * 100; intentional: negatives wrap via int16_t (two's
+                // complement)
                 _last_temperature = (uint16_t)((int16_t)(celsius * 100.0f));
                 _fail_count = 0;
                 _is_lost = false;

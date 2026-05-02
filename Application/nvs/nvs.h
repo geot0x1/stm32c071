@@ -26,14 +26,14 @@
  *===========================================================================*/
 
 /** Sector header magic word: "NVS!" in little-endian */
-#define NVS_MAGIC_WORD      (0x4E565321U)
+#define NVS_MAGIC_WORD (0x4E565321U)
 
 /** Entry state byte values */
-#define NVS_ENTRY_VALID     (0xFEU)   /**< Entry is committed and readable     */
+#define NVS_ENTRY_VALID (0xFEU) /**< Entry is committed and readable     */
 
 /** Size limits */
-#define NVS_MAX_KEY_LEN     (15U)
-#define NVS_MAX_DATA_LEN    (128U)
+#define NVS_MAX_KEY_LEN (15U)
+#define NVS_MAX_DATA_LEN (128U)
 
 /**
  * Sector header: 8 bytes = magic(4) + seq(4).
@@ -49,7 +49,7 @@
  *  Byte 3   : reserved (0xFF)
  *  Bytes 4-7: CRC32 over (key_len + data_len + key[] + data[])
  */
-#define NVS_ENTRY_HDR_SIZE  (8U)
+#define NVS_ENTRY_HDR_SIZE (8U)
 
 /*===========================================================================
  *  Types
@@ -82,7 +82,7 @@ typedef struct
     uint32_t sector_size;
 
     /** Number of sectors allocated to NVS. */
-    uint8_t  sector_count;
+    uint8_t sector_count;
 } nvs_flash_driver_t;
 
 /*===========================================================================
@@ -91,9 +91,9 @@ typedef struct
 
 typedef struct
 {
-    uint32_t           active_sector_addr;
-    uint32_t           write_offset;
-    uint32_t           seq_counter;
+    uint32_t active_sector_addr;
+    uint32_t write_offset;
+    uint32_t seq_counter;
     nvs_flash_driver_t driver;
 } nvs_context_t;
 

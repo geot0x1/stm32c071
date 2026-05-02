@@ -8,11 +8,11 @@
 
 static nvs_context_t gNvs;
 
-#define DRV_WRITE(addr, data, len)  gNvs.driver.write((addr), (data), (len))
-#define DRV_READ(addr, data, len)   gNvs.driver.read((addr), (data), (len))
-#define DRV_ERASE(addr)             gNvs.driver.erase_sector((addr))
-#define SECTOR_SIZE                 gNvs.driver.sector_size
-#define SECTOR_COUNT                gNvs.driver.sector_count
+#define DRV_WRITE(addr, data, len) gNvs.driver.write((addr), (data), (len))
+#define DRV_READ(addr, data, len) gNvs.driver.read((addr), (data), (len))
+#define DRV_ERASE(addr) gNvs.driver.erase_sector((addr))
+#define SECTOR_SIZE gNvs.driver.sector_size
+#define SECTOR_COUNT gNvs.driver.sector_count
 
 /*===========================================================================
  *  Addressing helpers
@@ -46,10 +46,10 @@ static int read_sector_hdr(uint32_t base, uint32_t *magic, uint32_t *seq)
 {
     uint8_t hdr[8];
     DRV_READ(base, hdr, 8);
-    *magic = (uint32_t)hdr[0] | ((uint32_t)hdr[1] << 8)
-           | ((uint32_t)hdr[2] << 16) | ((uint32_t)hdr[3] << 24);
-    *seq   = (uint32_t)hdr[4] | ((uint32_t)hdr[5] << 8)
-           | ((uint32_t)hdr[6] << 16) | ((uint32_t)hdr[7] << 24);
+    *magic = (uint32_t)hdr[0] | ((uint32_t)hdr[1] << 8) | ((uint32_t)hdr[2] << 16)
+        | ((uint32_t)hdr[3] << 24);
+    *seq = (uint32_t)hdr[4] | ((uint32_t)hdr[5] << 8) | ((uint32_t)hdr[6] << 16)
+        | ((uint32_t)hdr[7] << 24);
     return (*magic == NVS_MAGIC_WORD && *seq != 0xFFFFFFFFU);
 }
 
@@ -72,22 +72,19 @@ static void write_sector_hdr(uint32_t base, uint32_t seq)
  *  Entry header I/O
  *===========================================================================*/
 
-static uint8_t read_entry_hdr(uint32_t addr,
-                               uint8_t *key_len,
-                               uint8_t *data_len,
-                               uint32_t *crc)
+static uint8_t read_entry_hdr(uint32_t addr, uint8_t *key_len, uint8_t *data_len, uint32_t *crc)
 {
     uint8_t hdr[NVS_ENTRY_HDR_SIZE];
     DRV_READ(addr, hdr, NVS_ENTRY_HDR_SIZE);
-    *key_len  = hdr[1];
+    *key_len = hdr[1];
     *data_len = hdr[2];
-    *crc = (uint32_t)hdr[4]         | ((uint32_t)hdr[5] << 8)
-         | ((uint32_t)hdr[6] << 16) | ((uint32_t)hdr[7] << 24);
+    *crc = (uint32_t)hdr[4] | ((uint32_t)hdr[5] << 8) | ((uint32_t)hdr[6] << 16)
+        | ((uint32_t)hdr[7] << 24);
     return hdr[0]; /* state */
 }
 
-static uint32_t compute_entry_crc(uint8_t key_len, uint8_t data_len,
-                                   const uint8_t *key, const uint8_t *data)
+static uint32_t compute_entry_crc(
+    uint8_t key_len, uint8_t data_len, const uint8_t *key, const uint8_t *data)
 {
     uint8_t buf[2U + NVS_MAX_KEY_LEN + NVS_MAX_DATA_LEN];
     uint32_t n = 0;
@@ -107,8 +104,8 @@ static uint32_t compute_entry_crc(uint8_t key_len, uint8_t data_len,
 static void get_sectors_by_seq_desc(uint8_t *out_idx, uint8_t *out_count)
 {
     uint32_t seqs[16];
-    uint8_t  valid[16];
-    uint8_t  n = 0;
+    uint8_t valid[16];
+    uint8_t n = 0;
 
     for (uint8_t i = 0; i < SECTOR_COUNT; i++)
     {
@@ -116,7 +113,7 @@ static void get_sectors_by_seq_desc(uint8_t *out_idx, uint8_t *out_count)
         if (read_sector_hdr(sector_addr(i), &magic, &seq))
         {
             valid[n] = i;
-            seqs[n]  = seq;
+            seqs[n] = seq;
             n++;
         }
     }
@@ -124,15 +121,15 @@ static void get_sectors_by_seq_desc(uint8_t *out_idx, uint8_t *out_count)
     for (uint8_t i = 1; i < n; i++)
     {
         uint32_t s = seqs[i];
-        uint8_t  v = valid[i];
+        uint8_t v = valid[i];
         int j = (int)i - 1;
         while (j >= 0 && seqs[j] < s)
         {
-            seqs[j + 1]  = seqs[j];
+            seqs[j + 1] = seqs[j];
             valid[j + 1] = valid[j];
             j--;
         }
-        seqs[j + 1]  = s;
+        seqs[j + 1] = s;
         valid[j + 1] = v;
     }
 
@@ -150,9 +147,9 @@ static uint32_t scan_write_offset(uint32_t base)
 
     while (off < SECTOR_SIZE)
     {
-        uint8_t  kl, dl;
+        uint8_t kl, dl;
         uint32_t crc;
-        uint8_t  st = read_entry_hdr(base + off, &kl, &dl, &crc);
+        uint8_t st = read_entry_hdr(base + off, &kl, &dl, &crc);
 
         if (st != NVS_ENTRY_VALID)
         {
@@ -179,8 +176,8 @@ static uint32_t scan_write_offset(uint32_t base)
  *  b) A later entry for the same key exists later in the same sector.
  *===========================================================================*/
 
-static int is_superseded(const uint8_t *key, uint8_t key_len,
-                          uint8_t src_sector_idx, uint32_t src_offset)
+static int is_superseded(
+    const uint8_t *key, uint8_t key_len, uint8_t src_sector_idx, uint32_t src_offset)
 {
     uint32_t src_base = sector_addr(src_sector_idx);
     uint32_t src_magic, src_seq;
@@ -207,9 +204,9 @@ static int is_superseded(const uint8_t *key, uint8_t key_len,
 
         while (off < SECTOR_SIZE)
         {
-            uint8_t  kl, dl;
+            uint8_t kl, dl;
             uint32_t crc;
-            uint8_t  st = read_entry_hdr(base + off, &kl, &dl, &crc);
+            uint8_t st = read_entry_hdr(base + off, &kl, &dl, &crc);
 
             if (st != NVS_ENTRY_VALID)
             {
@@ -256,7 +253,7 @@ static nvs_err_t activate_next_sector(void)
             gNvs.seq_counter++;
             write_sector_hdr(base, gNvs.seq_counter);
             gNvs.active_sector_addr = base;
-            gNvs.write_offset       = NVS_SECTOR_HDR_SIZE;
+            gNvs.write_offset = NVS_SECTOR_HDR_SIZE;
             return NVS_OK;
         }
     }
@@ -272,15 +269,21 @@ static nvs_err_t nvs_gc(void)
 {
     /* Find the valid sector with the lowest seq (oldest), excluding active. */
     uint32_t lowest_seq = 0xFFFFFFFFU;
-    int      target_idx = -1;
+    int target_idx = -1;
 
     for (uint8_t i = 0; i < SECTOR_COUNT; i++)
     {
         uint32_t base = sector_addr(i);
         uint32_t magic, seq;
 
-        if (!read_sector_hdr(base, &magic, &seq)) continue;
-        if (base == gNvs.active_sector_addr)      continue;
+        if (!read_sector_hdr(base, &magic, &seq))
+        {
+            continue;
+        }
+        if (base == gNvs.active_sector_addr)
+        {
+            continue;
+        }
 
         if (seq < lowest_seq)
         {
@@ -301,9 +304,9 @@ static nvs_err_t nvs_gc(void)
 
     while (off < SECTOR_SIZE)
     {
-        uint8_t  kl, dl;
+        uint8_t kl, dl;
         uint32_t crc;
-        uint8_t  st = read_entry_hdr(target_base + off, &kl, &dl, &crc);
+        uint8_t st = read_entry_hdr(target_base + off, &kl, &dl, &crc);
 
         if (st != NVS_ENTRY_VALID)
         {
@@ -322,8 +325,8 @@ static nvs_err_t nvs_gc(void)
                 return NVS_ERR_NO_SPACE;
             }
 
-            uint8_t  data_buf[NVS_MAX_DATA_LEN];
-            uint8_t  entry[NVS_ENTRY_HDR_SIZE + NVS_MAX_KEY_LEN + NVS_MAX_DATA_LEN + 8U];
+            uint8_t data_buf[NVS_MAX_DATA_LEN];
+            uint8_t entry[NVS_ENTRY_HDR_SIZE + NVS_MAX_KEY_LEN + NVS_MAX_DATA_LEN + 8U];
             DRV_READ(target_base + off + NVS_ENTRY_HDR_SIZE + kl, data_buf, dl);
 
             memset(entry, 0xFF, esz);
@@ -338,8 +341,8 @@ static nvs_err_t nvs_gc(void)
             entry[6] = (uint8_t)(c >> 16);
             entry[7] = (uint8_t)(c >> 24);
 
-            memcpy(&entry[NVS_ENTRY_HDR_SIZE],      flash_key, kl);
-            memcpy(&entry[NVS_ENTRY_HDR_SIZE + kl], data_buf,  dl);
+            memcpy(&entry[NVS_ENTRY_HDR_SIZE], flash_key, kl);
+            memcpy(&entry[NVS_ENTRY_HDR_SIZE + kl], data_buf, dl);
 
             DRV_WRITE(gNvs.active_sector_addr + gNvs.write_offset, entry, (uint16_t)esz);
             gNvs.write_offset += esz;
@@ -358,28 +361,27 @@ static nvs_err_t nvs_gc(void)
 
 nvs_err_t nvs_mount(const nvs_flash_driver_t *driver)
 {
-    if (driver == NULL         ||
-        driver->write        == NULL ||
-        driver->read         == NULL ||
-        driver->erase_sector == NULL ||
-        driver->sector_size  == 0    ||
-        driver->sector_count == 0)
+    if (driver == NULL || driver->write == NULL || driver->read == NULL
+        || driver->erase_sector == NULL || driver->sector_size == 0 || driver->sector_count == 0)
     {
         return NVS_ERR_INVALID_ARG;
     }
 
-    gNvs.driver      = *driver;
+    gNvs.driver = *driver;
     gNvs.seq_counter = 0;
 
     uint32_t best_seq = 0;
-    int      best_idx = -1;
+    int best_idx = -1;
 
     for (uint8_t i = 0; i < SECTOR_COUNT; i++)
     {
         uint32_t magic, seq;
         if (read_sector_hdr(sector_addr(i), &magic, &seq))
         {
-            if (seq > gNvs.seq_counter) gNvs.seq_counter = seq;
+            if (seq > gNvs.seq_counter)
+            {
+                gNvs.seq_counter = seq;
+            }
             if (seq >= best_seq)
             {
                 best_seq = seq;
@@ -391,15 +393,15 @@ nvs_err_t nvs_mount(const nvs_flash_driver_t *driver)
     if (best_idx < 0)
     {
         /* First-time format: write sector 0 header. */
-        gNvs.seq_counter        = 1;
+        gNvs.seq_counter = 1;
         write_sector_hdr(sector_addr(0), 1);
         gNvs.active_sector_addr = sector_addr(0);
-        gNvs.write_offset       = NVS_SECTOR_HDR_SIZE;
+        gNvs.write_offset = NVS_SECTOR_HDR_SIZE;
         return NVS_OK;
     }
 
     gNvs.active_sector_addr = sector_addr((uint8_t)best_idx);
-    gNvs.write_offset       = scan_write_offset(gNvs.active_sector_addr);
+    gNvs.write_offset = scan_write_offset(gNvs.active_sector_addr);
     return NVS_OK;
 }
 
@@ -409,11 +411,20 @@ nvs_err_t nvs_mount(const nvs_flash_driver_t *driver)
 
 nvs_err_t nvs_write(const char *key, const void *data, uint8_t len)
 {
-    if (key == NULL || data == NULL) return NVS_ERR_INVALID_ARG;
+    if (key == NULL || data == NULL)
+    {
+        return NVS_ERR_INVALID_ARG;
+    }
 
     uint8_t key_len = (uint8_t)strlen(key);
-    if (key_len == 0 || key_len > NVS_MAX_KEY_LEN) return NVS_ERR_INVALID_ARG;
-    if (len > NVS_MAX_DATA_LEN)                     return NVS_ERR_INVALID_ARG;
+    if (key_len == 0 || key_len > NVS_MAX_KEY_LEN)
+    {
+        return NVS_ERR_INVALID_ARG;
+    }
+    if (len > NVS_MAX_DATA_LEN)
+    {
+        return NVS_ERR_INVALID_ARG;
+    }
 
     uint32_t esz = entry_total_size(key_len, len);
 
@@ -423,10 +434,16 @@ nvs_err_t nvs_write(const char *key, const void *data, uint8_t len)
         if (rc != NVS_OK)
         {
             rc = nvs_gc();
-            if (rc != NVS_OK) return NVS_ERR_NO_SPACE;
+            if (rc != NVS_OK)
+            {
+                return NVS_ERR_NO_SPACE;
+            }
 
             rc = activate_next_sector();
-            if (rc != NVS_OK) return NVS_ERR_NO_SPACE;
+            if (rc != NVS_OK)
+            {
+                return NVS_ERR_NO_SPACE;
+            }
         }
     }
 
@@ -439,15 +456,13 @@ nvs_err_t nvs_write(const char *key, const void *data, uint8_t len)
     entry[2] = len;
     entry[3] = 0xFF;
 
-    uint32_t crc = compute_entry_crc(key_len, len,
-                                     (const uint8_t *)key,
-                                     (const uint8_t *)data);
+    uint32_t crc = compute_entry_crc(key_len, len, (const uint8_t *)key, (const uint8_t *)data);
     entry[4] = (uint8_t)(crc);
     entry[5] = (uint8_t)(crc >> 8);
     entry[6] = (uint8_t)(crc >> 16);
     entry[7] = (uint8_t)(crc >> 24);
 
-    memcpy(&entry[NVS_ENTRY_HDR_SIZE],           key,  key_len);
+    memcpy(&entry[NVS_ENTRY_HDR_SIZE], key, key_len);
     memcpy(&entry[NVS_ENTRY_HDR_SIZE + key_len], data, len);
 
     DRV_WRITE(gNvs.active_sector_addr + gNvs.write_offset, entry, (uint16_t)esz);
@@ -462,10 +477,16 @@ nvs_err_t nvs_write(const char *key, const void *data, uint8_t len)
 
 nvs_err_t nvs_read(const char *key, void *buf, uint8_t buf_size, uint8_t *out_len)
 {
-    if (key == NULL || buf == NULL || out_len == NULL) return NVS_ERR_INVALID_ARG;
+    if (key == NULL || buf == NULL || out_len == NULL)
+    {
+        return NVS_ERR_INVALID_ARG;
+    }
 
     uint8_t key_len = (uint8_t)strlen(key);
-    if (key_len == 0 || key_len > NVS_MAX_KEY_LEN) return NVS_ERR_INVALID_ARG;
+    if (key_len == 0 || key_len > NVS_MAX_KEY_LEN)
+    {
+        return NVS_ERR_INVALID_ARG;
+    }
 
     uint8_t indices[16];
     uint8_t count;
@@ -474,17 +495,17 @@ nvs_err_t nvs_read(const char *key, void *buf, uint8_t buf_size, uint8_t *out_le
     for (uint8_t s = 0; s < count; s++)
     {
         uint32_t base = sector_addr(indices[s]);
-        uint32_t off  = NVS_SECTOR_HDR_SIZE;
+        uint32_t off = NVS_SECTOR_HDR_SIZE;
 
         uint32_t match_off = 0;
-        uint8_t  match_dl  = 0;
-        int      found     = 0;
+        uint8_t match_dl = 0;
+        int found = 0;
 
         while (off < SECTOR_SIZE)
         {
-            uint8_t  kl, dl;
+            uint8_t kl, dl;
             uint32_t crc;
-            uint8_t  st = read_entry_hdr(base + off, &kl, &dl, &crc);
+            uint8_t st = read_entry_hdr(base + off, &kl, &dl, &crc);
 
             if (st != NVS_ENTRY_VALID)
             {
@@ -498,8 +519,8 @@ nvs_err_t nvs_read(const char *key, void *buf, uint8_t buf_size, uint8_t *out_le
                 if (memcmp(flash_key, key, kl) == 0)
                 {
                     match_off = off;
-                    match_dl  = dl;
-                    found     = 1;
+                    match_dl = dl;
+                    found = 1;
                 }
             }
 
@@ -508,18 +529,24 @@ nvs_err_t nvs_read(const char *key, void *buf, uint8_t buf_size, uint8_t *out_le
 
         if (found)
         {
-            uint8_t  kl2, dl2;
+            uint8_t kl2, dl2;
             uint32_t stored_crc;
             read_entry_hdr(base + match_off, &kl2, &dl2, &stored_crc);
 
             uint8_t key_buf[NVS_MAX_KEY_LEN];
             uint8_t data_buf[NVS_MAX_DATA_LEN];
-            DRV_READ(base + match_off + NVS_ENTRY_HDR_SIZE,       key_buf,  kl2);
+            DRV_READ(base + match_off + NVS_ENTRY_HDR_SIZE, key_buf, kl2);
             DRV_READ(base + match_off + NVS_ENTRY_HDR_SIZE + kl2, data_buf, dl2);
 
             uint32_t calc_crc = compute_entry_crc(kl2, dl2, key_buf, data_buf);
-            if (calc_crc != stored_crc) return NVS_ERR_CRC;
-            if (match_dl > buf_size)    return NVS_ERR_INVALID_ARG;
+            if (calc_crc != stored_crc)
+            {
+                return NVS_ERR_CRC;
+            }
+            if (match_dl > buf_size)
+            {
+                return NVS_ERR_INVALID_ARG;
+            }
 
             memcpy(buf, data_buf, match_dl);
             *out_len = match_dl;
@@ -538,7 +565,10 @@ nvs_err_t nvs_read(const char *key, void *buf, uint8_t buf_size, uint8_t *out_le
 
 nvs_err_t nvs_delete(const char *key)
 {
-    if (key == NULL) return NVS_ERR_INVALID_ARG;
+    if (key == NULL)
+    {
+        return NVS_ERR_INVALID_ARG;
+    }
 
     uint8_t dummy = 0;
     return nvs_write(key, &dummy, 0);

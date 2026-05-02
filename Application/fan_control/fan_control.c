@@ -2,22 +2,22 @@
 #include "gpio.h"
 #include "board_config.h"
 
-static Tim *_power_tim  = NULL;
+static Tim *_power_tim = NULL;
 static Tim *_remote_tim = NULL;
 
 static FanType _fan_types[4];
 
 typedef struct
 {
-    FanChannel tim1_pwr_channel;  /**< Power channel on TIM1 */
+    FanChannel tim1_pwr_channel; /**< Power channel on TIM1 */
     FanChannel tim3_ctrl_channel; /**< Control channel on TIM3 */
 } FanLink;
 
 static const FanLink _fan_links[4] = {
-    {FanChannelTwo,   FanChannelOne},   /* Unit 1: TIM1_CH2 (PA9) + TIM3_CH1 (PC6) */
-    {FanChannelOne,   FanChannelFour},  /* Unit 2: TIM1_CH1 (PA8) + TIM3_CH4 (PB1) */
-    {FanChannelFour,  FanChannelThree}, /* Unit 3: TIM1_CH4 (PA3) + TIM3_CH3 (PB0) */
-    {FanChannelThree, FanChannelTwo},   /* Unit 4: TIM1_CH3 (PA2) + TIM3_CH2 (PB9) */
+    {FanChannelTwo, FanChannelOne}, /* Unit 1: TIM1_CH2 (PA9) + TIM3_CH1 (PC6) */
+    {FanChannelOne, FanChannelFour}, /* Unit 2: TIM1_CH1 (PA8) + TIM3_CH4 (PB1) */
+    {FanChannelFour, FanChannelThree}, /* Unit 3: TIM1_CH4 (PA3) + TIM3_CH3 (PB0) */
+    {FanChannelThree, FanChannelTwo}, /* Unit 4: TIM1_CH3 (PA2) + TIM3_CH2 (PB9) */
 };
 
 static const uint16_t _type_pins[4] = {
@@ -29,7 +29,7 @@ static const uint16_t _type_pins[4] = {
 
 void fan_control_init(Tim *power_tim, Tim *remote_tim)
 {
-    _power_tim  = power_tim;
+    _power_tim = power_tim;
     _remote_tim = remote_tim;
 
     for (uint8_t i = 0; i < 4; i++)
@@ -116,10 +116,10 @@ void fan_control_set_unit_duty(uint8_t unit_idx, uint8_t duty_pct)
     {
         return;
     }
-    uint8_t idx    = unit_idx - 1;
+    uint8_t idx = unit_idx - 1;
     uint8_t on_off = (duty_pct > 0) ? 100 : 0;
 
-    FanChannel pwr_ch  = _fan_links[idx].tim1_pwr_channel;
+    FanChannel pwr_ch = _fan_links[idx].tim1_pwr_channel;
     FanChannel ctrl_ch = _fan_links[idx].tim3_ctrl_channel;
 
     if (_fan_types[idx] == FanType2Wire)

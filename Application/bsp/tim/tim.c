@@ -138,16 +138,17 @@ void tim_pwm_init(Tim *tim, TIM_TypeDef *instance, uint32_t freq_hz, uint8_t num
     }
 }
 
-void tim_pwm_init_raw(Tim *tim, TIM_TypeDef *instance, uint32_t psc, uint32_t arr, uint8_t num_channels)
+void tim_pwm_init_raw(
+    Tim *tim, TIM_TypeDef *instance, uint32_t psc, uint32_t arr, uint8_t num_channels)
 {
     memset(tim, 0, sizeof(Tim));
 
     tim->hal_handle.Instance = instance;
-    tim->freq_hz = 0;  // Not meaningful for raw mode
+    tim->freq_hz = 0; // Not meaningful for raw mode
     tim->num_channels = num_channels;
 
     uint32_t clk_freq = tim_get_clock_freq(instance);
-    (void)clk_freq;  // Suppress unused warning — PSC is pre-computed by caller
+    (void)clk_freq; // Suppress unused warning — PSC is pre-computed by caller
 
     tim->hal_handle.Init.Prescaler = psc;
     tim->hal_handle.Init.CounterMode = TIM_COUNTERMODE_UP;
@@ -338,20 +339,20 @@ void tim_ic_enable_ch_irq(Tim *tim, uint8_t channel)
     uint32_t it_flag;
     switch (channel)
     {
-    case 1:
-        it_flag = TIM_IT_CC1;
-        break;
-    case 2:
-        it_flag = TIM_IT_CC2;
-        break;
-    case 3:
-        it_flag = TIM_IT_CC3;
-        break;
-    case 4:
-        it_flag = TIM_IT_CC4;
-        break;
-    default:
-        return;
+        case 1:
+            it_flag = TIM_IT_CC1;
+            break;
+        case 2:
+            it_flag = TIM_IT_CC2;
+            break;
+        case 3:
+            it_flag = TIM_IT_CC3;
+            break;
+        case 4:
+            it_flag = TIM_IT_CC4;
+            break;
+        default:
+            return;
     }
     __HAL_TIM_ENABLE_IT(&tim->hal_handle, it_flag);
 }
@@ -361,20 +362,20 @@ void tim_ic_disable_ch_irq(Tim *tim, uint8_t channel)
     uint32_t it_flag;
     switch (channel)
     {
-    case 1:
-        it_flag = TIM_IT_CC1;
-        break;
-    case 2:
-        it_flag = TIM_IT_CC2;
-        break;
-    case 3:
-        it_flag = TIM_IT_CC3;
-        break;
-    case 4:
-        it_flag = TIM_IT_CC4;
-        break;
-    default:
-        return;
+        case 1:
+            it_flag = TIM_IT_CC1;
+            break;
+        case 2:
+            it_flag = TIM_IT_CC2;
+            break;
+        case 3:
+            it_flag = TIM_IT_CC3;
+            break;
+        case 4:
+            it_flag = TIM_IT_CC4;
+            break;
+        default:
+            return;
     }
     __HAL_TIM_DISABLE_IT(&tim->hal_handle, it_flag);
 }
@@ -463,8 +464,8 @@ void tim_encoder_reset(Tim *tim)
 
 /* ── One-pulse mode ───────────────────────────────────────────────────────── */
 
-void tim_one_pulse_init(Tim *tim, TIM_TypeDef *instance, uint8_t channel,
-                        uint32_t delay_us, uint32_t width_us)
+void tim_one_pulse_init(
+    Tim *tim, TIM_TypeDef *instance, uint8_t channel, uint32_t delay_us, uint32_t width_us)
 {
     memset(tim, 0, sizeof(Tim));
 
@@ -475,7 +476,7 @@ void tim_one_pulse_init(Tim *tim, TIM_TypeDef *instance, uint8_t channel,
     tim_enable_clock(instance);
 
     uint32_t clk_freq = tim_get_clock_freq(instance);
-    uint32_t psc = (clk_freq / 1000000UL) - 1;  // 1 µs tick at 48 MHz → PSC = 47
+    uint32_t psc = (clk_freq / 1000000UL) - 1; // 1 µs tick at 48 MHz → PSC = 47
 
     tim->hal_handle.Init.Prescaler = psc;
     tim->hal_handle.Init.CounterMode = TIM_COUNTERMODE_UP;
@@ -497,9 +498,8 @@ void tim_one_pulse_init(Tim *tim, TIM_TypeDef *instance, uint8_t channel,
     sConfig.ICSelection = TIM_ICSELECTION_DIRECTTI;
     sConfig.ICFilter = 0;
 
-    HAL_TIM_OnePulse_ConfigChannel(&tim->hal_handle, &sConfig,
-                                   tim_channel(channel),
-                                   tim_channel(channel == 1 ? 2 : 1));
+    HAL_TIM_OnePulse_ConfigChannel(
+        &tim->hal_handle, &sConfig, tim_channel(channel), tim_channel(channel == 1 ? 2 : 1));
 }
 
 void tim_one_pulse_trigger(Tim *tim, uint8_t channel)
@@ -509,8 +509,8 @@ void tim_one_pulse_trigger(Tim *tim, uint8_t channel)
 
 /* ── Output compare mode ──────────────────────────────────────────────────── */
 
-void tim_oc_init(Tim *tim, TIM_TypeDef *instance, uint32_t tick_hz,
-                 uint8_t channel, uint32_t oc_mode)
+void tim_oc_init(
+    Tim *tim, TIM_TypeDef *instance, uint32_t tick_hz, uint8_t channel, uint32_t oc_mode)
 {
     memset(tim, 0, sizeof(Tim));
 

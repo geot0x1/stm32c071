@@ -2,8 +2,8 @@
 #include "iwdg.h"
 
 #define WATCHDOG_PRESCALER IWDG_PRESCALER_32
-#define WATCHDOG_RELOAD    1999U
-#define WATCHDOG_WINDOW    4095U
+#define WATCHDOG_RELOAD 1999U
+#define WATCHDOG_WINDOW 4095U
 
 static Iwdg hiwdg;
 

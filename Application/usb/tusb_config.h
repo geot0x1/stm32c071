@@ -27,7 +27,8 @@
 #define TUSB_CONFIG_H_
 
 #ifdef __cplusplus
- extern "C" {
+extern "C"
+{
 #endif
 
 //--------------------------------------------------------------------+
@@ -36,12 +37,12 @@
 
 // RHPort number used for device
 #ifndef BOARD_TUD_RHPORT
-#define BOARD_TUD_RHPORT      0
+    #define BOARD_TUD_RHPORT 0
 #endif
 
 // RHPort max operational speed
 #ifndef BOARD_TUD_MAX_SPEED
-#define BOARD_TUD_MAX_SPEED   OPT_MODE_DEFAULT_SPEED
+    #define BOARD_TUD_MAX_SPEED OPT_MODE_DEFAULT_SPEED
 #endif
 
 //--------------------------------------------------------------------
@@ -50,62 +51,62 @@
 
 // Defined in build system or here
 #ifndef CFG_TUSB_MCU
-#define CFG_TUSB_MCU          OPT_MCU_STM32C0
+    #define CFG_TUSB_MCU OPT_MCU_STM32C0
 #endif
 
 #ifndef CFG_TUSB_OS
-#define CFG_TUSB_OS           OPT_OS_NONE
+    #define CFG_TUSB_OS OPT_OS_NONE
 #endif
 
 #ifndef CFG_TUSB_DEBUG
-#define CFG_TUSB_DEBUG        0
+    #define CFG_TUSB_DEBUG 0
 #endif
 
 // Enable Device stack
-#define CFG_TUD_ENABLED       1
+#define CFG_TUD_ENABLED 1
 
 // RHPort0 Mode (Device only for STM32C0)
 #define CFG_TUSB_RHPORT0_MODE OPT_MODE_DEVICE
 
 // Default is max speed that hardware controller could support with on-chip PHY
-#define CFG_TUD_MAX_SPEED     BOARD_TUD_MAX_SPEED
+#define CFG_TUD_MAX_SPEED BOARD_TUD_MAX_SPEED
 
 /* USB DMA on some MCUs can only access a specific SRAM region with restriction on alignment. */
 #ifndef CFG_TUSB_MEM_SECTION
-#define CFG_TUSB_MEM_SECTION
+    #define CFG_TUSB_MEM_SECTION
 #endif
 
 #ifndef CFG_TUSB_MEM_ALIGN
-#define CFG_TUSB_MEM_ALIGN    __attribute__ ((aligned(4)))
+    #define CFG_TUSB_MEM_ALIGN __attribute__((aligned(4)))
 #endif
 
-//--------------------------------------------------------------------
-// DEVICE CONFIGURATION
-//--------------------------------------------------------------------
+    //--------------------------------------------------------------------
+    // DEVICE CONFIGURATION
+    //--------------------------------------------------------------------
 
 #ifndef CFG_TUD_ENDPOINT0_SIZE
-#define CFG_TUD_ENDPOINT0_SIZE   64
+    #define CFG_TUD_ENDPOINT0_SIZE 64
 #endif
 
 //------------- CLASS -------------//
-#define CFG_TUD_CDC              1
-#define CFG_TUD_MSC              0
-#define CFG_TUD_HID              0
-#define CFG_TUD_MIDI             0
-#define CFG_TUD_VENDOR           0
+#define CFG_TUD_CDC 1
+#define CFG_TUD_MSC 0
+#define CFG_TUD_HID 0
+#define CFG_TUD_MIDI 0
+#define CFG_TUD_VENDOR 0
 
-#define CFG_TUD_CDC_NOTIFY        1 // Enable use of notification endpoint
+#define CFG_TUD_CDC_NOTIFY 1 // Enable use of notification endpoint
 
 // CDC FIFO size of TX and RX
-#define CFG_TUD_CDC_RX_BUFSIZE   64
-#define CFG_TUD_CDC_TX_BUFSIZE   64
+#define CFG_TUD_CDC_RX_BUFSIZE 64
+#define CFG_TUD_CDC_TX_BUFSIZE 64
 
 // CDC Endpoint transfer buffer size
-#define CFG_TUD_CDC_RX_EPSIZE    64
-#define CFG_TUD_CDC_TX_EPSIZE    64
+#define CFG_TUD_CDC_RX_EPSIZE 64
+#define CFG_TUD_CDC_TX_EPSIZE 64
 
 #ifdef __cplusplus
- }
+}
 #endif
 
 #endif /* TUSB_CONFIG_H_ */

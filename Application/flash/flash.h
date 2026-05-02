@@ -12,9 +12,10 @@
  *   Pages 0–59  : firmware
  *   Pages 60–63 : storage (8 KB)
  */
-#define FLASH_STORAGE_SECTOR_SIZE    2048U
-#define FLASH_STORAGE_SECTOR_COUNT   4U
-#define FLASH_STORAGE_START_ADDR     (0x08020000U - (FLASH_STORAGE_SECTOR_COUNT * FLASH_STORAGE_SECTOR_SIZE))
+#define FLASH_STORAGE_SECTOR_SIZE 2048U
+#define FLASH_STORAGE_SECTOR_COUNT 4U
+#define FLASH_STORAGE_START_ADDR \
+    (0x08020000U - (FLASH_STORAGE_SECTOR_COUNT * FLASH_STORAGE_SECTOR_SIZE))
 
 /**
  * @brief Write bytes to internal flash.
@@ -25,7 +26,8 @@
  * @param addr  Absolute flash address (must be 8-byte aligned).
  * @param data  Source buffer.
  * @param len   Number of bytes to write.
- * @return true on success, false if addr is misaligned, out of storage range, or a HAL error occurs.
+ * @return true on success, false if addr is misaligned, out of storage range, or a HAL error
+ * occurs.
  */
 bool flash_write(uint32_t addr, const void *data, uint16_t len);
 

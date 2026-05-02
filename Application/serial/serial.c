@@ -3,7 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#define SERIAL_PRINTF_BUF_SIZE   256U
+#define SERIAL_PRINTF_BUF_SIZE 256U
 #define SERIAL_PRINTF_TIMEOUT_MS 100U
 
 static Uart serialUart;
@@ -12,10 +12,14 @@ static Serial_err_t map_err(UartErr e)
 {
     switch (e)
     {
-        case UART_OK:          return SERIAL_OK;
-        case UART_ERR_TIMEOUT: return SERIAL_ERR_TIMEOUT;
-        case UART_ERR_BUSY:    return SERIAL_ERR_BUSY;
-        default:               return SERIAL_ERR_HAL;
+        case UART_OK:
+            return SERIAL_OK;
+        case UART_ERR_TIMEOUT:
+            return SERIAL_ERR_TIMEOUT;
+        case UART_ERR_BUSY:
+            return SERIAL_ERR_BUSY;
+        default:
+            return SERIAL_ERR_HAL;
     }
 }
 

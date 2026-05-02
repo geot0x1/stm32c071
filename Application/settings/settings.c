@@ -4,7 +4,7 @@
 #include <string.h>
 
 /* First page of the flash storage region is reserved for settings. */
-#define SETTINGS_ADDR  FLASH_STORAGE_START_ADDR
+#define SETTINGS_ADDR FLASH_STORAGE_START_ADDR
 
 /*
  * On-flash record layout:
@@ -20,20 +20,21 @@ typedef struct
     Settings data;
 } SettingsRecord;
 
-_Static_assert(sizeof(Settings) == 16U, "Settings struct size changed — update flash layout comment");
-_Static_assert(sizeof(SettingsRecord) % 8U == 0U, "SettingsRecord must be a multiple of 8 bytes for flash doubleword writes");
+_Static_assert(
+    sizeof(Settings) == 16U, "Settings struct size changed — update flash layout comment");
+_Static_assert(sizeof(SettingsRecord) % 8U == 0U,
+    "SettingsRecord must be a multiple of 8 bytes for flash doubleword writes");
 
 static Settings current;
 
-static const Settings defaults =
-{
-    .pwm_throttle_a    = SETTINGS_DEFAULT_PWM_THROTTLE_A,
-    .pwm_throttle_b    = SETTINGS_DEFAULT_PWM_THROTTLE_B,
+static const Settings defaults = {
+    .pwm_throttle_a = SETTINGS_DEFAULT_PWM_THROTTLE_A,
+    .pwm_throttle_b = SETTINGS_DEFAULT_PWM_THROTTLE_B,
     .fan_type_override = {FanOverride2Wire, FanOverride2Wire, FanOverride2Wire, FanOverride2Wire},
-    .temp_fan_on       = SETTINGS_DEFAULT_TEMP_FAN_ON,
-    .temp_fan_off      = SETTINGS_DEFAULT_TEMP_FAN_OFF,
-    .temp_critical     = SETTINGS_DEFAULT_TEMP_CRITICAL,
-    ._pad              = {0},
+    .temp_fan_on = SETTINGS_DEFAULT_TEMP_FAN_ON,
+    .temp_fan_off = SETTINGS_DEFAULT_TEMP_FAN_OFF,
+    .temp_critical = SETTINGS_DEFAULT_TEMP_CRITICAL,
+    ._pad = {0},
 };
 
 static bool settings_save(void)
@@ -41,7 +42,7 @@ static bool settings_save(void)
     SettingsRecord record;
     record.magic = SETTINGS_MAGIC;
     record.crc32 = crc32_gen(&current, sizeof(current));
-    record.data  = current;
+    record.data = current;
 
     if (!flash_erase_page(SETTINGS_ADDR))
     {

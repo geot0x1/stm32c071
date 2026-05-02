@@ -38,7 +38,8 @@
  *
  * Separate from Tim — LPTIM uses LPTIM_HandleTypeDef, not TIM_HandleTypeDef.
  */
-typedef struct Lptim_s {
+typedef struct Lptim_s
+{
     LPTIM_HandleTypeDef hal_handle;
     uint32_t tick_hz;
 } Lptim;

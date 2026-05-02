@@ -11,12 +11,13 @@
  * Clients allocate a Tim struct (typically static) and pass it to
  * tim_*_init(). The handle encapsulates the HAL state and peripheral config.
  */
-typedef struct TimS {
+typedef struct TimS
+{
     TIM_HandleTypeDef hal_handle;
     uint32_t freq_hz;
     uint8_t num_channels;
-    uint32_t op_delay_us;   // one-pulse mode: delay before pulse leading edge (µs)
-    uint32_t op_width_us;   // one-pulse mode: pulse width (µs)
+    uint32_t op_delay_us; // one-pulse mode: delay before pulse leading edge (µs)
+    uint32_t op_width_us; // one-pulse mode: pulse width (µs)
 } Tim;
 
 /* ── PWM output mode ──────────────────────────────────────────────────────── */
@@ -44,7 +45,8 @@ void tim_pwm_init(Tim *tim, TIM_TypeDef *instance, uint32_t freq_hz, uint8_t num
  * @param arr           Auto-reload register value (ARR)
  * @param num_channels  Number of active channels (1-4)
  */
-void tim_pwm_init_raw(Tim *tim, TIM_TypeDef *instance, uint32_t psc, uint32_t arr, uint8_t num_channels);
+void tim_pwm_init_raw(
+    Tim *tim, TIM_TypeDef *instance, uint32_t psc, uint32_t arr, uint8_t num_channels);
 
 /**
  * @brief Set PWM duty cycle on a channel (0-100%)
@@ -273,8 +275,8 @@ void tim_encoder_reset(Tim *tim);
  *
  * @note GPIO for the output channel must be configured before calling.
  */
-void tim_one_pulse_init(Tim *tim, TIM_TypeDef *instance, uint8_t channel,
-                        uint32_t delay_us, uint32_t width_us);
+void tim_one_pulse_init(
+    Tim *tim, TIM_TypeDef *instance, uint8_t channel, uint32_t delay_us, uint32_t width_us);
 
 /**
  * @brief Trigger a one-pulse output (software trigger)
@@ -307,8 +309,8 @@ void tim_one_pulse_trigger(Tim *tim, uint8_t channel);
  * @note For pin output modes (TOGGLE/ACTIVE/INACTIVE), GPIO for the channel
  *       must be configured in HAL_TIM_MspPostInit or HAL_TIM_OC_MspInit.
  */
-void tim_oc_init(Tim *tim, TIM_TypeDef *instance, uint32_t tick_hz,
-                 uint8_t channel, uint32_t oc_mode);
+void tim_oc_init(
+    Tim *tim, TIM_TypeDef *instance, uint32_t tick_hz, uint8_t channel, uint32_t oc_mode);
 
 /**
  * @brief Update the compare value for an output compare channel
