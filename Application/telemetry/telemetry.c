@@ -11,10 +11,9 @@
 
 typedef enum
 {
-    ThermalBelowLow,
-    ThermalBetweenLowHigh,
-    ThermalBetweenHighCrit,
-    ThermalAboveCritical,
+    ThermalLow,
+    ThermalHigh,
+    ThermalCritical,
     ThermalSensorLost
 } ThermalState;
 
@@ -42,24 +41,20 @@ static ThermalState compute_thermal_state(void)
     const Settings *s = settings_get();
     if (s == NULL)
     {
-        return ThermalBelowLow;
+        return ThermalSensorLost;
     }
 
     int16_t temp = (int16_t)raw_temp;
 
     if (temp >= s->temp_critical)
     {
-        return ThermalAboveCritical;
+        return ThermalCritical;
     }
     if (temp >= s->temp_fan_on)
     {
-        return ThermalBetweenHighCrit;
+        return ThermalHigh;
     }
-    if (temp >= s->temp_fan_off)
-    {
-        return ThermalBetweenLowHigh;
-    }
-    return ThermalBelowLow;
+    return ThermalLow;
 }
 
 static const char *get_fan_state_str(void)
@@ -98,20 +93,17 @@ void telemetry_create(char *buf, size_t buf_size)
     const char *state_str;
     switch (compute_thermal_state())
     {
-        case ThermalBetweenLowHigh:
-            state_str = "T_LOW_T_HIGH";
+        case ThermalHigh:
+            state_str = "TEMP_HIGH";
             break;
-        case ThermalBetweenHighCrit:
-            state_str = "T_HIGH_T_CRIT";
-            break;
-        case ThermalAboveCritical:
-            state_str = "ABOVE_T_CRIT";
+        case ThermalCritical:
+            state_str = "TEMP_CRIT";
             break;
         case ThermalSensorLost:
             state_str = "SENSOR_LOST";
             break;
         default:
-            state_str = "BELOW_T_LOW";
+            state_str = "TEMP_LOW";
             break;
     }
 
