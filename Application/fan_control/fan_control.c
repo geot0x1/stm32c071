@@ -133,6 +133,15 @@ void fan_control_set_unit_duty(uint8_t unit_idx, uint8_t duty_pct)
     }
 }
 
+uint8_t fan_control_get_unit_duty(uint8_t unit_idx)
+{
+    if (unit_idx < 1 || unit_idx > 4)
+    {
+        return 0;
+    }
+    return fan_control_get_power_channel_duty(_fan_links[unit_idx - 1].tim1_pwr_channel);
+}
+
 FanType fan_control_get_type(uint8_t unit_idx)
 {
     if (unit_idx < 1 || unit_idx > 4)

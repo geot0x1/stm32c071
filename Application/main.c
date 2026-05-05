@@ -1,333 +1,406 @@
 #include "board.h"
+#include "board/board_config.h"
+#include "commands.h"
 #include "delay.h"
 #include "fan_control.h"
 #include "fan_tacho.h"
-#include "flash.h"
+#include "program_led.h"
+#include "push_button.h"
 #include "pwm_repeater.h"
+#include "serial.h"
 #include "settings.h"
-#include "commands.h"
 #include "stm32c0xx_hal.h"
+#include "telemetry.h"
 #include "temperature_sensor.h"
 #include "timers/timers.h"
 #include "usb.h"
-#include "serial.h"
-#include "board/board_config.h"
 #include "watchdog.h"
+#include <stdbool.h>
 #include <stdint.h>
-#include <string.h>
 
-static void flash_test(void)
+/* Tunables */
+#define APP_DEBUG_ENABLE                 1        /* set to 0 to silence all [INIT]/[STATUS] output */
+#define APP_FAN_PWM_FREQ_HZ              25000U
+#define APP_TEMP_HYSTERESIS_CDEG         50U      /* setpoint hysteresis for temp_sensor module */
+#define APP_CRITICAL_HYSTERESIS_CDEG     200      /* +/-2 C around T_critical */
+#define APP_PRESENCE_SAMPLE_MS           100U
+#define APP_RPM_PRESENT_THRESHOLD        100U
+#define APP_PRESENCE_MISSING_DEBOUNCE_MS 1500U
+#define APP_FAN_COUNT                    4U
+
+typedef enum
 {
-    static const uint8_t patterns[2] = {0xA5U, 0x5AU};
+    ThermalLow,
+    ThermalHigh,
+    ThermalCritical,
+    ThermalSensorLost,
+} ThermalState;
 
-    serial_printf("FLASH TEST: start\r\n");
+typedef struct
+{
+    ThermalState thermal;
+    bool         button_override;
+    bool         critical_throttle_active;
+    bool         fan_present[APP_FAN_COUNT];
+    uint32_t     missing_since_ms[APP_FAN_COUNT];
+    uint32_t     last_presence_sample_ms;
+} AppState;
 
-    for (uint8_t p = 0; p < FLASH_STORAGE_SECTOR_COUNT; p++)
+static AppState app;
+
+static ThermalState thermal_step(ThermalState prev, uint16_t raw, const Settings *s)
+{
+    if (raw == 0xFFFFU)
     {
-        uint32_t addr = FLASH_STORAGE_START_ADDR + (uint32_t)p * FLASH_STORAGE_SECTOR_SIZE;
-        if (!flash_erase_page(addr))
-        {
-            serial_printf("FLASH TEST: initial erase page %u FAILED\r\n", (unsigned int)p);
-            return;
-        }
+        return ThermalSensorLost;
     }
 
-    for (uint8_t run = 0; run < 2U; run++)
+    int16_t t        = (int16_t)raw;
+    int16_t crit_on  = s->temp_critical;
+    int16_t crit_off = (int16_t)(s->temp_critical - APP_CRITICAL_HYSTERESIS_CDEG);
+    int16_t fan_on   = s->temp_fan_on;
+    int16_t fan_off  = s->temp_fan_off;
+
+    switch (prev)
     {
-        uint8_t pat = patterns[run];
-        serial_printf(
-            "FLASH TEST: run %u write (0x%02X)\r\n", (unsigned int)(run + 1U), (unsigned int)pat);
-
-        uint8_t chunk[8];
-        memset(chunk, pat, sizeof(chunk));
-
-        for (uint8_t p = 0; p < FLASH_STORAGE_SECTOR_COUNT; p++)
-        {
-            uint32_t page_base = FLASH_STORAGE_START_ADDR + (uint32_t)p * FLASH_STORAGE_SECTOR_SIZE;
-            for (uint16_t off = 0; off < FLASH_STORAGE_SECTOR_SIZE; off += 8U)
+        case ThermalSensorLost:
+            /* Re-enter normal SM as if from Low */
+            if (t >= crit_on)
             {
-                if (!flash_write(page_base + off, chunk, 8U))
-                {
-                    serial_printf("FLASH TEST: run %u write page %u off %u FAILED\r\n",
-                        (unsigned int)(run + 1U), (unsigned int)p, (unsigned int)off);
-                    return;
-                }
+                return ThermalCritical;
             }
-        }
-
-        serial_printf("FLASH TEST: run %u verify\r\n", (unsigned int)(run + 1U));
-        bool pass = true;
-        for (uint8_t p = 0; p < FLASH_STORAGE_SECTOR_COUNT && pass; p++)
-        {
-            uint32_t page_base = FLASH_STORAGE_START_ADDR + (uint32_t)p * FLASH_STORAGE_SECTOR_SIZE;
-            for (uint16_t off = 0; off < FLASH_STORAGE_SECTOR_SIZE && pass; off += 8U)
+            if (t >= fan_on)
             {
-                uint8_t buf[8];
-                if (!flash_read(page_base + off, buf, 8U))
-                {
-                    serial_printf("FLASH TEST: run %u read page %u off %u FAILED\r\n",
-                        (unsigned int)(run + 1U), (unsigned int)p, (unsigned int)off);
-                    pass = false;
-                    break;
-                }
-                for (uint8_t b = 0; b < 8U && pass; b++)
-                {
-                    if (buf[b] != pat)
-                    {
-                        serial_printf("FLASH TEST: run %u mismatch page %u byte %u: got 0x%02X exp "
-                                      "0x%02X\r\n",
-                            (unsigned int)(run + 1U), (unsigned int)p, (unsigned int)(off + b),
-                            (unsigned int)buf[b], (unsigned int)pat);
-                        pass = false;
-                    }
-                }
+                return ThermalHigh;
             }
-        }
+            return ThermalLow;
 
-        serial_printf(
-            "FLASH TEST: run %u %s\r\n", (unsigned int)(run + 1U), pass ? "PASS" : "FAIL");
-
-        serial_printf("FLASH TEST: run %u erase\r\n", (unsigned int)(run + 1U));
-        for (uint8_t p = 0; p < FLASH_STORAGE_SECTOR_COUNT; p++)
-        {
-            uint32_t addr = FLASH_STORAGE_START_ADDR + (uint32_t)p * FLASH_STORAGE_SECTOR_SIZE;
-            if (!flash_erase_page(addr))
+        case ThermalLow:
+            if (t >= crit_on)
             {
-                serial_printf("FLASH TEST: run %u erase page %u FAILED\r\n",
-                    (unsigned int)(run + 1U), (unsigned int)p);
-                return;
+                return ThermalCritical;
             }
-        }
+            if (t >= fan_on)
+            {
+                return ThermalHigh;
+            }
+            return ThermalLow;
 
-        watchdog_kick();
+        case ThermalHigh:
+            if (t >= crit_on)
+            {
+                return ThermalCritical;
+            }
+            if (t < fan_off)
+            {
+                return ThermalLow;
+            }
+            return ThermalHigh;
+
+        case ThermalCritical:
+            if (t < crit_off)
+            {
+                return ThermalHigh;
+            }
+            return ThermalCritical;
     }
-
-    serial_printf("FLASH TEST: done\r\n");
+    return ThermalLow;
 }
 
-void temperature_sensor_event_handler(TempSensorEvent event)
+static void apply_throttle(ThermalState state, const Settings *s)
 {
-    switch (event)
+    if (state == ThermalCritical)
     {
-        case SensorLost:
-            usb_printf("TEMP: SENSOR LOST\r\n");
-            break;
-        case AboveA:
-            usb_printf("TEMP: ABOVE A\r\n");
-            break;
-        case AboveB:
-            usb_printf("TEMP: ABOVE B\r\n");
-            break;
-        case BelowA:
-            usb_printf("TEMP: BELOW A\r\n");
-            break;
-        case BelowB:
-            usb_printf("TEMP: BELOW B\r\n");
-            break;
+        if (!app.critical_throttle_active)
+        {
+            pwm_set_throttle_a(0U);
+            pwm_set_throttle_b(0U);
+            app.critical_throttle_active = true;
+        }
+    }
+    else
+    {
+        if (app.critical_throttle_active)
+        {
+            pwm_set_throttle_a((uint32_t)s->pwm_throttle_a);
+            pwm_set_throttle_b((uint32_t)s->pwm_throttle_b);
+            app.critical_throttle_active = false;
+        }
     }
 }
 
-static void flash_debug_addresses(void)
+static void apply_fans(bool fans_on)
 {
-    uint32_t storage_start = FLASH_STORAGE_START_ADDR;
-    uint32_t storage_end   = FLASH_STORAGE_START_ADDR +
-                             ((uint32_t)FLASH_STORAGE_SECTOR_COUNT * FLASH_STORAGE_SECTOR_SIZE);
-    uint32_t settings_size = sizeof(Settings) + 8U; /* magic(4) + crc32(4) + Settings */
-
-    serial_printf("---- Flash Address Map ----\r\n");
-    serial_printf("  FLASH_BASE             : 0x%08X\r\n", (unsigned int)FLASH_BASE);
-    serial_printf("  storage start          : 0x%08X\r\n", (unsigned int)storage_start);
-    serial_printf("  storage end            : 0x%08X\r\n", (unsigned int)storage_end);
-    serial_printf("  storage size           : %u bytes (%u sectors x %u bytes)\r\n",
-        (unsigned int)((uint32_t)FLASH_STORAGE_SECTOR_COUNT * FLASH_STORAGE_SECTOR_SIZE),
-        (unsigned int)FLASH_STORAGE_SECTOR_COUNT,
-        (unsigned int)FLASH_STORAGE_SECTOR_SIZE);
-    serial_printf("  page range             : %u - %u\r\n",
-        (unsigned int)((storage_start - FLASH_BASE) / FLASH_STORAGE_SECTOR_SIZE),
-        (unsigned int)((storage_end - FLASH_BASE) / FLASH_STORAGE_SECTOR_SIZE - 1U));
-
-    for (uint8_t i = 0U; i < FLASH_STORAGE_SECTOR_COUNT; i++)
+    uint8_t duty = fans_on ? 100U : 0U;
+    for (uint8_t i = 1U; i <= APP_FAN_COUNT; i++)
     {
-        uint32_t s = storage_start + (uint32_t)i * FLASH_STORAGE_SECTOR_SIZE;
-        serial_printf("  sector[%u]              : 0x%08X - 0x%08X\r\n",
-            (unsigned int)i, (unsigned int)s, (unsigned int)(s + FLASH_STORAGE_SECTOR_SIZE));
+        fan_control_set_unit_duty(i, duty);
     }
-
-    serial_printf("  settings addr          : 0x%08X\r\n", (unsigned int)storage_start);
-    serial_printf("  settings record size   : %u bytes\r\n", (unsigned int)settings_size);
-
-    bool in_bounds = (settings_size <= FLASH_STORAGE_SECTOR_SIZE);
-    bool aligned   = ((storage_start & 0x7U) == 0U);
-    serial_printf("  settings in sector[0]  : %s\r\n", in_bounds ? "PASS" : "FAIL");
-    serial_printf("  settings 8-byte aligned: %s\r\n", aligned ? "PASS" : "FAIL");
-    serial_printf("---------------------------\r\n");
 }
 
-static void settings_test_print(void)
+static void update_fan_presence(uint32_t now_ms)
 {
-    static const char *const fan_names[] = {"2Wire", "3/4Wire"};
+    if (now_ms - app.last_presence_sample_ms < APP_PRESENCE_SAMPLE_MS)
+    {
+        return;
+    }
+    app.last_presence_sample_ms = now_ms;
+
+    for (uint8_t i = 0U; i < APP_FAN_COUNT; i++)
+    {
+        uint8_t unit = i + 1U;
+
+        if (fan_control_get_type(unit) == FanType2Wire)
+        {
+            /* No tacho available — assume present */
+            app.fan_present[i]      = true;
+            app.missing_since_ms[i] = 0U;
+            continue;
+        }
+
+        bool commanded_on = (fan_control_get_unit_duty(unit) > 0U);
+        if (!commanded_on)
+        {
+            app.missing_since_ms[i] = 0U;
+            continue;
+        }
+
+        uint32_t rpm = fan_tacho_get_rpm(unit);
+        if (rpm >= APP_RPM_PRESENT_THRESHOLD)
+        {
+            app.fan_present[i]      = true;
+            app.missing_since_ms[i] = 0U;
+        }
+        else
+        {
+            if (app.missing_since_ms[i] == 0U)
+            {
+                app.missing_since_ms[i] = now_ms;
+            }
+            else if (now_ms - app.missing_since_ms[i] >= APP_PRESENCE_MISSING_DEBOUNCE_MS)
+            {
+                app.fan_present[i] = false;
+            }
+        }
+    }
+}
+
+static void update_led(ThermalState state, bool fans_on)
+{
+    if (state == ThermalSensorLost || state == ThermalCritical)
+    {
+        program_led_set_state(ProgramLedError);
+    }
+    else if (fans_on)
+    {
+        program_led_set_state(ProgramLedFansOn);
+    }
+    else
+    {
+        program_led_set_state(ProgramLedFansOff);
+    }
+}
+
+#if APP_DEBUG_ENABLE
+static const char *thermal_state_str(ThermalState state)
+{
+    switch (state)
+    {
+        case ThermalLow:        return "LOW";
+        case ThermalHigh:       return "HIGH";
+        case ThermalCritical:   return "CRITICAL";
+        case ThermalSensorLost: return "SENSOR_LOST";
+        default:                return "UNKNOWN";
+    }
+}
+
+static void debug_task(void)
+{
+    static uint32_t last_ms = 0U;
+    uint32_t now = HAL_GetTick();
+    if (now - last_ms < 1000U)
+    {
+        return;
+    }
+    last_ms = now;
+
+    uint16_t raw_temp = get_temperature();
+    if (raw_temp == 0xFFFFU)
+    {
+        serial_printf("[STATUS] Temp: LOST | Thermal: %s | BtnOverride: %s\r\n",
+                      thermal_state_str(app.thermal),
+                      app.button_override ? "YES" : "NO");
+    }
+    else
+    {
+        int16_t t      = (int16_t)raw_temp;
+        int16_t t_deg  = t / 100;
+        int16_t t_frac = t % 100;
+        if (t_frac < 0)
+        {
+            t_frac = -t_frac;
+        }
+        serial_printf("[STATUS] Temp: %d.%02d C | Thermal: %s | BtnOverride: %s\r\n",
+                      t_deg, t_frac,
+                      thermal_state_str(app.thermal),
+                      app.button_override ? "YES" : "NO");
+    }
+
+    serial_printf("[STATUS] PWM-A: freq=%lu Hz in=%lu%% out=%lu%% throttle=%lu%%\r\n",
+                  pwm_get_frequency_a(), pwm_get_duty_a(),
+                  pwm_get_output_duty_a(), pwmOutputA.throttle_val);
+    serial_printf("[STATUS] PWM-B: freq=%lu Hz in=%lu%% out=%lu%% throttle=%lu%%\r\n",
+                  pwm_get_frequency_b(), pwm_get_duty_b(),
+                  pwm_get_output_duty_b(), pwmOutputB.throttle_val);
+
+    for (uint8_t i = 0U; i < APP_FAN_COUNT; i++)
+    {
+        uint8_t     unit     = i + 1U;
+        const char *type_str = (fan_control_get_type(unit) == FanType2Wire) ? "2W" : "3/4W";
+        uint8_t     duty     = fan_control_get_unit_duty(unit);
+        uint32_t    rpm      = fan_tacho_get_rpm(unit);
+        serial_printf("[STATUS] Fan%u: type=%s duty=%u%% present=%s rpm=%lu\r\n",
+                      unit, type_str, duty,
+                      app.fan_present[i] ? "YES" : "NO",
+                      rpm);
+    }
+}
+#endif /* APP_DEBUG_ENABLE */
+
+static void app_state_init(void)
+{
+    app.thermal                  = ThermalLow;
+    app.button_override          = false;
+    app.critical_throttle_active = false;
+    app.last_presence_sample_ms  = 0U;
+    for (uint8_t i = 0U; i < APP_FAN_COUNT; i++)
+    {
+        app.fan_present[i]      = true; /* assume present until proven otherwise */
+        app.missing_since_ms[i] = 0U;
+    }
+}
+
+static void app_task(void)
+{
     const Settings *s = settings_get();
-    serial_printf("---- Settings ----\r\n");
-    serial_printf("  pwm_throttle_a   : %u%%\r\n", (unsigned int)s->pwm_throttle_a);
-    serial_printf("  pwm_throttle_b   : %u%%\r\n", (unsigned int)s->pwm_throttle_b);
-    for (uint8_t i = 0U; i < 4U; i++)
+    if (s == NULL)
     {
-        uint8_t ov = s->fan_type_override[i];
-        serial_printf("  fan_override[%u]  : %s\r\n", (unsigned int)i,
-            (ov < 3U) ? fan_names[ov] : "?");
+        return;
     }
-    serial_printf("  temp_fan_on      : %d centideg\r\n", (int)s->temp_fan_on);
-    serial_printf("  temp_fan_off     : %d centideg\r\n", (int)s->temp_fan_off);
-    serial_printf("  temp_critical    : %d centideg\r\n", (int)s->temp_critical);
-    serial_printf("------------------\r\n");
+
+    uint32_t now_ms = HAL_GetTick();
+
+    app.thermal         = thermal_step(app.thermal, get_temperature(), s);
+    app.button_override = push_button_is_pressed();
+
+    bool fans_auto_on     = (app.thermal == ThermalHigh) || (app.thermal == ThermalCritical);
+    bool fans_required_on = app.button_override || fans_auto_on;
+
+    apply_throttle(app.thermal, s);
+    apply_fans(fans_required_on);
+    update_fan_presence(now_ms);
+    update_led(app.thermal, fans_required_on);
 }
 
 int main(void)
 {
+    /* Phase 1: MCU + basic services */
     HAL_Init();
-
     board_init();
     timers_init();
     delay_init(timers_get_sys_timer());
-
     watchdog_init();
-
     serial_init(BOARD_UART1_INSTANCE, BOARD_UART1_BAUD_RATE);
+#if APP_DEBUG_ENABLE
+    serial_printf("[INIT] Phase 1: MCU + basic services OK\r\n");
+#endif
 
-    serial_printf("Program started\r\n");
-
-    flash_debug_addresses();
-
+    /* Phase 2: Persisted settings */
     settings_init();
-    commands_init();
     const Settings *s = settings_get();
+#if APP_DEBUG_ENABLE
+    serial_printf("[INIT] Phase 2: Settings loaded — throttle_a=%u%% throttle_b=%u%%"
+                  " fan_on=%d fan_off=%d critical=%d (centideg)\r\n",
+                  s->pwm_throttle_a, s->pwm_throttle_b,
+                  s->temp_fan_on, s->temp_fan_off, s->temp_critical);
+#endif
 
-    // while (true)
-    // {
-    //     watchdog_kick();
-    //     flash_test();
-    // }
+    /* Phase 3: USB up early so enumeration can start; nothing below blocks */
+    usb_init();
+    telemetry_init();
+    commands_init();
+#if APP_DEBUG_ENABLE
+    serial_printf("[INIT] Phase 3: USB + telemetry + commands OK\r\n");
+#endif
+
+    /* Phase 4: I/O */
+    program_led_init();
+    push_button_init();
+#if APP_DEBUG_ENABLE
+    serial_printf("[INIT] Phase 4: LED + button OK\r\n");
+#endif
 
     pwm_repeater_init(timers_get_capture(), timers_get_repeater_a(), timers_get_repeater_b());
     pwm_set_throttle_a((uint32_t)s->pwm_throttle_a);
     pwm_set_throttle_b((uint32_t)s->pwm_throttle_b);
+#if APP_DEBUG_ENABLE
+    serial_printf("[INIT] PWM repeater OK — throttle_a=%u%% throttle_b=%u%%\r\n",
+                  s->pwm_throttle_a, s->pwm_throttle_b);
+#endif
+
     board_onewire_power_set(true);
     board_onewire_pullup_set(true);
     temperature_sensor_init();
     temperature_sensor_set_setpoint_a(s->temp_fan_off);
     temperature_sensor_set_setpoint_b(s->temp_fan_on);
-    fan_tacho_init(1);
-    fan_tacho_init(2);
-    fan_tacho_init(3);
-    fan_tacho_init(4);
+    temperature_sensor_set_hysteresis(APP_TEMP_HYSTERESIS_CDEG);
+#if APP_DEBUG_ENABLE
+    serial_printf("[INIT] Temp sensor OK — setpoint_a=%d setpoint_b=%d hyst=%u (centideg)\r\n",
+                  s->temp_fan_off, s->temp_fan_on, APP_TEMP_HYSTERESIS_CDEG);
+#endif
 
-    fan_tacho_enable(1);
-    fan_tacho_enable(2);
-    fan_tacho_enable(3);
-    fan_tacho_enable(4);
+    for (uint8_t i = 1U; i <= APP_FAN_COUNT; i++)
+    {
+        fan_tacho_init(i);
+        fan_tacho_enable(i);
+    }
+#if APP_DEBUG_ENABLE
+    serial_printf("[INIT] Fan tacho OK — %u channels enabled\r\n", APP_FAN_COUNT);
+#endif
 
-    usb_init();
+    fan_control_init(timers_get_fan_power(), timers_get_fan_remote());
+    fan_init(APP_FAN_PWM_FREQ_HZ);
+#if APP_DEBUG_ENABLE
+    serial_printf("[INIT] Fan control OK — PWM freq=%u Hz\r\n", APP_FAN_PWM_FREQ_HZ);
+#endif
 
-    static uint32_t last_step = 0;
-    bool first = true;
+    /* Start with all fans off; thermal SM takes over from first iteration */
+    for (uint8_t i = 1U; i <= APP_FAN_COUNT; i++)
+    {
+        fan_control_set_unit_duty(i, 0U);
+    }
 
+    app_state_init();
+#if APP_DEBUG_ENABLE
+    serial_printf("[INIT] App state init OK — all fans off, thermal=LOW\r\n");
+    serial_printf("[INIT] Boot complete. Entering main loop.\r\n");
+#endif
+
+    /* Phase 5: Cooperative main loop */
     while (true)
     {
         watchdog_kick();
         usb_task();
         commands_task();
-
-        if (first)
-        {
-            first = false;
-            serial_printf("SETTINGS TEST: initial state\r\n");
-            settings_test_print();
-            last_step = HAL_GetTick();
-        }
-
-        if (HAL_GetTick() - last_step >= 5000U)
-        {
-            last_step = HAL_GetTick();
-            settings_test_print();
-        }
-    }
-
-    fan_control_init(timers_get_fan_power(), timers_get_fan_remote());
-    fan_init(25000);
-    fan_control_set_unit_duty(1, 50);
-    fan_control_set_unit_duty(2, 10);
-    fan_control_set_unit_duty(3, 60);
-    fan_control_set_unit_duty(4, 80);
-
-    temperature_sensor_init();
-
-    pwm_repeater_init(timers_get_capture(), timers_get_repeater_a(), timers_get_repeater_b());
-    pwm_set_throttle_a((uint32_t)s->pwm_throttle_a);
-    pwm_set_throttle_b((uint32_t)s->pwm_throttle_b);
-
-    temperature_sensor_set_setpoint_a(s->temp_fan_off);
-    temperature_sensor_set_setpoint_b(s->temp_fan_on);
-    temperature_sensor_set_hysteresis(50);
-    temperature_sensor_register_handler(temperature_sensor_event_handler);
-
-    while (1)
-    {
-        watchdog_kick();
-
-        usb_task();
+        push_button_task();
         pwm_repeater_task();
         temperature_sensor_task();
+        program_led_task();
+        telemetry_task();
 
-        static uint32_t last_init_debug = 0;
-        static uint32_t last_fan_test = 0;
-        static bool fan_toggle = false;
-
-        if (HAL_GetTick() - last_fan_test >= 2000)
-        {
-            last_fan_test = HAL_GetTick();
-            fan_toggle = !fan_toggle;
-
-            if (fan_toggle)
-            {
-                fan_control_set_power_channel_duty(FanChannelTwo, 50);
-                fan_control_set_remote_channel_duty(FanChannelOne, 0);
-                usb_printf("FAN CH1: POWER ON, REMOTE OFF\r\n");
-                serial_printf("FAN CH1: POWER ON, REMOTE OFF\r\n");
-            }
-            else
-            {
-                fan_control_set_power_channel_duty(FanChannelTwo, 0);
-                fan_control_set_remote_channel_duty(FanChannelOne, 50);
-                usb_printf("FAN CH1: POWER OFF, REMOTE ON\r\n");
-                serial_printf("FAN CH1: POWER OFF, REMOTE ON\r\n");
-            }
-        }
-
-        if (HAL_GetTick() - last_init_debug >= 1000)
-        {
-            last_init_debug = HAL_GetTick();
-
-            usb_printf("CH_A: %u Hz, %u\r\n", (unsigned int)pwm_get_frequency_a(),
-                (unsigned int)pwm_get_duty_a());
-            usb_printf("CH_B: %u Hz, %u\r\n", (unsigned int)pwm_get_frequency_b(),
-                (unsigned int)pwm_get_duty_b());
-
-            serial_printf("CH_A: %u Hz, %u\r\n", (unsigned int)pwm_get_frequency_a(),
-                (unsigned int)pwm_get_duty_a());
-            serial_printf("CH_B: %u Hz, %u\r\n", (unsigned int)pwm_get_frequency_b(),
-                (unsigned int)pwm_get_duty_b());
-
-            uint16_t raw_temp = get_temperature();
-            if (raw_temp == 0xFFFF)
-            {
-                usb_printf("TEMP: SENSOR LOST\r\n");
-                serial_printf("TEMP: SENSOR LOST\r\n");
-            }
-            else
-            {
-                usb_printf("TEMP: %u\r\n", raw_temp);
-                serial_printf("TEMP: %u\r\n", raw_temp);
-            }
-        }
+        app_task();
+#if APP_DEBUG_ENABLE
+        debug_task();
+#endif
     }
 }

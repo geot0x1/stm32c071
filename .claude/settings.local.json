@@ -74,7 +74,18 @@
       "Bash(git -C /c/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071 branch -a)",
       "Bash(git -C /c/Users/panos/Documents/PROJECTS/external_stm_project/stm32c071 show origin/nvs_test --name-only)",
       "Bash(git -C . describe --tags --always)",
-      "Bash(git -C . log -1 --format=\"%h %ai\")"
+      "Bash(git -C . log -1 --format=\"%h %ai\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\panos\\\\Documents\\\\PROJECTS\\\\external_stm_project\\\\stm32c071\\\\Application\\\\\" -Directory | Select-Object -ExpandProperty Name)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\panos\\\\Documents\\\\PROJECTS\\\\external_stm_project\\\\stm32c071\\\\Application\\\\usb\\\\\" -Force)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\panos\\\\Documents\\\\PROJECTS\\\\external_stm_project\\\\stm32c071\\\\Application\\\\settings\\\\\" -File)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\panos\\\\Documents\\\\PROJECTS\\\\external_stm_project\\\\stm32c071\" -Recurse -Filter \"*settings*\")",
+      "Bash(Select-Object FullName)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\panos\\\\Documents\\\\PROJECTS\\\\external_stm_project\\\\stm32c071\\\\Application\" -Recurse)",
+      "Bash(ConvertTo-Csv -NoTypeInformation)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\panos\\\\Documents\\\\PROJECTS\\\\external_stm_project\\\\stm32c071\\\\Application\" -Directory)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\panos\\\\Documents\\\\PROJECTS\\\\external_stm_project\\\\stm32c071\" -Directory)",
+      "Bash(Select-Object Name)"
     ]
   }
 }
