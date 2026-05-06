@@ -228,46 +228,46 @@ static void debug_task(void)
     }
     last_ms = now;
 
-    // uint16_t raw_temp = get_temperature();
-    // if (raw_temp == 0xFFFFU)
-    // {
-    //     serial_printf("[STATUS] Temp: LOST | Thermal: %s | BtnOverride: %s\r\n",
-    //                   thermal_state_str(app.thermal),
-    //                   app.button_override ? "YES" : "NO");
-    // }
-    // else
-    // {
-    //     int16_t t      = (int16_t)raw_temp;
-    //     int16_t t_deg  = t / 100;
-    //     int16_t t_frac = t % 100;
-    //     if (t_frac < 0)
-    //     {
-    //         t_frac = -t_frac;
-    //     }
-    //     serial_printf("[STATUS] Temp: %d.%02d C | Thermal: %s | BtnOverride: %s\r\n",
-    //                   t_deg, t_frac,
-    //                   thermal_state_str(app.thermal),
-    //                   app.button_override ? "YES" : "NO");
-    // }
+    uint16_t raw_temp = get_temperature();
+    if (raw_temp == 0xFFFFU)
+    {
+        serial_printf("[STATUS] Temp: LOST | Thermal: %s | BtnOverride: %s\r\n",
+                      thermal_state_str(app.thermal),
+                      app.button_override ? "YES" : "NO");
+    }
+    else
+    {
+        int16_t t      = (int16_t)raw_temp;
+        int16_t t_deg  = t / 100;
+        int16_t t_frac = t % 100;
+        if (t_frac < 0)
+        {
+            t_frac = -t_frac;
+        }
+        serial_printf("[STATUS] Temp: %d.%02d C | Thermal: %s | BtnOverride: %s\r\n",
+                      t_deg, t_frac,
+                      thermal_state_str(app.thermal),
+                      app.button_override ? "YES" : "NO");
+    }
 
-    // serial_printf("[STATUS] PWM-A: freq=%lu Hz in=%lu%% out=%lu%% throttle=%lu%%\r\n",
-    //               pwm_get_frequency_a(), pwm_get_duty_a(),
-    //               pwm_get_output_duty_a(), pwmOutputA.throttle_val);
-    // serial_printf("[STATUS] PWM-B: freq=%lu Hz in=%lu%% out=%lu%% throttle=%lu%%\r\n",
-    //               pwm_get_frequency_b(), pwm_get_duty_b(),
-    //               pwm_get_output_duty_b(), pwmOutputB.throttle_val);
+    serial_printf("[STATUS] PWM-A: freq=%lu Hz in=%lu%% out=%lu%% throttle=%lu%%\r\n",
+                  pwm_get_frequency_a(), pwm_get_duty_a(),
+                  pwm_get_output_duty_a(), pwmOutputA.throttle_val);
+    serial_printf("[STATUS] PWM-B: freq=%lu Hz in=%lu%% out=%lu%% throttle=%lu%%\r\n",
+                  pwm_get_frequency_b(), pwm_get_duty_b(),
+                  pwm_get_output_duty_b(), pwmOutputB.throttle_val);
 
-    // for (uint8_t i = 0U; i < APP_FAN_COUNT; i++)
-    // {
-    //     uint8_t     unit     = i + 1U;
-    //     const char *type_str = (fan_control_get_type(unit) == FanType2Wire) ? "2W" : "3/4W";
-    //     uint8_t     duty     = fan_control_get_unit_duty(unit);
-    //     uint32_t    rpm      = fan_tacho_get_rpm(unit);
-    //     serial_printf("[STATUS] Fan%u: type=%s duty=%u%% present=%s rpm=%lu\r\n",
-    //                   unit, type_str, duty,
-    //                   app.fan_present[i] ? "YES" : "NO",
-    //                   rpm);
-    // }
+    for (uint8_t i = 0U; i < APP_FAN_COUNT; i++)
+    {
+        uint8_t     unit     = i + 1U;
+        const char *type_str = (fan_control_get_type(unit) == FanType2Wire) ? "2W" : "3/4W";
+        uint8_t     duty     = fan_control_get_unit_duty(unit);
+        uint32_t    rpm      = fan_tacho_get_rpm(unit);
+        serial_printf("[STATUS] Fan%u: type=%s duty=%u%% present=%s rpm=%lu\r\n",
+                      unit, type_str, duty,
+                      app.fan_present[i] ? "YES" : "NO",
+                      rpm);
+    }
 
     if (hdc2010_ok)
     {
