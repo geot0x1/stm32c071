@@ -48,7 +48,7 @@ static void reset_channel_state(PwmChannel *ch, uint32_t channel);
 static uint32_t calculate_output_pulse(PwmOutput *out);
 static void init_channel_struct(PwmChannel *ch);
 static void apply_output_to_hardware(PwmOutput *out, uint32_t active_pulse);
-static void process_channel_update(PwmChannel *ch, PwmOutput *out);
+static void process_channel_update(PwmChannel *ch, PwmOutput *out, const Gpio *gpio);
 static uint32_t calculate_frequency(uint32_t period_ticks);
 static uint32_t calculate_duty_pct(uint32_t period_ticks, uint32_t pulse_ticks);
 
@@ -175,7 +175,7 @@ static void apply_output_to_hardware(PwmOutput *out, uint32_t active_pulse)
     out->tim->hal_handle.Instance->CCR1 = target_ccr;
 }
 
-static void process_channel_update(PwmChannel *ch, PwmOutput *out)
+static void process_channel_update(PwmChannel *ch, PwmOutput *out, const Gpio *gpio)
 {
     uint64_t now = millis();
     const uint32_t TIMEOUT_MS = 50;
@@ -193,11 +193,32 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out)
 
     if ((now - ch->last_capture_ms) > TIMEOUT_MS)
     {
-        /* No valid PWM edges for 50 ms — shut off output */
-        out->tim->hal_handle.Instance->ARR = OUTPUT_ARR;
-        out->tim->hal_handle.Instance->CCR1 = OUTPUT_ARR + 1U;
-        out->period_ticks = 0;
-        out->pulse_ticks = 0;
+        /* No edges for 50 ms: flat DC. Read pin to determine level.
+         * Input BJT inverts: pin LOW = DIM_PWM 100%, pin HIGH = DIM_PWM 0%. */
+        if (gpio_read(gpio) == GPIO_PIN_RESET)
+        {
+            if (out->period_ticks != 0)
+            {
+                /* Known period — apply throttled 100% using last seen frequency */
+                out->pulse_ticks = out->period_ticks;
+                uint32_t active_pulse = calculate_output_pulse(out);
+                apply_output_to_hardware(out, active_pulse);
+            }
+            else
+            {
+                /* Cold 100% DC — no frequency seen yet, drive full on */
+                out->tim->hal_handle.Instance->ARR = OUTPUT_ARR;
+                out->tim->hal_handle.Instance->CCR1 = 0U;
+            }
+        }
+        else
+        {
+            /* 0% DC / signal lost */
+            out->tim->hal_handle.Instance->ARR = OUTPUT_ARR;
+            out->tim->hal_handle.Instance->CCR1 = OUTPUT_ARR + 1U;
+            out->period_ticks = 0;
+            out->pulse_ticks = 0;
+        }
         init_channel_struct(ch);
     }
 }
@@ -368,8 +389,8 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 
 void pwm_repeater_task(void)
 {
-    process_channel_update(&pwmChannelA, &pwmOutputA);
-    process_channel_update(&pwmChannelB, &pwmOutputB);
+    process_channel_update(&pwmChannelA, &pwmOutputA, &_ic_pin_a);
+    process_channel_update(&pwmChannelB, &pwmOutputB, &_ic_pin_b);
 }
 
 uint32_t pwm_get_frequency_a(void)
