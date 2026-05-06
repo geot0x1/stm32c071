@@ -34,9 +34,7 @@ void fan_control_init(Tim *power_tim, Tim *remote_tim)
 
     for (uint8_t i = 0; i < 4; i++)
     {
-        Gpio g;
-        gpio_input_init(&g, BOARD_FAN_TYPE_PORT, _type_pins[i], GPIO_PULLUP);
-        _fan_types[i] = (gpio_read(&g) == GPIO_PIN_RESET) ? FanType34Wire : FanType2Wire;
+        _fan_types[i] = FanType2Wire;
     }
 }
 

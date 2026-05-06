@@ -20,6 +20,7 @@
 
 /* Tunables */
 #define APP_DEBUG_ENABLE                 1        /* set to 0 to silence all [INIT]/[STATUS] output */
+#define APP_FAN_CYCLE_TEST_ENABLE        1        /* set to 1 to enable 2-second fan cycle test */
 #define APP_FAN_PWM_FREQ_HZ              25000U
 #define APP_TEMP_HYSTERESIS_CDEG         50U      /* setpoint hysteresis for temp_sensor module */
 #define APP_CRITICAL_HYSTERESIS_CDEG     200      /* +/-2 C around T_critical */
@@ -267,6 +268,29 @@ static void debug_task(void)
 }
 #endif /* APP_DEBUG_ENABLE */
 
+#if APP_FAN_CYCLE_TEST_ENABLE
+static void fan_cycle_test(void)
+{
+    static uint32_t last_toggle_ms = 0U;
+    static bool     fans_on        = false;
+
+    uint32_t now = HAL_GetTick();
+    if (now - last_toggle_ms < 2000U)
+    {
+        return;
+    }
+    last_toggle_ms = now;
+
+    fans_on = !fans_on;
+    uint8_t duty = fans_on ? 100U : 0U;
+    for (uint8_t i = 1U; i <= APP_FAN_COUNT; i++)
+    {
+        fan_control_set_unit_duty(i, duty);
+    }
+    serial_printf("[TEST] Fans: %s\r\n", fans_on ? "ON" : "OFF");
+}
+#endif
+
 static void app_state_init(void)
 {
     app.thermal                  = ThermalLow;
@@ -398,7 +422,11 @@ int main(void)
         program_led_task();
         telemetry_task();
 
+#if APP_FAN_CYCLE_TEST_ENABLE
+        fan_cycle_test();
+#else
         app_task();
+#endif
 #if APP_DEBUG_ENABLE
         debug_task();
 #endif
