@@ -1,6 +1,7 @@
 #include "board.h"
 #include "board/board_config.h"
 #include "commands.h"
+#include "hdc2010.h"
 #include "delay.h"
 #include "fan_control.h"
 #include "fan_tacho.h"
@@ -48,6 +49,8 @@ typedef struct
 } AppState;
 
 static AppState app;
+static Hdc2010  hdc2010_dev;
+static bool     hdc2010_ok;
 
 static ThermalState thermal_step(ThermalState prev, uint16_t raw, const Settings *s)
 {
@@ -225,45 +228,71 @@ static void debug_task(void)
     }
     last_ms = now;
 
-    uint16_t raw_temp = get_temperature();
-    if (raw_temp == 0xFFFFU)
+    // uint16_t raw_temp = get_temperature();
+    // if (raw_temp == 0xFFFFU)
+    // {
+    //     serial_printf("[STATUS] Temp: LOST | Thermal: %s | BtnOverride: %s\r\n",
+    //                   thermal_state_str(app.thermal),
+    //                   app.button_override ? "YES" : "NO");
+    // }
+    // else
+    // {
+    //     int16_t t      = (int16_t)raw_temp;
+    //     int16_t t_deg  = t / 100;
+    //     int16_t t_frac = t % 100;
+    //     if (t_frac < 0)
+    //     {
+    //         t_frac = -t_frac;
+    //     }
+    //     serial_printf("[STATUS] Temp: %d.%02d C | Thermal: %s | BtnOverride: %s\r\n",
+    //                   t_deg, t_frac,
+    //                   thermal_state_str(app.thermal),
+    //                   app.button_override ? "YES" : "NO");
+    // }
+
+    // serial_printf("[STATUS] PWM-A: freq=%lu Hz in=%lu%% out=%lu%% throttle=%lu%%\r\n",
+    //               pwm_get_frequency_a(), pwm_get_duty_a(),
+    //               pwm_get_output_duty_a(), pwmOutputA.throttle_val);
+    // serial_printf("[STATUS] PWM-B: freq=%lu Hz in=%lu%% out=%lu%% throttle=%lu%%\r\n",
+    //               pwm_get_frequency_b(), pwm_get_duty_b(),
+    //               pwm_get_output_duty_b(), pwmOutputB.throttle_val);
+
+    // for (uint8_t i = 0U; i < APP_FAN_COUNT; i++)
+    // {
+    //     uint8_t     unit     = i + 1U;
+    //     const char *type_str = (fan_control_get_type(unit) == FanType2Wire) ? "2W" : "3/4W";
+    //     uint8_t     duty     = fan_control_get_unit_duty(unit);
+    //     uint32_t    rpm      = fan_tacho_get_rpm(unit);
+    //     serial_printf("[STATUS] Fan%u: type=%s duty=%u%% present=%s rpm=%lu\r\n",
+    //                   unit, type_str, duty,
+    //                   app.fan_present[i] ? "YES" : "NO",
+    //                   rpm);
+    // }
+
+    if (hdc2010_ok)
     {
-        serial_printf("[STATUS] Temp: LOST | Thermal: %s | BtnOverride: %s\r\n",
-                      thermal_state_str(app.thermal),
-                      app.button_override ? "YES" : "NO");
+        hdc2010_start_measurement(&hdc2010_dev);
+        HAL_Delay(2);
+        int16_t temp_cdeg = 0;
+        uint8_t rh        = 0;
+        if (hdc2010_read(&hdc2010_dev, &temp_cdeg, &rh) == HDC2010_OK)
+        {
+            int16_t t_deg  = temp_cdeg / 100;
+            int16_t t_frac = temp_cdeg % 100;
+            if (t_frac < 0)
+            {
+                t_frac = -t_frac;
+            }
+            usb_printf("[HDC2010] Temp: %d.%02d C | RH: %u%%\r\n", t_deg, t_frac, rh);
+        }
+        else
+        {
+            usb_printf("[HDC2010] Read error\r\n");
+        }
     }
     else
     {
-        int16_t t      = (int16_t)raw_temp;
-        int16_t t_deg  = t / 100;
-        int16_t t_frac = t % 100;
-        if (t_frac < 0)
-        {
-            t_frac = -t_frac;
-        }
-        serial_printf("[STATUS] Temp: %d.%02d C | Thermal: %s | BtnOverride: %s\r\n",
-                      t_deg, t_frac,
-                      thermal_state_str(app.thermal),
-                      app.button_override ? "YES" : "NO");
-    }
-
-    serial_printf("[STATUS] PWM-A: freq=%lu Hz in=%lu%% out=%lu%% throttle=%lu%%\r\n",
-                  pwm_get_frequency_a(), pwm_get_duty_a(),
-                  pwm_get_output_duty_a(), pwmOutputA.throttle_val);
-    serial_printf("[STATUS] PWM-B: freq=%lu Hz in=%lu%% out=%lu%% throttle=%lu%%\r\n",
-                  pwm_get_frequency_b(), pwm_get_duty_b(),
-                  pwm_get_output_duty_b(), pwmOutputB.throttle_val);
-
-    for (uint8_t i = 0U; i < APP_FAN_COUNT; i++)
-    {
-        uint8_t     unit     = i + 1U;
-        const char *type_str = (fan_control_get_type(unit) == FanType2Wire) ? "2W" : "3/4W";
-        uint8_t     duty     = fan_control_get_unit_duty(unit);
-        uint32_t    rpm      = fan_tacho_get_rpm(unit);
-        serial_printf("[STATUS] Fan%u: type=%s duty=%u%% present=%s rpm=%lu\r\n",
-                      unit, type_str, duty,
-                      app.fan_present[i] ? "YES" : "NO",
-                      rpm);
+        usb_printf("[HDC2010] Not present\r\n");
     }
 }
 #endif /* APP_DEBUG_ENABLE */
@@ -353,8 +382,10 @@ int main(void)
     usb_init();
     telemetry_init();
     commands_init();
+    hdc2010_ok = (hdc2010_init(&hdc2010_dev, board_get_i2c(), HDC2010_ADDR_LOW) == HDC2010_OK);
 #if APP_DEBUG_ENABLE
     serial_printf("[INIT] Phase 3: USB + telemetry + commands OK\r\n");
+    serial_printf("[INIT] HDC2010: %s\r\n", hdc2010_ok ? "OK" : "NOT FOUND");
 #endif
 
     /* Phase 4: I/O */

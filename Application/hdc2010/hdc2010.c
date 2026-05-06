@@ -1,0 +1,118 @@
+#include "hdc2010.h"
+#include <stddef.h>
+
+/* ── Register map ────────────────────────────────────────────────────────── */
+
+#define REG_TEMP_LOW        0x00U
+#define REG_TEMP_HIGH       0x01U
+#define REG_HUM_LOW         0x02U
+#define REG_HUM_HIGH        0x03U
+#define REG_INTR_DRDY       0x04U
+#define REG_TEMP_MAX        0x05U
+#define REG_HUM_MAX         0x06U
+#define REG_INTR_EN         0x07U
+#define REG_TEMP_OFFSET     0x08U
+#define REG_HUM_OFFSET      0x09U
+#define REG_TEMP_THR_L      0x0AU
+#define REG_TEMP_THR_H      0x0BU
+#define REG_RH_THR_L        0x0CU
+#define REG_RH_THR_H        0x0DU
+#define REG_RST_DRDY_INT    0x0EU
+#define REG_MEAS_CFG        0x0FU
+#define REG_MFR_ID_LOW      0xFCU
+#define REG_MFR_ID_HIGH     0xFDU
+#define REG_DEV_ID_LOW      0xFEU
+#define REG_DEV_ID_HIGH     0xFFU
+
+/* Expected device ID: low byte 0xD0, high byte 0x07 → combined 0x07D0 */
+#define HDC2010_DEV_ID_LOW  0xD0U
+#define HDC2010_DEV_ID_HIGH 0x07U
+
+/* MEAS_CFG: one-shot, temp + humidity, 14-bit resolution */
+#define MEAS_CFG_ONESHOT    0x01U
+
+#define I2C_TIMEOUT_MS      10U
+#define HAL_ADDR(a)         ((uint16_t)((a) << 1))
+
+/* ── Helpers ─────────────────────────────────────────────────────────────── */
+
+static Hdc2010Err read_reg(Hdc2010 *dev, uint8_t reg, uint8_t *out)
+{
+    I2cErr err = i2c_mem_read(dev->i2c, HAL_ADDR(dev->addr),
+                              reg, I2C_MEMADD_SIZE_8BIT, out, 1, I2C_TIMEOUT_MS);
+    return (err == I2C_OK) ? HDC2010_OK : HDC2010_ERR_I2C;
+}
+
+static Hdc2010Err write_reg(Hdc2010 *dev, uint8_t reg, uint8_t val)
+{
+    I2cErr err = i2c_mem_write(dev->i2c, HAL_ADDR(dev->addr),
+                               reg, I2C_MEMADD_SIZE_8BIT, &val, 1, I2C_TIMEOUT_MS);
+    return (err == I2C_OK) ? HDC2010_OK : HDC2010_ERR_I2C;
+}
+
+/* ── Public API ──────────────────────────────────────────────────────────── */
+
+Hdc2010Err hdc2010_init(Hdc2010 *dev, I2c *i2c, uint8_t addr)
+{
+    dev->i2c  = i2c;
+    dev->addr = addr;
+
+    uint8_t id_low, id_high;
+    if (read_reg(dev, REG_DEV_ID_LOW, &id_low) != HDC2010_OK)
+    {
+        return HDC2010_ERR_NOT_FOUND;
+    }
+    if (read_reg(dev, REG_DEV_ID_HIGH, &id_high) != HDC2010_OK)
+    {
+        return HDC2010_ERR_NOT_FOUND;
+    }
+
+    if (id_low != HDC2010_DEV_ID_LOW || id_high != HDC2010_DEV_ID_HIGH)
+    {
+        return HDC2010_ERR_NOT_FOUND;
+    }
+
+    return HDC2010_OK;
+}
+
+Hdc2010Err hdc2010_start_measurement(Hdc2010 *dev)
+{
+    return write_reg(dev, REG_MEAS_CFG, MEAS_CFG_ONESHOT);
+}
+
+Hdc2010Err hdc2010_read(Hdc2010 *dev, int16_t *temperature_cdeg, uint8_t *humidity_pct)
+{
+    if (temperature_cdeg != NULL)
+    {
+        uint8_t lo, hi;
+        if (read_reg(dev, REG_TEMP_LOW, &lo) != HDC2010_OK)
+        {
+            return HDC2010_ERR_I2C;
+        }
+        if (read_reg(dev, REG_TEMP_HIGH, &hi) != HDC2010_OK)
+        {
+            return HDC2010_ERR_I2C;
+        }
+        uint16_t raw = (uint16_t)((uint16_t)hi << 8) | lo;
+        /* T(cdeg) = raw * 165 * 100 / 65536 - 4000 */
+        *temperature_cdeg = (int16_t)(((uint32_t)raw * 16500UL) / 65536UL) - 4000;
+    }
+
+    if (humidity_pct != NULL)
+    {
+        uint8_t lo, hi;
+        if (read_reg(dev, REG_HUM_LOW, &lo) != HDC2010_OK)
+        {
+            return HDC2010_ERR_I2C;
+        }
+        if (read_reg(dev, REG_HUM_HIGH, &hi) != HDC2010_OK)
+        {
+            return HDC2010_ERR_I2C;
+        }
+        uint16_t raw = (uint16_t)((uint16_t)hi << 8) | lo;
+        /* RH(%) = raw * 100 / 65536 */
+        *humidity_pct = (uint8_t)(((uint32_t)raw * 100UL) / 65536UL);
+    }
+
+    return HDC2010_OK;
+}

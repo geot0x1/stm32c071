@@ -87,6 +87,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     serial
     fan_control
     fan_tacho
+    hdc2010
     watchdog
     settings
     commands
