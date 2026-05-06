@@ -26,7 +26,7 @@
 #define APP_PRESENCE_SAMPLE_MS           100U
 #define APP_RPM_PRESENT_THRESHOLD        100U
 #define APP_PRESENCE_MISSING_DEBOUNCE_MS 1500U
-#define APP_FAN_COUNT                    4U
+#define APP_FAN_COUNT                    3U
 
 typedef enum
 {
@@ -357,15 +357,6 @@ int main(void)
 #if APP_DEBUG_ENABLE
     serial_printf("[INIT] Temp sensor OK — setpoint_a=%d setpoint_b=%d hyst=%u (centideg)\r\n",
                   s->temp_fan_off, s->temp_fan_on, APP_TEMP_HYSTERESIS_CDEG);
-#endif
-
-    for (uint8_t i = 1U; i <= APP_FAN_COUNT; i++)
-    {
-        fan_tacho_init(i);
-        fan_tacho_enable(i);
-    }
-#if APP_DEBUG_ENABLE
-    serial_printf("[INIT] Fan tacho OK — %u channels enabled\r\n", APP_FAN_COUNT);
 #endif
 
     fan_control_init(timers_get_fan_power(), timers_get_fan_remote());
