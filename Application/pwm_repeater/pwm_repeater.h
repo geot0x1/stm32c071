@@ -29,7 +29,7 @@ typedef struct
     volatile uint32_t period_stable_counter;
     volatile uint32_t pulse_stable_counter;
     volatile uint32_t previous_pulse_ticks;
-    volatile uint32_t last_capture_ms;
+    volatile uint64_t last_capture_ms;
 } PwmChannel;
 
 /**

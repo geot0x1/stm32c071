@@ -143,7 +143,7 @@ static void init_channel_struct(PwmChannel *ch)
     ch->period_ticks = 0;
     ch->pulse_ticks = 0;
     ch->low_level_ticks = 0;
-    ch->last_capture_ms = (uint32_t)millis();
+    ch->last_capture_ms = millis();
     ch->new_data_ready = false;
     ch->period_stable_counter = 0;
     ch->previous_period_ticks = 0;
@@ -177,7 +177,7 @@ static void apply_output_to_hardware(PwmOutput *out, uint32_t active_pulse)
 
 static void process_channel_update(PwmChannel *ch, PwmOutput *out)
 {
-    uint32_t now = (uint32_t)millis();
+    uint64_t now = millis();
     const uint32_t TIMEOUT_MS = 50;
 
     if (ch->new_data_ready)
@@ -298,7 +298,7 @@ static void handle_ic_capture(PwmChannel *ch, uint32_t captured, uint32_t channe
 
         ch->rise_timestamp = captured;
         ch->rise_captured = true;
-        ch->last_capture_ms = (uint32_t)millis();
+        ch->last_capture_ms = millis();
     }
     else /* FALLING EDGE — end of high phase */
     {
@@ -339,7 +339,7 @@ static void handle_ic_capture(PwmChannel *ch, uint32_t captured, uint32_t channe
         }
 
         ch->fall_timestamp = captured;
-        ch->last_capture_ms = (uint32_t)millis();
+        ch->last_capture_ms = millis();
     }
 }
 
