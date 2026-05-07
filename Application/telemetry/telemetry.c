@@ -1,5 +1,5 @@
 #include "telemetry.h"
-#include "temperature_sensor.h"
+#include "system_temp.h"
 #include "pwm_repeater.h"
 #include "fan_control.h"
 #include "settings.h"
@@ -32,7 +32,7 @@ static Telemetry telemetry = {
 
 static ThermalState compute_thermal_state(void)
 {
-    uint16_t raw_temp = get_temperature();
+    uint16_t raw_temp = system_temp_get();
     if (raw_temp == 0xFFFFU)
     {
         return ThermalSensorLost;
@@ -82,7 +82,7 @@ void telemetry_create(char *buf, size_t buf_size)
         return;
     }
 
-    uint16_t raw_temp = get_temperature();
+    uint16_t raw_temp = system_temp_get();
     uint32_t boot_s = (uint32_t)(millis() / 1000U);
     const char *fan_str = get_fan_state_str();
     uint32_t in_dc_a = pwm_get_duty_a();

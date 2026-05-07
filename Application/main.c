@@ -11,6 +11,7 @@
 #include "serial.h"
 #include "settings.h"
 #include "stm32c0xx_hal.h"
+#include "system_temp.h"
 #include "telemetry.h"
 #include "temperature_sensor.h"
 #include "timers/timers.h"
@@ -20,14 +21,14 @@
 #include <stdint.h>
 
 /* Tunables */
-#define APP_DEBUG_ENABLE                 1        /* set to 0 to silence all [INIT]/[STATUS] output */
-#define APP_FAN_PWM_FREQ_HZ              25000U
-#define APP_TEMP_HYSTERESIS_CDEG         50U      /* setpoint hysteresis for temp_sensor module */
-#define APP_CRITICAL_HYSTERESIS_CDEG     200      /* +/-2 C around T_critical */
-#define APP_PRESENCE_SAMPLE_MS           100U
-#define APP_RPM_PRESENT_THRESHOLD        100U
+#define APP_DEBUG_ENABLE 1 /* set to 0 to silence all [INIT]/[STATUS] output */
+#define APP_FAN_PWM_FREQ_HZ 25000U
+#define APP_TEMP_HYSTERESIS_CDEG 50U /* setpoint hysteresis for temp_sensor module */
+#define APP_CRITICAL_HYSTERESIS_CDEG 200 /* +/-2 C around T_critical */
+#define APP_PRESENCE_SAMPLE_MS 100U
+#define APP_RPM_PRESENT_THRESHOLD 100U
 #define APP_PRESENCE_MISSING_DEBOUNCE_MS 1500U
-#define APP_FAN_COUNT                    3U
+#define APP_FAN_COUNT 3U
 
 typedef enum
 {
@@ -40,18 +41,13 @@ typedef enum
 typedef struct
 {
     ThermalState thermal;
-    bool         button_override;
-    bool         fan_present[APP_FAN_COUNT];
-    uint32_t     missing_since_ms[APP_FAN_COUNT];
-    uint32_t     last_presence_sample_ms;
+    bool button_override;
+    bool fan_present[APP_FAN_COUNT];
+    uint32_t missing_since_ms[APP_FAN_COUNT];
+    uint32_t last_presence_sample_ms;
 } AppState;
 
 static AppState app;
-static Hdc2010  hdc2010_dev;
-static bool     hdc2010_ok;
-static bool     hdc2010_valid;
-static int16_t  hdc2010_last_temp;
-static uint8_t  hdc2010_last_rh;
 
 static ThermalState thermal_step(ThermalState prev, uint16_t raw, const Settings *s)
 {
@@ -60,11 +56,11 @@ static ThermalState thermal_step(ThermalState prev, uint16_t raw, const Settings
         return ThermalSensorLost;
     }
 
-    int16_t t        = (int16_t)raw;
-    int16_t crit_on  = s->temp_critical;
+    int16_t t = (int16_t)raw;
+    int16_t crit_on = s->temp_critical;
     int16_t crit_off = (int16_t)(s->temp_critical - APP_CRITICAL_HYSTERESIS_CDEG);
-    int16_t fan_on   = s->temp_fan_on;
-    int16_t fan_off  = s->temp_fan_off;
+    int16_t fan_on = s->temp_fan_on;
+    int16_t fan_off = s->temp_fan_off;
 
     switch (prev)
     {
@@ -159,7 +155,7 @@ static void update_fan_presence(uint32_t now_ms)
         if (fan_control_get_type(unit) == FanType2Wire)
         {
             /* No tacho available — assume present */
-            app.fan_present[i]      = true;
+            app.fan_present[i] = true;
             app.missing_since_ms[i] = 0U;
             continue;
         }
@@ -174,7 +170,7 @@ static void update_fan_presence(uint32_t now_ms)
         uint32_t rpm = fan_tacho_get_rpm(unit);
         if (rpm >= APP_RPM_PRESENT_THRESHOLD)
         {
-            app.fan_present[i]      = true;
+            app.fan_present[i] = true;
             app.missing_since_ms[i] = 0U;
         }
         else
@@ -207,37 +203,28 @@ static void update_led(ThermalState state, bool fans_on)
     }
 }
 
-static uint16_t get_system_temperature(void)
-{
-    uint16_t ds_temp = get_temperature();
-
-    if (!hdc2010_ok || !hdc2010_valid)
-        return ds_temp;
-
-    if (ds_temp == 0xFFFFU)
-        return (uint16_t)hdc2010_last_temp;
-
-    int16_t hdc = hdc2010_last_temp;
-    int16_t ds  = (int16_t)ds_temp;
-    return (uint16_t)(ds > hdc ? ds : hdc);
-}
 
 #if APP_DEBUG_ENABLE
 static const char *thermal_state_str(ThermalState state)
 {
     switch (state)
     {
-        case ThermalLow:        return "LOW";
-        case ThermalHigh:       return "HIGH";
-        case ThermalCritical:   return "CRITICAL";
-        case ThermalSensorLost: return "SENSOR_LOST";
-        default:                return "UNKNOWN";
+        case ThermalLow:
+            return "LOW";
+        case ThermalHigh:
+            return "HIGH";
+        case ThermalCritical:
+            return "CRITICAL";
+        case ThermalSensorLost:
+            return "SENSOR_LOST";
+        default:
+            return "UNKNOWN";
     }
 }
 
 static void fmt_temp(int16_t cdeg, int16_t *deg_out, int16_t *frac_out)
 {
-    *deg_out  = cdeg / 100;
+    *deg_out = cdeg / 100;
     *frac_out = cdeg % 100;
     if (*frac_out < 0)
     {
@@ -256,9 +243,9 @@ static void debug_task(void)
     last_ms = now;
 
     /* --- Temperatures & thermal state --- */
-    uint16_t ds_raw  = get_temperature();
-    uint16_t sys_raw = get_system_temperature();
-    int16_t  deg, frac;
+    uint16_t ds_raw = get_temperature();
+    uint16_t sys_raw = system_temp_get();
+    int16_t deg, frac;
 
     if (ds_raw == 0xFFFFU)
     {
@@ -270,18 +257,17 @@ static void debug_task(void)
         serial_printf("[STATUS] DS18B20: %d.%02d C", deg, frac);
     }
 
-    if (!hdc2010_ok)
     {
-        serial_printf(" | HDC2010: NOT PRESENT");
-    }
-    else if (!hdc2010_valid)
-    {
-        serial_printf(" | HDC2010: PENDING");
-    }
-    else
-    {
-        fmt_temp(hdc2010_last_temp, &deg, &frac);
-        serial_printf(" | HDC2010: %d.%02d C RH:%u%%", deg, frac, hdc2010_last_rh);
+        uint16_t hdc_temp = hdc2010_get_temp();
+        if (hdc_temp == 0xFFFFU)
+        {
+            serial_printf(" | HDC2010: N/A");
+        }
+        else
+        {
+            fmt_temp((int16_t)hdc_temp, &deg, &frac);
+            serial_printf(" | HDC2010: %d.%02d C RH:%u%%", deg, frac, hdc2010_get_rh());
+        }
     }
 
     if (sys_raw == 0xFFFFU)
@@ -294,82 +280,37 @@ static void debug_task(void)
         serial_printf(" | SysTemp: %d.%02d C", deg, frac);
     }
 
-    serial_printf(" | Thermal: %s | Btn: %s\r\n",
-                  thermal_state_str(app.thermal),
-                  app.button_override ? "YES" : "NO");
+    serial_printf(" | Thermal: %s | Btn: %s\r\n", thermal_state_str(app.thermal),
+        app.button_override ? "YES" : "NO");
 
     /* --- PWM channels --- */
     serial_printf("[STATUS] PWM-A: freq=%lu Hz in=%lu%% out=%lu%% throttle=%lu%%\r\n",
-                  pwm_get_frequency_a(), pwm_get_duty_a(),
-                  pwm_get_output_duty_a(), pwmOutputA.throttle_val);
+        pwm_get_frequency_a(), pwm_get_duty_a(), pwm_get_output_duty_a(), pwmOutputA.throttle_val);
     serial_printf("[STATUS] PWM-B: freq=%lu Hz in=%lu%% out=%lu%% throttle=%lu%%\r\n",
-                  pwm_get_frequency_b(), pwm_get_duty_b(),
-                  pwm_get_output_duty_b(), pwmOutputB.throttle_val);
+        pwm_get_frequency_b(), pwm_get_duty_b(), pwm_get_output_duty_b(), pwmOutputB.throttle_val);
 
     /* --- Fans --- */
     for (uint8_t i = 0U; i < APP_FAN_COUNT; i++)
     {
-        uint8_t     unit     = i + 1U;
+        uint8_t unit = i + 1U;
         const char *type_str = (fan_control_get_type(unit) == FanType2Wire) ? "2W" : "3/4W";
-        uint8_t     duty     = fan_control_get_unit_duty(unit);
-        uint32_t    rpm      = fan_tacho_get_rpm(unit);
-        serial_printf("[STATUS] Fan%u: type=%s duty=%u%% present=%s rpm=%lu\r\n",
-                      unit, type_str, duty,
-                      app.fan_present[i] ? "YES" : "NO",
-                      rpm);
+        uint8_t duty = fan_control_get_unit_duty(unit);
+        uint32_t rpm = fan_tacho_get_rpm(unit);
+        serial_printf("[STATUS] Fan%u: type=%s duty=%u%% present=%s rpm=%lu\r\n", unit, type_str,
+            duty, app.fan_present[i] ? "YES" : "NO", rpm);
     }
 }
 #endif /* APP_DEBUG_ENABLE */
 
-static void hdc2010_poll_task(void)
-{
-    typedef enum { Hdc2010Idle, Hdc2010Waiting } Hdc2010PollState;
-    static Hdc2010PollState state      = Hdc2010Idle;
-    static uint32_t         trigger_ms = 0U;
-    static uint32_t         poll_ms    = 0U;
-
-    if (!hdc2010_ok)
-        return;
-
-    uint32_t now = HAL_GetTick();
-
-    switch (state)
-    {
-        case Hdc2010Idle:
-            if (now - poll_ms >= 1000U)
-            {
-                hdc2010_start_measurement(&hdc2010_dev);
-                trigger_ms = now;
-                state      = Hdc2010Waiting;
-            }
-            break;
-
-        case Hdc2010Waiting:
-            if (now - trigger_ms >= 2U)
-            {
-                int16_t temp = 0;
-                uint8_t rh   = 0;
-                if (hdc2010_read(&hdc2010_dev, &temp, &rh) == HDC2010_OK)
-                {
-                    hdc2010_last_temp = temp;
-                    hdc2010_last_rh   = rh;
-                    hdc2010_valid     = true;
-                }
-                poll_ms = now;
-                state   = Hdc2010Idle;
-            }
-            break;
-    }
-}
 
 static void app_state_init(void)
 {
-    app.thermal                 = ThermalLow;
-    app.button_override         = false;
+    app.thermal = ThermalLow;
+    app.button_override = false;
     app.last_presence_sample_ms = 0U;
     for (uint8_t i = 0U; i < APP_FAN_COUNT; i++)
     {
-        app.fan_present[i]      = true; /* assume present until proven otherwise */
+        app.fan_present[i] = true; /* assume present until proven otherwise */
         app.missing_since_ms[i] = 0U;
     }
 }
@@ -384,10 +325,10 @@ static void app_task(void)
 
     uint32_t now_ms = HAL_GetTick();
 
-    app.thermal         = thermal_step(app.thermal, get_system_temperature(), s);
+    app.thermal = thermal_step(app.thermal, system_temp_get(), s);
     app.button_override = push_button_is_pressed();
 
-    bool fans_auto_on     = (app.thermal == ThermalHigh) || (app.thermal == ThermalCritical);
+    bool fans_auto_on = (app.thermal == ThermalHigh) || (app.thermal == ThermalCritical);
     bool fans_required_on = app.button_override || fans_auto_on;
 
     apply_throttle(app.thermal, s);
@@ -415,18 +356,18 @@ int main(void)
 #if APP_DEBUG_ENABLE
     serial_printf("[INIT] Phase 2: Settings loaded — throttle_a=%u%% throttle_b=%u%%"
                   " fan_on=%d fan_off=%d critical=%d (centideg)\r\n",
-                  s->pwm_throttle_a, s->pwm_throttle_b,
-                  s->temp_fan_on, s->temp_fan_off, s->temp_critical);
+        s->pwm_throttle_a, s->pwm_throttle_b, s->temp_fan_on, s->temp_fan_off, s->temp_critical);
 #endif
 
     /* Phase 3: USB up early so enumeration can start; nothing below blocks */
     usb_init();
     telemetry_init();
     commands_init();
-    hdc2010_ok = (hdc2010_init(&hdc2010_dev, board_get_i2c(), HDC2010_ADDR_LOW) == HDC2010_OK);
+    Hdc2010Err hdc_err = hdc2010_init(board_get_i2c(), HDC2010_ADDR_LOW);
+    (void)hdc_err;
 #if APP_DEBUG_ENABLE
     serial_printf("[INIT] Phase 3: USB + telemetry + commands OK\r\n");
-    serial_printf("[INIT] HDC2010: %s\r\n", hdc2010_ok ? "OK" : "NOT FOUND");
+    serial_printf("[INIT] HDC2010: %s\r\n", hdc_err == HDC2010_OK ? "OK" : "NOT FOUND");
 #endif
 
     /* Phase 4: I/O */
@@ -441,7 +382,7 @@ int main(void)
     pwm_set_throttle_b(100U);
 #if APP_DEBUG_ENABLE
     serial_printf("[INIT] PWM repeater OK — throttle_a=%u%% throttle_b=%u%% (active at T_high)\r\n",
-                  s->pwm_throttle_a, s->pwm_throttle_b);
+        s->pwm_throttle_a, s->pwm_throttle_b);
 #endif
 
     board_onewire_power_set(true);
@@ -452,7 +393,7 @@ int main(void)
     temperature_sensor_set_hysteresis(APP_TEMP_HYSTERESIS_CDEG);
 #if APP_DEBUG_ENABLE
     serial_printf("[INIT] Temp sensor OK — setpoint_a=%d setpoint_b=%d hyst=%u (centideg)\r\n",
-                  s->temp_fan_off, s->temp_fan_on, APP_TEMP_HYSTERESIS_CDEG);
+        s->temp_fan_off, s->temp_fan_on, APP_TEMP_HYSTERESIS_CDEG);
 #endif
 
     fan_control_init(timers_get_fan_power(), timers_get_fan_remote());
@@ -482,7 +423,7 @@ int main(void)
         push_button_task();
         pwm_repeater_task();
         temperature_sensor_task();
-        hdc2010_poll_task();
+        hdc2010_task();
         program_led_task();
         telemetry_task();
 

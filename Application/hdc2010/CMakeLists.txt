@@ -1,4 +1,4 @@
 add_library(hdc2010 STATIC)
 target_sources(hdc2010 PRIVATE hdc2010.h hdc2010.c)
 target_include_directories(hdc2010 PUBLIC .)
-target_link_libraries(hdc2010 PRIVATE bsp_i2c stm32cubemx)
+target_link_libraries(hdc2010 PUBLIC bsp_i2c PRIVATE stm32cubemx)

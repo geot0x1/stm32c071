@@ -92,6 +92,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     settings
     commands
     telemetry
+    system_temp
     program_led
     push_button
 )

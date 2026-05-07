@@ -9,7 +9,7 @@ target_include_directories(telemetry PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(telemetry PRIVATE
     bsp_tim
-    temperature_sensor
+    system_temp
     pwm_repeater
     fan_control
     settings
