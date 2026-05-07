@@ -5,22 +5,24 @@
 		}
 	],
 	"settings": {
+		"workbench.colorCustomizations": {
+			"statusBar.background": "#333333",
+			"statusBar.foreground": "#FFFFFF",
+			"statusBar.noFolderBackground": "#333333",
+			"statusBar.debuggingBackground": "#333333"
+		},
 		"actionButtons": {
-			"buttons": [
+			"defaultColor": "#FFFFFF",
+			"commands": [
 				{
-					"name": "Build",
-					"command": "python ${workspaceFolder}/build.py",
-					"useTerminal": true
+					"name": "$(play) Build & Flash",
+					"command": "python run.py",
+					"tooltip": "Build and flash in one step"
 				},
 				{
-					"name": "Rebuild",
-					"command": "python ${workspaceFolder}/build.py --clean",
-					"useTerminal": true
-				},
-				{
-					"name": "Flash",
-					"command": "python ${workspaceFolder}/flash.py",
-					"useTerminal": true
+					"name": "$(terminal) Monitor",
+					"command": "python monitor_com.py",
+					"tooltip": "Open serial monitor on COM4"
 				}
 			]
 		}

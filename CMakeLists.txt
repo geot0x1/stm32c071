@@ -35,19 +35,10 @@ enable_language(C ASM)
 add_executable(${CMAKE_PROJECT_NAME})
 
 # Add STM32CubeMX generated sources
-add_subdirectory(sys_time)
 add_subdirectory(cmake/stm32cubemx)
 
-# Add user defined libraries
-add_subdirectory(crc32)
-add_subdirectory(nvs)
-add_subdirectory(critical)
-add_subdirectory(onewire)
-add_subdirectory(ds18b20)
-add_subdirectory(temperature_sensor)
-add_subdirectory(delay)
-add_subdirectory(usb)
-add_subdirectory(fan_control)
+# Add application modules
+add_subdirectory(Application)
 
 
 # Link directories setup
@@ -58,16 +49,14 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # User Features
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/pwm_repeater.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Application/main.c
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
+    ${CMAKE_CURRENT_SOURCE_DIR}/Application
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc
-    ${CMAKE_CURRENT_SOURCE_DIR}/temperature_sensor
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb
-    ${CMAKE_CURRENT_SOURCE_DIR}/fan_control
 )
 
 # Add project symbols (macros)
@@ -83,6 +72,10 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
 
     # Add user defined libraries
+    board
+    timers
+    pwm_repeater
+    flash
     nvs
     sys_time
     critical
@@ -91,7 +84,17 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     delay
     temperature_sensor
     usb
+    serial
     fan_control
+    fan_tacho
+    hdc2010
+    watchdog
+    settings
+    commands
+    telemetry
+    system_temp
+    program_led
+    push_button
 )
 
 # Include build info generator

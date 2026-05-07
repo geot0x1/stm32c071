@@ -21,28 +21,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "stm32c0xx_hal.h"
-#include "stm32c0xx_hal_rcc_ex.h"
-#include "usb.h"
-#include <stdio.h>
-#include "sys_time.h"
-#include "pwm_repeater.h"
-#include "temperature_sensor.h"
-#include "delay.h"
-#include "ds18b20.h"
-#include "fan_control.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef struct
-{
-    uint32_t last_rising_timestamp;
-    uint32_t last_falling_timestamp;
-    uint32_t last_period;
-    uint32_t last_high_time;
-    float duty_cycle;
-} PwmMeasure;
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -59,18 +43,19 @@ typedef struct
 
 I2C_HandleTypeDef hi2c2;
 
+IWDG_HandleTypeDef hiwdg;
+
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim16;
 TIM_HandleTypeDef htim17;
 
+UART_HandleTypeDef huart1;
+
 PCD_HandleTypeDef hpcd_USB_DRD_FS;
 
 /* USER CODE BEGIN PV */
-volatile PwmMeasure capturePB10 = {0};
-volatile PwmMeasure capturePB11 = {0};
-volatile uint32_t timer3_overflow_count = 0;
 
 /* USER CODE END PV */
 
@@ -85,34 +70,14 @@ static void MX_TIM3_Init(void);
 static void MX_FLASH_Init(void);
 static void MX_TIM16_Init(void);
 static void MX_TIM17_Init(void);
+static void MX_IWDG_Init(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
-uint64_t get_microseconds(void);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-void temperature_sensor_event_handler(TempSensorEvent event)
-{
-    switch (event)
-    {
-        case EVENT_SENSOR_LOST:
-            usb_printf("TEMP: SENSOR LOST\r\n");
-            break;
-        case EVENT_ABOVE_A:
-            usb_printf("TEMP: ABOVE A\r\n");
-            break;
-        case EVENT_ABOVE_B:
-            usb_printf("TEMP: ABOVE B\r\n");
-            break;
-        case EVENT_BELOW_A:
-            usb_printf("TEMP: BELOW A\r\n");
-            break;
-        case EVENT_BELOW_B:
-            usb_printf("TEMP: BELOW B\r\n");
-            break;
-    }
-}
 
 /* USER CODE END 0 */
 
@@ -153,104 +118,20 @@ int main(void)
   MX_FLASH_Init();
   MX_TIM16_Init();
   MX_TIM17_Init();
+  MX_IWDG_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  
-  // Enable USB Clock (adapted from HAL_PCD_MspInit)
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
-  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSE;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  __HAL_RCC_USB_CLK_ENABLE();
-  HAL_Delay(20);
-  // Initialize USB wrapper (calls tusb_init)
-  usb_init();
-
-  // Initialize Fan Control Module (TIM1/TIM3 @ 25kHz)
-  fan_control_init();
-  fan_init(25000);
-  fan_control_set_unit_duty(1, 50);
-  fan_control_set_unit_duty(2, 10);
-  fan_control_set_unit_duty(3, 60);
-  fan_control_set_unit_duty(4, 80);
-
-
-  // Start TIM2 PWM on all Channels
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-
-  // Start TIM3 (Free-running timer at 1MHz with interrupts)
-  HAL_TIM_Base_Start_IT(&htim3);
-
-  // Initialize Delay (Hardware Timer)
-  delay_init();
-
-  // Initialize Temperature Sensor
-  temperature_sensor_init();
-
-  // Initialize PWM Repeater
-  pwm_repeater_init();
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  temperature_sensor_set_setpoint_a(2500);
-  temperature_sensor_set_setpoint_b(3000);
-  temperature_sensor_set_hysteresis(50);
-  temperature_sensor_register_handler(temperature_sensor_event_handler);
-    while (1)
-    {
-        // Non-blocking tasks
-        usb_task();
-        pwm_repeater_task();
-        temperature_sensor_task();
-        
-        static uint32_t last_init_debug = 0;
-        static uint32_t last_fan_test = 0;
-        static bool fan_toggle = false;
+  while (1)
+  {
+    /* USER CODE END WHILE */
 
-        if (HAL_GetTick() - last_fan_test >= 2000)
-        {
-            last_fan_test = HAL_GetTick();
-            fan_toggle = !fan_toggle;
-
-            if (fan_toggle)
-            {
-                fan_control_set_power_channel_duty(FAN_CHANNEL2, 50);
-                fan_control_set_remote_channel_duty(FAN_CHANNEL1, 0);
-                usb_printf("FAN CH1: POWER ON, REMOTE OFF\r\n");
-            }
-            else
-            {
-                fan_control_set_power_channel_duty(FAN_CHANNEL2, 0);
-                fan_control_set_remote_channel_duty(FAN_CHANNEL1, 50);
-                usb_printf("FAN CH1: POWER OFF, REMOTE ON\r\n");
-            }
-        }
-
-        if (HAL_GetTick() - last_init_debug >= 1000)
-        {
-            last_init_debug = HAL_GetTick();
-            
-            usb_printf("CH_A: %u Hz, %u\r\n", 
-                       (unsigned int)pwm_get_frequency_a(), (unsigned int)pwm_get_duty_a());
-            usb_printf("CH_B: %u Hz, %u\r\n", 
-                       (unsigned int)pwm_get_frequency_b(), (unsigned int)pwm_get_duty_b());
-
-            uint16_t raw_temp = get_temperature();
-            if (raw_temp == 0xFFFF)
-            {
-                usb_printf("TEMP: SENSOR LOST\r\n");
-            }
-            else
-            {
-                usb_printf("TEMP: %u\r\n", raw_temp);
-            }
-        }
-    }
+    /* USER CODE BEGIN 3 */
+  }
   /* USER CODE END 3 */
 }
 
@@ -268,8 +149,10 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE|RCC_OSCILLATORTYPE_HSI48;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE
+                              |RCC_OSCILLATORTYPE_HSI48;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
 
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
@@ -366,6 +249,35 @@ static void MX_I2C2_Init(void)
   /* USER CODE BEGIN I2C2_Init 2 */
 
   /* USER CODE END I2C2_Init 2 */
+
+}
+
+/**
+  * @brief IWDG Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_IWDG_Init(void)
+{
+
+  /* USER CODE BEGIN IWDG_Init 0 */
+
+  /* USER CODE END IWDG_Init 0 */
+
+  /* USER CODE BEGIN IWDG_Init 1 */
+
+  /* USER CODE END IWDG_Init 1 */
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_32;
+  hiwdg.Init.Window = 4095;
+  hiwdg.Init.Reload = 1999;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN IWDG_Init 2 */
+
+  /* USER CODE END IWDG_Init 2 */
 
 }
 
@@ -703,6 +615,54 @@ static void MX_TIM17_Init(void)
 }
 
 /**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
   * @brief USB Initialization Function
   * @param None
   * @retval None
@@ -769,39 +729,13 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
-  memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PA5 */
-  GPIO_InitStruct.Pin = GPIO_PIN_5;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
+/* USER CODE BEGIN 4 */
 
-
-/**
-  * @brief  Period elapsed callback in non blocking mode
-  * @param  htim: TIM handle
-  * @retval None
-  */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-    if (htim->Instance == TIM3)
-    {
-        timer3_overflow_count++;
-    }
-}
-
-
+/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.
