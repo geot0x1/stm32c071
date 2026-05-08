@@ -27,7 +27,7 @@
 #define APP_PRESENCE_SAMPLE_MS           100U
 #define APP_RPM_PRESENT_THRESHOLD        100U
 #define APP_PRESENCE_MISSING_DEBOUNCE_MS 1500U
-#define APP_FAN_COUNT                    3U
+#define APP_FAN_COUNT                    4U
 
 typedef enum
 {
