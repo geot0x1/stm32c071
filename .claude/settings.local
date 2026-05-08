@@ -1,0 +1,41 @@
+# .claude/settings.local
+# Repository-specific Claude Code settings for stm32c071 project
+# Actions whitelisted by user permission throughout development
+
+## Whitelisted Tools & Commands
+# These actions have been approved and do not require re-confirmation
+
+# File Creation & Writing
+- write: .claude/** (bugs, plans, research, tracking files)
+- write: create new files for bug tracking and documentation
+
+# Build & Flash Commands
+- bash: python build.py
+- bash: python build.py --clean
+- bash: python flash.py
+- bash: python run.py
+- bash: python monitor_com4.py
+
+# File Operations
+- read: Core/Src/**
+- read: Core/Inc/**
+- read: CMakeLists.txt
+- read: CMakePresets.json
+- read: build.py
+- read: flash.py
+- read: run.py
+- read: requirements.md
+- read: docs/**
+
+# Search & Analysis
+- grep: search C code for patterns
+- glob: find C/H files by pattern
+
+# Git Operations
+- bash: git status
+- bash: git log
+- bash: git diff
+
+## Notes
+# Add new whitelisted actions as they are approved during development
+# Format: tool_name: description or command pattern
