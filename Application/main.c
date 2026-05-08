@@ -391,8 +391,8 @@ static void app_task(void)
     bool fans_required_on = app.button_override || fans_auto_on;
 
     // apply_throttle(app.thermal, s);
-    apply_fans(fans_required_on);
-    update_fan_presence(now_ms);
+    apply_fans(true);  // Force all fans permanently ON
+    // update_fan_presence(now_ms);
     update_led(app.thermal, fans_required_on);
 
     /* USB print input PWM measurements */
