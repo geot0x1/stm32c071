@@ -4,8 +4,9 @@ import serial.tools.list_ports
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTabWidget, QTextEdit, QPushButton, QComboBox, QLabel, QStatusBar,
-    QFrame, QCheckBox, QGridLayout
+    QFrame, QCheckBox, QGridLayout, QLineEdit
 )
+from PyQt6.QtGui import QIntValidator
 from PyQt6.QtCore import QDateTime
 from PyQt6.QtCore import QThread, pyqtSignal, QTimer, Qt
 from PyQt6.QtGui import QColor, QFont
@@ -130,6 +131,34 @@ class SerialMonitorUI(QMainWindow):
         mode_layout.addStretch()
 
         main_layout.addLayout(mode_layout)
+
+        # PWM Throttle control layout
+        throttle_layout = QHBoxLayout()
+        throttle_layout.addWidget(QLabel("PWM Throttle (0-100):"))
+
+        self.throttle_a_input = QLineEdit()
+        self.throttle_a_input.setPlaceholderText("Channel A")
+        self.throttle_a_input.setMaxLength(3)
+        self.throttle_a_input.setValidator(QIntValidator(0, 100))
+        self.throttle_a_input.setEnabled(False)
+        throttle_layout.addWidget(self.throttle_a_input)
+
+        self.throttle_b_input = QLineEdit()
+        self.throttle_b_input.setPlaceholderText("Channel B")
+        self.throttle_b_input.setMaxLength(3)
+        self.throttle_b_input.setValidator(QIntValidator(0, 100))
+        self.throttle_b_input.setEnabled(False)
+        throttle_layout.addWidget(self.throttle_b_input)
+
+        self.throttle_apply_btn = QPushButton("Apply")
+        self.throttle_apply_btn.setStyleSheet("background-color: #FF9800; color: white; font-weight: bold;")
+        self.throttle_apply_btn.setEnabled(False)
+        self.throttle_apply_btn.clicked.connect(self.send_pwm_throttle)
+        throttle_layout.addWidget(self.throttle_apply_btn)
+
+        throttle_layout.addStretch()
+
+        main_layout.addLayout(throttle_layout)
 
         # Fan control layout
         fan_container_layout = QVBoxLayout()
@@ -416,6 +445,9 @@ class SerialMonitorUI(QMainWindow):
             self.port_combo.setEnabled(False)
             self.mode_normal_btn.setEnabled(True)
             self.mode_manual_btn.setEnabled(True)
+            self.throttle_a_input.setEnabled(True)
+            self.throttle_b_input.setEnabled(True)
+            self.throttle_apply_btn.setEnabled(True)
             for fan_num in range(1, 5):
                 getattr(self, f"fan{fan_num}_on_btn").setEnabled(True)
                 getattr(self, f"fan{fan_num}_off_btn").setEnabled(True)
@@ -426,6 +458,9 @@ class SerialMonitorUI(QMainWindow):
             self.port_combo.setEnabled(True)
             self.mode_normal_btn.setEnabled(False)
             self.mode_manual_btn.setEnabled(False)
+            self.throttle_a_input.setEnabled(False)
+            self.throttle_b_input.setEnabled(False)
+            self.throttle_apply_btn.setEnabled(False)
             for fan_num in range(1, 5):
                 getattr(self, f"fan{fan_num}_on_btn").setEnabled(False)
                 getattr(self, f"fan{fan_num}_off_btn").setEnabled(False)
@@ -478,6 +513,36 @@ class SerialMonitorUI(QMainWindow):
         self.raw_text.insertPlainText(f"\n>>> FAN{fan_num}=OFF\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
             self.serial_worker.ser.write(f"FAN{fan_num}=OFF\r\n".encode())
+        self.autoscroll_to_bottom()
+
+    def send_pwm_throttle(self):
+        if self.serial_worker is None or not self.serial_worker.isRunning():
+            self.statusBar().showMessage("Not connected - cannot send command")
+            return
+
+        throttle_a = self.throttle_a_input.text().strip()
+        throttle_b = self.throttle_b_input.text().strip()
+
+        if not throttle_a and not throttle_b:
+            self.statusBar().showMessage("Please enter at least one throttle value")
+            return
+
+        if throttle_a:
+            if not throttle_a.isdigit() or int(throttle_a) > 100:
+                self.statusBar().showMessage("Channel A: Enter a value between 0-100")
+                return
+            self.raw_text.insertPlainText(f"\n>>> PWMTHR=A,{throttle_a}\n")
+            if self.serial_worker.ser and self.serial_worker.ser.is_open:
+                self.serial_worker.ser.write(f"PWMTHR=A,{throttle_a}\r\n".encode())
+
+        if throttle_b:
+            if not throttle_b.isdigit() or int(throttle_b) > 100:
+                self.statusBar().showMessage("Channel B: Enter a value between 0-100")
+                return
+            self.raw_text.insertPlainText(f"\n>>> PWMTHR=B,{throttle_b}\n")
+            if self.serial_worker.ser and self.serial_worker.ser.is_open:
+                self.serial_worker.ser.write(f"PWMTHR=B,{throttle_b}\r\n".encode())
+
         self.autoscroll_to_bottom()
 
     def closeEvent(self, event):

@@ -3,6 +3,7 @@
 #include "telemetry.h"
 #include "usb.h"
 #include "fan_control.h"
+#include "pwm_repeater.h"
 #include "stm32c0xx_hal.h"
 #include <stdint.h>
 #include <stdbool.h>
@@ -16,6 +17,10 @@ typedef enum
 } AppMode;
 
 extern void app_set_mode(AppMode mode);
+extern void app_set_throttle_override(uint32_t throttle_a, uint32_t throttle_b);
+extern void app_clear_throttle_override(void);
+extern uint32_t app_get_throttle_override_a(void);
+extern uint32_t app_get_throttle_override_b(void);
 
 #define CMD_LINE_BUF_SIZE 128U
 #define CMD_USB_CHUNK_SIZE 64U
@@ -480,6 +485,60 @@ static void handle_mode(const char *token)
     }
 }
 
+static void handle_pwm_throttle(const char *token)
+{
+    const char *equals = strchr(token, '=');
+    if (equals == NULL)
+    {
+        usb_printf("ERR INVALID_FORMAT pwmthr\r\n");
+        return;
+    }
+
+    const char *params = equals + 1;
+    const char *comma = strchr(params, ',');
+    if (comma == NULL)
+    {
+        usb_printf("ERR INVALID_FORMAT pwmthr\r\n");
+        return;
+    }
+
+    char channel = *params;
+    if ((channel != 'A') && (channel != 'B') && (channel != 'a') && (channel != 'b'))
+    {
+        usb_printf("ERR INVALID_CHANNEL %c\r\n", channel);
+        return;
+    }
+
+    int32_t throttle;
+    if (!parse_int(comma + 1, &throttle))
+    {
+        usb_printf("ERR INVALID_VALUE pwmthr %s\r\n", comma + 1);
+        return;
+    }
+
+    if ((throttle < 0) || (throttle > 100))
+    {
+        usb_printf("ERR OUT_OF_RANGE pwmthr %d\r\n", (int)throttle);
+        return;
+    }
+
+    uint32_t new_throttle_a = app_get_throttle_override_a();
+    uint32_t new_throttle_b = app_get_throttle_override_b();
+
+    if ((channel == 'A') || (channel == 'a'))
+    {
+        new_throttle_a = (uint32_t)throttle;
+        usb_printf("OK PWMTHR A %d\r\n", (int)throttle);
+    }
+    else
+    {
+        new_throttle_b = (uint32_t)throttle;
+        usb_printf("OK PWMTHR B %d\r\n", (int)throttle);
+    }
+
+    app_set_throttle_override(new_throttle_a, new_throttle_b);
+}
+
 static bool linebuffer_append_byte(uint8_t byte)
 {
     if (lineBuf.len < (CMD_LINE_BUF_SIZE - 1U))
@@ -543,6 +602,12 @@ static void process_line(void)
 {
     usb_printf("\r\n");
     usb_printf("[CMD] Received line: %s\r\n", lineBuf.buf);
+
+    if (strstr(lineBuf.buf, "PWMTHR=") == lineBuf.buf && strchr(lineBuf.buf, ',') != NULL)
+    {
+        handle_pwm_throttle(lineBuf.buf);
+        return;
+    }
 
     if (strstr(lineBuf.buf, "FAN") == lineBuf.buf && strchr(lineBuf.buf, '=') != NULL)
     {
