@@ -4,7 +4,7 @@ import serial.tools.list_ports
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTabWidget, QTextEdit, QPushButton, QComboBox, QLabel, QStatusBar,
-    QFrame
+    QFrame, QCheckBox
 )
 from PyQt6.QtCore import QThread, pyqtSignal, QTimer, Qt
 from PyQt6.QtGui import QColor, QFont
@@ -68,6 +68,7 @@ class SerialMonitorUI(QMainWindow):
         self.setGeometry(100, 100, 1000, 600)
 
         self.serial_worker = None
+        self.autoscroll_enabled = True
         self.find_ports_timer = QTimer()
         self.find_ports_timer.timeout.connect(self.update_port_list)
         self.find_ports_timer.start(1000)
@@ -96,6 +97,11 @@ class SerialMonitorUI(QMainWindow):
         self.clear_btn.clicked.connect(self.clear_output)
         control_layout.addWidget(self.clear_btn)
 
+        self.autoscroll_checkbox = QCheckBox("Autoscroll")
+        self.autoscroll_checkbox.setChecked(True)
+        self.autoscroll_checkbox.stateChanged.connect(self.on_autoscroll_toggled)
+        control_layout.addWidget(self.autoscroll_checkbox)
+
         control_layout.addStretch()
 
         self.status_label = QLabel("Disconnected")
@@ -110,13 +116,13 @@ class SerialMonitorUI(QMainWindow):
 
         self.mode_normal_btn = QPushButton("Normal")
         self.mode_normal_btn.clicked.connect(self.send_mode_normal)
-        self.mode_normal_btn.setStyleSheet("background-color: #e8f4f8;")
+        self.mode_normal_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold;")
         self.mode_normal_btn.setEnabled(False)
         mode_layout.addWidget(self.mode_normal_btn)
 
         self.mode_manual_btn = QPushButton("Manual")
         self.mode_manual_btn.clicked.connect(self.send_mode_manual)
-        self.mode_manual_btn.setStyleSheet("background-color: #f8e8e8;")
+        self.mode_manual_btn.setStyleSheet("background-color: #FF6B6B; color: white; font-weight: bold;")
         self.mode_manual_btn.setEnabled(False)
         mode_layout.addWidget(self.mode_manual_btn)
 
@@ -130,14 +136,14 @@ class SerialMonitorUI(QMainWindow):
 
         for fan_num in range(1, 5):
             on_btn = QPushButton(f"FAN{fan_num} ON")
-            on_btn.setStyleSheet("background-color: #c8e6c9;")
+            on_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
             on_btn.setEnabled(False)
             on_btn.clicked.connect(lambda checked, n=fan_num: self.send_fan_on(n))
             fan_layout.addWidget(on_btn)
             setattr(self, f"fan{fan_num}_on_btn", on_btn)
 
             off_btn = QPushButton(f"FAN{fan_num} OFF")
-            off_btn.setStyleSheet("background-color: #ffcccc;")
+            off_btn.setStyleSheet("background-color: #FF5252; color: white; font-weight: bold;")
             off_btn.setEnabled(False)
             off_btn.clicked.connect(lambda checked, n=fan_num: self.send_fan_off(n))
             fan_layout.addWidget(off_btn)
@@ -221,8 +227,7 @@ class SerialMonitorUI(QMainWindow):
 
     def on_data_received(self, data):
         self.raw_text.insertPlainText(data)
-        scrollbar = self.raw_text.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+        self.autoscroll_to_bottom()
 
     def on_status_changed(self, status):
         self.statusBar().showMessage(status)
@@ -253,6 +258,16 @@ class SerialMonitorUI(QMainWindow):
     def clear_output(self):
         self.raw_text.clear()
 
+    def autoscroll_to_bottom(self):
+        if self.autoscroll_enabled:
+            scrollbar = self.raw_text.verticalScrollBar()
+            scrollbar.setValue(scrollbar.maximum())
+
+    def on_autoscroll_toggled(self, state):
+        self.autoscroll_enabled = self.autoscroll_checkbox.isChecked()
+        if self.autoscroll_enabled:
+            self.autoscroll_to_bottom()
+
     def send_mode_normal(self):
         if self.serial_worker is None or not self.serial_worker.isRunning():
             self.statusBar().showMessage("Not connected - cannot send command")
@@ -260,8 +275,7 @@ class SerialMonitorUI(QMainWindow):
         self.raw_text.insertPlainText("\n>>> MODE NORMAL\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
             self.serial_worker.ser.write(b"MODE=NORMAL\r\n")
-        scrollbar = self.raw_text.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+        self.autoscroll_to_bottom()
 
     def send_mode_manual(self):
         if self.serial_worker is None or not self.serial_worker.isRunning():
@@ -270,8 +284,7 @@ class SerialMonitorUI(QMainWindow):
         self.raw_text.insertPlainText("\n>>> MODE MANUAL\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
             self.serial_worker.ser.write(b"MODE=MANUAL\r\n")
-        scrollbar = self.raw_text.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+        self.autoscroll_to_bottom()
 
     def send_fan_on(self, fan_num):
         if self.serial_worker is None or not self.serial_worker.isRunning():
@@ -280,8 +293,7 @@ class SerialMonitorUI(QMainWindow):
         self.raw_text.insertPlainText(f"\n>>> FAN{fan_num}=ON\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
             self.serial_worker.ser.write(f"FAN{fan_num}=ON\r\n".encode())
-        scrollbar = self.raw_text.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+        self.autoscroll_to_bottom()
 
     def send_fan_off(self, fan_num):
         if self.serial_worker is None or not self.serial_worker.isRunning():
@@ -290,8 +302,7 @@ class SerialMonitorUI(QMainWindow):
         self.raw_text.insertPlainText(f"\n>>> FAN{fan_num}=OFF\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
             self.serial_worker.ser.write(f"FAN{fan_num}=OFF\r\n".encode())
-        scrollbar = self.raw_text.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+        self.autoscroll_to_bottom()
 
     def closeEvent(self, event):
         self.find_ports_timer.stop()

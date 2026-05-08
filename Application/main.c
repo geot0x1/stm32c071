@@ -21,7 +21,7 @@
 #include <stdint.h>
 
 /* Tunables */
-#define APP_DEBUG_ENABLE                 1        /* set to 0 to silence all [INIT]/[STATUS] output */
+#define APP_DEBUG_ENABLE                 0        /* set to 0 to silence all [INIT]/[STATUS] output */
 #define APP_FAN_PWM_FREQ_HZ              25000U
 #define APP_TEMP_HYSTERESIS_CDEG         50U      /* setpoint hysteresis for temp_sensor module */
 #define APP_CRITICAL_HYSTERESIS_CDEG     200      /* +/-2 C around T_critical */
@@ -459,7 +459,7 @@ static void app_task(void)
     if (now_ms - last_usb_print_ms >= 500U)
     {
         last_usb_print_ms = now_ms;
-        usb_printf("[APP] Mode: %s | Input PWM-A: %lu Hz, %lu%% | Input PWM-B: %lu Hz, %lu%%\r\n",
+        usb_printf("[APP] Mode: %s | Input PWM-A: %lu Hz, %lu | Input PWM-B: %lu Hz, %lu\r\n",
                       app_mode_str(app.mode),
                       pwm_get_frequency_a(), pwm_get_duty_a(),
                       pwm_get_frequency_b(), pwm_get_duty_b());
