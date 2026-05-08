@@ -1,6 +1,7 @@
 #include "fan_control.h"
 #include "gpio.h"
 #include "board_config.h"
+#include "tim.h"
 
 static Tim *_power_tim = NULL;
 static Tim *_remote_tim = NULL;

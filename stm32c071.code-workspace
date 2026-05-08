@@ -5,6 +5,7 @@
 		}
 	],
 	"settings": {
+		"files.autoSave": "onFocusChange",
 		"workbench.colorCustomizations": {
 			"statusBar.background": "#333333",
 			"statusBar.foreground": "#FFFFFF",
@@ -14,6 +15,11 @@
 		"actionButtons": {
 			"defaultColor": "#FFFFFF",
 			"commands": [
+				{
+					"name": "$(tools) Build",
+					"command": "python build.py",
+					"tooltip": "Build the project"
+				},
 				{
 					"name": "$(play) Build & Flash",
 					"command": "python run.py",

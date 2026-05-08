@@ -1,3 +1,4 @@
+#include "app_mode.h"
 #include "board.h"
 #include "board/board_config.h"
 #include "commands.h"
@@ -39,6 +40,7 @@ typedef enum
 
 typedef struct
 {
+    AppMode      mode;
     ThermalState thermal;
     bool         button_override;
     bool         fan_present[APP_FAN_COUNT];
@@ -222,6 +224,32 @@ static uint16_t get_system_temperature(void)
     return (uint16_t)(ds > hdc ? ds : hdc);
 }
 
+static const char *app_mode_str(AppMode mode)
+{
+    switch (mode)
+    {
+        case ModeNormal: return "NORMAL";
+        case ModeManual: return "MANUAL";
+        default:         return "UNKNOWN";
+    }
+}
+
+void app_set_mode(AppMode mode)
+{
+    if (app.mode != mode)
+    {
+        app.mode = mode;
+#if APP_DEBUG_ENABLE
+        serial_printf("[MODE] Switched to %s\r\n", app_mode_str(mode));
+#endif
+    }
+}
+
+AppMode app_get_mode(void)
+{
+    return app.mode;
+}
+
 #if APP_DEBUG_ENABLE
 static const char *thermal_state_str(ThermalState state)
 {
@@ -294,7 +322,8 @@ static void debug_task(void)
         serial_printf(" | SysTemp: %d.%02d C", deg, frac);
     }
 
-    serial_printf(" | Thermal: %s | Btn: %s\r\n",
+    serial_printf(" | Mode: %s | Thermal: %s | Btn: %s\r\n",
+                  app_mode_str(app.mode),
                   thermal_state_str(app.thermal),
                   app.button_override ? "YES" : "NO");
 
@@ -364,6 +393,7 @@ static void hdc2010_poll_task(void)
 
 static void app_state_init(void)
 {
+    app.mode                    = ModeNormal;
     app.thermal                 = ThermalLow;
     app.button_override         = false;
     app.last_presence_sample_ms = 0U;
@@ -384,23 +414,53 @@ static void app_task(void)
 
     uint32_t now_ms = HAL_GetTick();
 
-    app.thermal         = thermal_step(app.thermal, get_system_temperature(), s);
-    app.button_override = push_button_is_pressed();
+    switch (app.mode)
+    {
+        case ModeNormal:
+        {
+            /* Normal mode: thermal state machine controls behavior */
+            app.thermal         = thermal_step(app.thermal, get_system_temperature(), s);
+            app.button_override = push_button_is_pressed();
 
-    bool fans_auto_on     = (app.thermal == ThermalHigh) || (app.thermal == ThermalCritical);
-    bool fans_required_on = app.button_override || fans_auto_on;
+            bool fans_auto_on     = (app.thermal == ThermalHigh) || (app.thermal == ThermalCritical);
+            bool fans_required_on = app.button_override || fans_auto_on;
 
-    // apply_throttle(app.thermal, s);
-    apply_fans(true);  // Force all fans permanently ON
-    // update_fan_presence(now_ms);
-    update_led(app.thermal, fans_required_on);
+            apply_throttle(app.thermal, s);
+            apply_fans(fans_required_on);
+            update_fan_presence(now_ms);
+            update_led(app.thermal, fans_required_on);
+            break;
+        }
+
+        case ModeManual:
+        {
+            /* Manual mode: external control via USB commands */
+            /* Fan duties are set via USB commands (e.g., fan_control_set_unit_duty) */
+            /* Skip thermal state machine processing */
+            app.button_override = false;
+
+            bool any_fan_on = false;
+            for (uint8_t i = 1U; i <= APP_FAN_COUNT; i++)
+            {
+                if (fan_control_get_unit_duty(i) > 0U)
+                {
+                    any_fan_on = true;
+                    break;
+                }
+            }
+
+            update_led(ThermalLow, any_fan_on);
+            break;
+        }
+    }
 
     /* USB print input PWM measurements */
     static uint32_t last_usb_print_ms = 0U;
     if (now_ms - last_usb_print_ms >= 500U)
     {
         last_usb_print_ms = now_ms;
-        usb_printf("[APP] Input PWM-A: %lu Hz, %lu%% | Input PWM-B: %lu Hz, %lu%%\r\n",
+        usb_printf("[APP] Mode: %s | Input PWM-A: %lu Hz, %lu%% | Input PWM-B: %lu Hz, %lu%%\r\n",
+                      app_mode_str(app.mode),
                       pwm_get_frequency_a(), pwm_get_duty_a(),
                       pwm_get_frequency_b(), pwm_get_duty_b());
     }
@@ -479,7 +539,8 @@ int main(void)
 
     app_state_init();
 #if APP_DEBUG_ENABLE
-    serial_printf("[INIT] App state init OK — all fans off, thermal=LOW\r\n");
+    serial_printf("[INIT] App state init OK — mode=%s, all fans off, thermal=LOW\r\n",
+                  app_mode_str(app.mode));
     serial_printf("[INIT] Boot complete. Entering main loop.\r\n");
 #endif
 
