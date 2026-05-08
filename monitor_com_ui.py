@@ -473,6 +473,8 @@ class SerialMonitorUI(QMainWindow):
         if self.autoscroll_enabled:
             scrollbar = self.raw_text.verticalScrollBar()
             scrollbar.setValue(scrollbar.maximum())
+            scrollbar = self.parsed_history.verticalScrollBar()
+            scrollbar.setValue(scrollbar.maximum())
 
     def on_autoscroll_toggled(self, state):
         self.autoscroll_enabled = self.autoscroll_checkbox.isChecked()
