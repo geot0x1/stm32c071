@@ -30,19 +30,20 @@ class SerialWorker(QThread):
     def run(self):
         try:
             self.ser = serial.Serial(self.port, BAUD, timeout=0.1)
+            self.ser.reset_input_buffer()
             self.status_changed.emit(f"Connected to {self.port}")
             self.connection_state.emit(True)
 
             while self.running:
                 if self.ser and self.ser.is_open:
-                    if self.ser.in_waiting > 0:
-                        data = self.ser.read(self.ser.in_waiting)
-                        try:
-                            text = data.decode('utf-8', errors='ignore')
+                    try:
+                        line = self.ser.readline()
+                        if line:
+                            text = line.decode('utf-8', errors='ignore')
+                            text = text.rstrip('\r\n') + '\n'
                             self.data_received.emit(text)
-                        except Exception as e:
-                            self.data_received.emit(f"\n[DECODE ERROR] {e}\n")
-                    self.msleep(10)
+                    except Exception as e:
+                        self.data_received.emit(f"\n[DECODE ERROR] {e}\n")
                 else:
                     break
 
