@@ -5,6 +5,7 @@
 #include "settings.h"
 #include "sys_time.h"
 #include "usb.h"
+#include "hdc2010.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -83,6 +84,8 @@ void telemetry_create(char *buf, size_t buf_size)
     }
 
     uint16_t raw_temp = get_temperature();
+    uint16_t hdc_temp = hdc2010_get_temp();
+    uint8_t hdc_rh = hdc2010_get_rh();
     uint32_t boot_s = (uint32_t)(millis() / 1000U);
     const char *fan_str = get_fan_state_str();
     uint32_t in_dc_a = pwm_get_duty_a();
@@ -107,18 +110,40 @@ void telemetry_create(char *buf, size_t buf_size)
             break;
     }
 
+    char ds_temp_str[8];
     if (raw_temp == 0xFFFFU)
     {
-        snprintf(buf, buf_size, "$01,%lu,ERR,%s,%lu,%lu,%lu,%lu,%s\r\n", (unsigned long)boot_s,
-            fan_str, (unsigned long)in_dc_a, (unsigned long)out_dc_a, (unsigned long)in_dc_b,
-            (unsigned long)out_dc_b, state_str);
+        snprintf(ds_temp_str, sizeof(ds_temp_str), "ERR");
     }
     else
     {
-        snprintf(buf, buf_size, "$01,%lu,%d,%s,%lu,%lu,%lu,%lu,%s\r\n", (unsigned long)boot_s,
-            (int)((int16_t)raw_temp / 100), fan_str, (unsigned long)in_dc_a,
-            (unsigned long)out_dc_a, (unsigned long)in_dc_b, (unsigned long)out_dc_b, state_str);
+        snprintf(ds_temp_str, sizeof(ds_temp_str), "%d", (int)((int16_t)raw_temp / 100));
     }
+
+    char hdc_temp_str[8];
+    char hdc_rh_str[4];
+    if (hdc_temp == 0xFFFFU)
+    {
+        snprintf(hdc_temp_str, sizeof(hdc_temp_str), "ERR");
+        snprintf(hdc_rh_str, sizeof(hdc_rh_str), "FF");
+    }
+    else
+    {
+        snprintf(hdc_temp_str, sizeof(hdc_temp_str), "%d", (int)((int16_t)hdc_temp / 100));
+        snprintf(hdc_rh_str, sizeof(hdc_rh_str), "%u", (unsigned)hdc_rh);
+    }
+
+    snprintf(buf, buf_size, "$01,%lu,%s,%s,%s,%s,%lu,%lu,%lu,%lu,%s\r\n",
+        (unsigned long)boot_s,
+        ds_temp_str,
+        hdc_temp_str,
+        hdc_rh_str,
+        fan_str,
+        (unsigned long)in_dc_a,
+        (unsigned long)out_dc_a,
+        (unsigned long)in_dc_b,
+        (unsigned long)out_dc_b,
+        state_str);
 }
 
 void telemetry_send(void)
