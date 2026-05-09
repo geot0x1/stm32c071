@@ -21,7 +21,6 @@
 #include <stdint.h>
 
 /* Tunables */
-#define APP_DEBUG_ENABLE                 0        /* set to 0 to silence all [INIT]/[STATUS] output */
 #define APP_FAN_PWM_FREQ_HZ              25000U
 #define APP_TEMP_HYSTERESIS_CDEG         50U      /* setpoint hysteresis for temp_sensor module */
 #define APP_CRITICAL_HYSTERESIS_CDEG     200      /* +/-2 C around T_critical */
@@ -260,9 +259,6 @@ void app_set_mode(AppMode mode)
         {
             app_clear_throttle_override();
         }
-#if APP_DEBUG_ENABLE
-        serial_printf("[MODE] Switched to %s\r\n", app_mode_str(mode));
-#endif
     }
 }
 
@@ -296,106 +292,6 @@ uint32_t app_get_throttle_override_b(void)
 {
     return app.throttle_override_b;
 }
-
-#if APP_DEBUG_ENABLE
-static const char *thermal_state_str(ThermalState state)
-{
-    switch (state)
-    {
-        case ThermalLow:        return "LOW";
-        case ThermalHigh:       return "HIGH";
-        case ThermalCritical:   return "CRITICAL";
-        case ThermalSensorLost: return "SENSOR_LOST";
-        default:                return "UNKNOWN";
-    }
-}
-
-static void fmt_temp(int16_t cdeg, int16_t *deg_out, int16_t *frac_out)
-{
-    *deg_out  = cdeg / 100;
-    *frac_out = cdeg % 100;
-    if (*frac_out < 0)
-    {
-        *frac_out = -*frac_out;
-    }
-}
-
-static void debug_task(void)
-{
-    static uint32_t last_ms = 0U;
-    uint32_t now = HAL_GetTick();
-    if (now - last_ms < 1000U)
-    {
-        return;
-    }
-    last_ms = now;
-
-    /* --- Temperatures & thermal state --- */
-    uint16_t ds_raw  = get_temperature();
-    uint16_t sys_raw = get_system_temperature();
-    int16_t  deg, frac;
-
-    if (ds_raw == 0xFFFFU)
-    {
-        serial_printf("[STATUS] DS18B20: LOST");
-    }
-    else
-    {
-        fmt_temp((int16_t)ds_raw, &deg, &frac);
-        serial_printf("[STATUS] DS18B20: %d.%02d C", deg, frac);
-    }
-
-    if (!hdc2010_ok)
-    {
-        serial_printf(" | HDC2010: NOT PRESENT");
-    }
-    else if (!hdc2010_valid)
-    {
-        serial_printf(" | HDC2010: PENDING");
-    }
-    else
-    {
-        fmt_temp(hdc2010_last_temp, &deg, &frac);
-        serial_printf(" | HDC2010: %d.%02d C RH:%u%%", deg, frac, hdc2010_last_rh);
-    }
-
-    if (sys_raw == 0xFFFFU)
-    {
-        serial_printf(" | SysTemp: LOST");
-    }
-    else
-    {
-        fmt_temp((int16_t)sys_raw, &deg, &frac);
-        serial_printf(" | SysTemp: %d.%02d C", deg, frac);
-    }
-
-    serial_printf(" | Mode: %s | Thermal: %s | Btn: %s\r\n",
-                  app_mode_str(app.mode),
-                  thermal_state_str(app.thermal),
-                  app.button_override ? "YES" : "NO");
-
-    /* --- PWM channels --- */
-    serial_printf("[STATUS] PWM-A: freq=%lu Hz in=%lu%% out=%lu%% throttle=%lu%%\r\n",
-                  pwm_get_frequency_a(), pwm_get_duty_a(),
-                  pwm_get_output_duty_a(), pwmOutputA.throttle_val);
-    serial_printf("[STATUS] PWM-B: freq=%lu Hz in=%lu%% out=%lu%% throttle=%lu%%\r\n",
-                  pwm_get_frequency_b(), pwm_get_duty_b(),
-                  pwm_get_output_duty_b(), pwmOutputB.throttle_val);
-
-    /* --- Fans --- */
-    for (uint8_t i = 0U; i < APP_FAN_COUNT; i++)
-    {
-        uint8_t     unit     = i + 1U;
-        const char *type_str = (fan_control_get_type(unit) == FanType2Wire) ? "2W" : "3/4W";
-        uint8_t     duty     = fan_control_get_unit_duty(unit);
-        uint32_t    rpm      = fan_tacho_get_rpm(unit);
-        serial_printf("[STATUS] Fan%u: type=%s duty=%u%% present=%s rpm=%lu\r\n",
-                      unit, type_str, duty,
-                      app.fan_present[i] ? "YES" : "NO",
-                      rpm);
-    }
-}
-#endif /* APP_DEBUG_ENABLE */
 
 static void hdc2010_poll_task(void)
 {
@@ -532,44 +428,24 @@ int main(void)
     delay_init(timers_get_sys_timer());
     watchdog_init();
     serial_init(BOARD_UART1_INSTANCE, BOARD_UART1_BAUD_RATE);
-#if APP_DEBUG_ENABLE
-    serial_printf("[INIT] Phase 1: MCU + basic services OK\r\n");
-#endif
 
     /* Phase 2: Persisted settings */
     settings_init();
     const Settings *s = settings_get();
-#if APP_DEBUG_ENABLE
-    serial_printf("[INIT] Phase 2: Settings loaded — throttle_a=%u%% throttle_b=%u%%"
-                  " fan_on=%d fan_off=%d critical=%d (centideg)\r\n",
-                  s->pwm_throttle_a, s->pwm_throttle_b,
-                  s->temp_fan_on, s->temp_fan_off, s->temp_critical);
-#endif
 
     /* Phase 3: USB up early so enumeration can start; nothing below blocks */
     usb_init();
     telemetry_init();
     commands_init();
     hdc2010_ok = (hdc2010_init(&hdc2010_dev, board_get_i2c(), HDC2010_ADDR_LOW) == HDC2010_OK);
-#if APP_DEBUG_ENABLE
-    serial_printf("[INIT] Phase 3: USB + telemetry + commands OK\r\n");
-    serial_printf("[INIT] HDC2010: %s\r\n", hdc2010_ok ? "OK" : "NOT FOUND");
-#endif
 
     /* Phase 4: I/O */
     program_led_init();
     push_button_init();
-#if APP_DEBUG_ENABLE
-    serial_printf("[INIT] Phase 4: LED + button OK\r\n");
-#endif
 
     pwm_repeater_init(timers_get_capture(), timers_get_repeater_a(), timers_get_repeater_b());
     pwm_set_throttle_a(100U);
     pwm_set_throttle_b(100U);
-#if APP_DEBUG_ENABLE
-    serial_printf("[INIT] PWM repeater OK — throttle_a=%u%% throttle_b=%u%% (active at T_high)\r\n",
-                  s->pwm_throttle_a, s->pwm_throttle_b);
-#endif
 
     board_onewire_power_set(true);
     board_onewire_pullup_set(true);
@@ -577,16 +453,9 @@ int main(void)
     temperature_sensor_set_setpoint_a(s->temp_fan_off);
     temperature_sensor_set_setpoint_b(s->temp_fan_on);
     temperature_sensor_set_hysteresis(APP_TEMP_HYSTERESIS_CDEG);
-#if APP_DEBUG_ENABLE
-    serial_printf("[INIT] Temp sensor OK — setpoint_a=%d setpoint_b=%d hyst=%u (centideg)\r\n",
-                  s->temp_fan_off, s->temp_fan_on, APP_TEMP_HYSTERESIS_CDEG);
-#endif
 
     fan_control_init(timers_get_fan_power(), timers_get_fan_remote());
     fan_init(APP_FAN_PWM_FREQ_HZ);
-#if APP_DEBUG_ENABLE
-    serial_printf("[INIT] Fan control OK — PWM freq=%u Hz\r\n", APP_FAN_PWM_FREQ_HZ);
-#endif
 
     /* Start with all fans off; thermal SM takes over from first iteration */
     for (uint8_t i = 1U; i <= APP_FAN_COUNT; i++)
@@ -595,11 +464,6 @@ int main(void)
     }
 
     app_state_init();
-#if APP_DEBUG_ENABLE
-    serial_printf("[INIT] App state init OK — mode=%s, all fans off, thermal=LOW\r\n",
-                  app_mode_str(app.mode));
-    serial_printf("[INIT] Boot complete. Entering main loop.\r\n");
-#endif
 
     /* Phase 5: Cooperative main loop */
     while (true)
@@ -615,8 +479,5 @@ int main(void)
         telemetry_task();
 
         app_task();
-#if APP_DEBUG_ENABLE
-        debug_task();
-#endif
     }
 }
