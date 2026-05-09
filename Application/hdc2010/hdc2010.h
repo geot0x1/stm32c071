@@ -54,6 +54,22 @@ Hdc2010Err hdc2010_start_measurement(Hdc2010 *dev);
  */
 Hdc2010Err hdc2010_read(Hdc2010 *dev, int16_t *temperature_cdeg, uint8_t *humidity_pct);
 
+/**
+ * @brief Get the last cached temperature value.
+ *
+ * Returns 0xFFFF if no valid reading is available.
+ * Value is in centidegrees (Celsius * 100), negatives as two's complement.
+ */
+uint16_t hdc2010_get_temp(void);
+
+/**
+ * @brief Get the last cached humidity value.
+ *
+ * Returns 0xFF if no valid reading is available.
+ * Value is relative humidity 0-100%.
+ */
+uint8_t hdc2010_get_rh(void);
+
 #ifdef __cplusplus
 }
 #endif

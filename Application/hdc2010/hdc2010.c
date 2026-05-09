@@ -1,5 +1,12 @@
 #include "hdc2010.h"
+#include <stdbool.h>
 #include <stddef.h>
+
+/* ── Cached values ───────────────────────────────────────────────────────── */
+
+static uint16_t cached_temp = 0xFFFFU;
+static uint8_t  cached_rh = 0xFFU;
+static bool     cached_valid = false;
 
 /* ── Register map ────────────────────────────────────────────────────────── */
 
@@ -82,6 +89,9 @@ Hdc2010Err hdc2010_start_measurement(Hdc2010 *dev)
 
 Hdc2010Err hdc2010_read(Hdc2010 *dev, int16_t *temperature_cdeg, uint8_t *humidity_pct)
 {
+    int16_t temp_value = 0;
+    uint8_t rh_value = 0;
+
     if (temperature_cdeg != NULL)
     {
         uint8_t lo, hi;
@@ -95,7 +105,9 @@ Hdc2010Err hdc2010_read(Hdc2010 *dev, int16_t *temperature_cdeg, uint8_t *humidi
         }
         uint16_t raw = (uint16_t)((uint16_t)hi << 8) | lo;
         /* T(cdeg) = raw * 165 * 100 / 65536 - 4000 */
-        *temperature_cdeg = (int16_t)(((uint32_t)raw * 16500UL) / 65536UL) - 4000;
+        temp_value = (int16_t)(((uint32_t)raw * 16500UL) / 65536UL) - 4000;
+        *temperature_cdeg = temp_value;
+        cached_temp = (uint16_t)temp_value;
     }
 
     if (humidity_pct != NULL)
@@ -111,8 +123,29 @@ Hdc2010Err hdc2010_read(Hdc2010 *dev, int16_t *temperature_cdeg, uint8_t *humidi
         }
         uint16_t raw = (uint16_t)((uint16_t)hi << 8) | lo;
         /* RH(%) = raw * 100 / 65536 */
-        *humidity_pct = (uint8_t)(((uint32_t)raw * 100UL) / 65536UL);
+        rh_value = (uint8_t)(((uint32_t)raw * 100UL) / 65536UL);
+        *humidity_pct = rh_value;
+        cached_rh = rh_value;
     }
 
+    cached_valid = true;
     return HDC2010_OK;
+}
+
+uint16_t hdc2010_get_temp(void)
+{
+    if (!cached_valid)
+    {
+        return 0xFFFFU;
+    }
+    return cached_temp;
+}
+
+uint8_t hdc2010_get_rh(void)
+{
+    if (!cached_valid)
+    {
+        return 0xFFU;
+    }
+    return cached_rh;
 }
