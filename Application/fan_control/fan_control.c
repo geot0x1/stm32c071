@@ -132,6 +132,18 @@ void fan_control_set_unit_duty(uint8_t unit_idx, uint8_t duty_pct)
     }
 }
 
+void fan_control_set_all_duty(uint8_t duty_pct)
+{
+    if (duty_pct > 100)
+    {
+        duty_pct = 100;
+    }
+    for (uint8_t i = 0; i < 4; i++)
+    {
+        fan_control_set_unit_duty(i + 1, duty_pct);
+    }
+}
+
 uint8_t fan_control_get_unit_duty(uint8_t unit_idx)
 {
     if (unit_idx < 1 || unit_idx > 4)
@@ -148,4 +160,14 @@ FanType fan_control_get_type(uint8_t unit_idx)
         return FanType2Wire;
     }
     return _fan_types[unit_idx - 1];
+}
+
+void fan_control_all_on(void)
+{
+    fan_control_set_all_duty(100);
+}
+
+void fan_control_all_off(void)
+{
+    fan_control_set_all_duty(0);
 }

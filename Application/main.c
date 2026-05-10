@@ -149,10 +149,13 @@ static void apply_throttle(ThermalState state, const Settings *s)
 
 static void apply_fans(bool fans_on)
 {
-    uint8_t duty = fans_on ? 100U : 0U;
-    for (uint8_t i = 1U; i <= APP_FAN_COUNT; i++)
+    if (fans_on)
     {
-        fan_control_set_unit_duty(i, duty);
+        fan_control_all_on();
+    }
+    else
+    {
+        fan_control_all_off();
     }
 }
 
@@ -367,10 +370,7 @@ int main(void)
     fan_init(APP_FAN_PWM_FREQ_HZ);
 
     /* Start with all fans off; thermal SM takes over from first iteration */
-    for (uint8_t i = 1U; i <= APP_FAN_COUNT; i++)
-    {
-        fan_control_set_unit_duty(i, 0U);
-    }
+    fan_control_all_off();
 
     app_state_init();
 
