@@ -495,12 +495,18 @@ static void handle_pwm_throttle(const char *token)
 
 static bool linebuffer_append_byte(uint8_t byte)
 {
-    if (lineBuf.len < (CMD_LINE_BUF_SIZE - 1U))
+    if (lineBuf.len + 2U <= CMD_LINE_BUF_SIZE)
     {
         lineBuf.buf[lineBuf.len++] = (char)byte;
+        lineBuf.buf[lineBuf.len] = '\0';
         return true;
     }
     return false;
+}
+
+static void linebuffer_clear(void)
+{
+    lineBuf.len = 0U;
 }
 
 static char *usb_read_line(void)
@@ -521,21 +527,11 @@ static char *usb_read_line(void)
             usb_write("\r\n", 2U);
             if (lineBuf.len > 0U)
             {
-                lineBuf.buf[lineBuf.len] = '\0';
                 char *result = lineBuf.buf;
-                lineBuf.len = 0U;
                 return result;
             }
         }
-        else if ((byte == 0x08U) || (byte == 0x7FU))
-        {
-            if (lineBuf.len > 0U)
-            {
-                lineBuf.len--;
-                usb_write("\b \b", 3U);
-            }
-        }
-        else if ((byte >= 0x20U) && (byte <= 0x7EU))
+        else if (byte < 128)
         {
             if (linebuffer_append_byte(byte))
             {
@@ -543,7 +539,7 @@ static char *usb_read_line(void)
             }
             else
             {
-                lineBuf.len = 0U;
+                linebuffer_clear();
                 usb_printf("ERR OVERFLOW\r\n");
             }
         }
@@ -578,7 +574,7 @@ static void process_line(void)
 
 void commands_init(void)
 {
-    lineBuf.len = 0U;
+    linebuffer_clear();
     fifo_init(&usb_fifo, usb_fifo_buffer, sizeof(usb_fifo_buffer));
 }
 
@@ -588,5 +584,6 @@ void commands_task(void)
     if (line != NULL)
     {
         process_line();
+        linebuffer_clear();
     }
 }
