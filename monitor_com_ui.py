@@ -5,12 +5,10 @@ import time
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTabWidget, QTextEdit, QPushButton, QComboBox, QLabel, QStatusBar,
-    QFrame, QCheckBox, QGridLayout, QLineEdit, QScrollArea
+    QFrame, QCheckBox, QGridLayout, QLineEdit, QScrollArea, QTableWidget, QTableWidgetItem
 )
-from PyQt6.QtGui import QIntValidator
-from PyQt6.QtCore import QDateTime
-from PyQt6.QtCore import QThread, pyqtSignal, QTimer, Qt
-from PyQt6.QtGui import QColor, QFont
+from PyQt6.QtGui import QIntValidator, QColor, QFont
+from PyQt6.QtCore import QDateTime, QThread, pyqtSignal, QTimer, Qt
 
 BAUD = 115200
 TINYUSB_VID = 0xCAFE
@@ -183,7 +181,7 @@ class SerialMonitorUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("STM32 Serial Monitor")
-        self.setGeometry(100, 100, 1000, 600)
+        self.setGeometry(100, 100, 1200, 700)
 
         self.serial_worker = None
         self.autoscroll_enabled = True
@@ -199,7 +197,11 @@ class SerialMonitorUI(QMainWindow):
         self.setCentralWidget(central_widget)
 
         main_layout = QHBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
         left_layout = QVBoxLayout()
+        left_layout.setContentsMargins(10, 8, 10, 8)
+        left_layout.setSpacing(6)
 
         # Connection control layout
         control_layout = QHBoxLayout()
@@ -223,8 +225,8 @@ class SerialMonitorUI(QMainWindow):
 
         control_layout.addStretch()
 
-        self.status_label = QLabel("Disconnected")
-        self.status_label.setStyleSheet("color: red; font-weight: bold;")
+        self.status_label = QLabel("● Disconnected")
+        self.status_label.setStyleSheet("color: #e05555; font-weight: bold; letter-spacing: 0.5px;")
         control_layout.addWidget(self.status_label)
 
         left_layout.addLayout(control_layout)
@@ -235,13 +237,23 @@ class SerialMonitorUI(QMainWindow):
 
         self.mode_normal_btn = QPushButton("Normal")
         self.mode_normal_btn.clicked.connect(self.send_mode_normal)
-        self.mode_normal_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold;")
+        self.mode_normal_btn.setStyleSheet(
+            "QPushButton { background-color: #1a4a8a; color: #7ec8f8; border: 1px solid #2d6abf; border-radius: 5px; font-weight: 700; padding: 5px 16px; }"
+            "QPushButton:hover { background-color: #2055a0; }"
+            "QPushButton:pressed { background-color: #153878; }"
+            "QPushButton:disabled { background-color: #1e2128; color: #444; border-color: #252930; }"
+        )
         self.mode_normal_btn.setEnabled(False)
         mode_layout.addWidget(self.mode_normal_btn)
 
         self.mode_manual_btn = QPushButton("Manual")
         self.mode_manual_btn.clicked.connect(self.send_mode_manual)
-        self.mode_manual_btn.setStyleSheet("background-color: #FF6B6B; color: white; font-weight: bold;")
+        self.mode_manual_btn.setStyleSheet(
+            "QPushButton { background-color: #7a1a1a; color: #f8a0a0; border: 1px solid #b03030; border-radius: 5px; font-weight: 700; padding: 5px 16px; }"
+            "QPushButton:hover { background-color: #8a2020; }"
+            "QPushButton:pressed { background-color: #5a1010; }"
+            "QPushButton:disabled { background-color: #1e2128; color: #444; border-color: #252930; }"
+        )
         self.mode_manual_btn.setEnabled(False)
         mode_layout.addWidget(self.mode_manual_btn)
 
@@ -268,7 +280,12 @@ class SerialMonitorUI(QMainWindow):
         throttle_layout.addWidget(self.throttle_b_input)
 
         self.throttle_apply_btn = QPushButton("Apply")
-        self.throttle_apply_btn.setStyleSheet("background-color: #FF9800; color: white; font-weight: bold;")
+        self.throttle_apply_btn.setStyleSheet(
+            "QPushButton { background-color: #7a4a00; color: #ffc46e; border: 1px solid #b87800; border-radius: 5px; font-weight: 700; padding: 5px 14px; }"
+            "QPushButton:hover { background-color: #8a5500; }"
+            "QPushButton:pressed { background-color: #5a3600; }"
+            "QPushButton:disabled { background-color: #1e2128; color: #444; border-color: #252930; }"
+        )
         self.throttle_apply_btn.setEnabled(False)
         self.throttle_apply_btn.clicked.connect(self.send_pwm_throttle)
         throttle_layout.addWidget(self.throttle_apply_btn)
@@ -290,16 +307,26 @@ class SerialMonitorUI(QMainWindow):
             col = fan_num - 1
 
             on_btn = QPushButton(f"FAN{fan_num} ON")
-            on_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
-            on_btn.setFixedSize(100, 32)
+            on_btn.setStyleSheet(
+                "QPushButton { background-color: #1a4a22; color: #7ee89a; border: 1px solid #2d8040; border-radius: 5px; font-weight: 700; }"
+                "QPushButton:hover { background-color: #205530; }"
+                "QPushButton:pressed { background-color: #133318; }"
+                "QPushButton:disabled { background-color: #1e2128; color: #444; border-color: #252930; }"
+            )
+            on_btn.setFixedSize(100, 30)
             on_btn.setEnabled(False)
             on_btn.clicked.connect(lambda checked, n=fan_num: self.send_fan_on(n))
             fan_layout.addWidget(on_btn, 0, col)
             setattr(self, f"fan{fan_num}_on_btn", on_btn)
 
             off_btn = QPushButton(f"FAN{fan_num} OFF")
-            off_btn.setStyleSheet("background-color: #FF5252; color: white; font-weight: bold;")
-            off_btn.setFixedSize(100, 32)
+            off_btn.setStyleSheet(
+                "QPushButton { background-color: #4a1a1a; color: #f88080; border: 1px solid #802020; border-radius: 5px; font-weight: 700; }"
+                "QPushButton:hover { background-color: #5a2020; }"
+                "QPushButton:pressed { background-color: #3a1010; }"
+                "QPushButton:disabled { background-color: #1e2128; color: #444; border-color: #252930; }"
+            )
+            off_btn.setFixedSize(100, 30)
             off_btn.setEnabled(False)
             off_btn.clicked.connect(lambda checked, n=fan_num: self.send_fan_off(n))
             fan_layout.addWidget(off_btn, 1, col)
@@ -319,98 +346,37 @@ class SerialMonitorUI(QMainWindow):
 
         parsed_widget = QWidget()
         parsed_layout = QVBoxLayout()
+        parsed_layout.setContentsMargins(0, 0, 0, 0)
+        parsed_layout.setSpacing(0)
 
-        # Current data display section
-        current_frame = QFrame()
-        current_frame.setStyleSheet("border: 2px solid #2196F3; border-radius: 12px; padding: 15px; background-color: #1a1a1a;")
-        current_layout = QGridLayout()
-        current_layout.setSpacing(12)
+        # Telemetry table
+        self.telemetry_table = QTableWidget()
+        self.telemetry_table.setColumnCount(14)
+        self.telemetry_table.setHorizontalHeaderLabels([
+            "Received", "External Sensor", "OnBoard Sensor", "RH(%)", "State",
+            "Uptime", "FAN1", "FAN2", "FAN3", "FAN4", "In A(%)", "Out A(%)", "In B(%)", "Out B(%)"
+        ])
+        self.telemetry_table.setAlternatingRowColors(True)
+        self.telemetry_table.verticalHeader().setVisible(False)
+        self.telemetry_table.horizontalHeader().setStretchLastSection(True)
+        self.telemetry_table.setColumnWidth(0, 105)
+        self.telemetry_table.setColumnWidth(1, 115)
+        self.telemetry_table.setColumnWidth(2, 115)
+        self.telemetry_table.setColumnWidth(3, 55)
+        self.telemetry_table.setColumnWidth(4, 100)
+        self.telemetry_table.setColumnWidth(5, 70)
+        self.telemetry_table.setColumnWidth(6, 50)
+        self.telemetry_table.setColumnWidth(7, 50)
+        self.telemetry_table.setColumnWidth(8, 50)
+        self.telemetry_table.setColumnWidth(9, 50)
+        self.telemetry_table.setColumnWidth(10, 60)
+        self.telemetry_table.setColumnWidth(11, 65)
+        self.telemetry_table.setColumnWidth(12, 60)
 
-        self.datetime_label = QLabel("Waiting for data...")
-        self.datetime_label.setStyleSheet("font-weight: bold; color: #2196F3; font-size: 14px;")
-        current_layout.addWidget(self.datetime_label, 0, 0, 1, 4)
-
-        card_style = "background-color: #2a2a2a; border: 1px solid #444; border-radius: 6px; padding: 8px; margin: 2px;"
-
-        # Temperature
-        self.temp_title = QLabel("Temperature")
-        self.temp_title.setStyleSheet("font-size: 11px; color: #999; font-weight: bold;")
-        self.temp_value = QLabel("--")
-        self.temp_value.setStyleSheet(f"{card_style} font-size: 20px; font-weight: bold; color: #FF6B6B; text-align: center;")
-        current_layout.addWidget(self.temp_title, 1, 0)
-        current_layout.addWidget(self.temp_value, 2, 0)
-
-        # Thermal State
-        self.state_title = QLabel("State")
-        self.state_title.setStyleSheet("font-size: 11px; color: #999; font-weight: bold;")
-        self.state_value = QLabel("--")
-        self.state_value.setStyleSheet(f"{card_style} font-size: 16px; font-weight: bold; color: #FFA500; text-align: center;")
-        current_layout.addWidget(self.state_title, 1, 1)
-        current_layout.addWidget(self.state_value, 2, 1)
-
-        # Uptime
-        self.uptime_title = QLabel("Uptime")
-        self.uptime_title.setStyleSheet("font-size: 11px; color: #999; font-weight: bold;")
-        self.uptime_value = QLabel("--")
-        self.uptime_value.setStyleSheet(f"{card_style} font-size: 16px; color: #66BB6A; font-weight: bold; text-align: center;")
-        current_layout.addWidget(self.uptime_title, 1, 2)
-        current_layout.addWidget(self.uptime_value, 2, 2)
-
-        # Fan states
-        self.fans_title = QLabel("Fans")
-        self.fans_title.setStyleSheet("font-size: 11px; color: #999; font-weight: bold;")
-        self.fans_value = QLabel("--")
-        self.fans_value.setStyleSheet(f"{card_style} font-size: 13px; font-weight: bold; color: #FFF; text-align: center;")
-        current_layout.addWidget(self.fans_title, 1, 3)
-        current_layout.addWidget(self.fans_value, 2, 3)
-
-        # PWM Input A
-        self.input_a_title = QLabel("Input A")
-        self.input_a_title.setStyleSheet("font-size: 11px; color: #999; font-weight: bold;")
-        self.input_a_value = QLabel("--")
-        self.input_a_value.setStyleSheet(f"{card_style} font-size: 18px; color: #2196F3; font-weight: bold; text-align: center;")
-        current_layout.addWidget(self.input_a_title, 3, 0)
-        current_layout.addWidget(self.input_a_value, 4, 0)
-
-        # PWM Output A
-        self.output_a_title = QLabel("Output A")
-        self.output_a_title.setStyleSheet("font-size: 11px; color: #999; font-weight: bold;")
-        self.output_a_value = QLabel("--")
-        self.output_a_value.setStyleSheet(f"{card_style} font-size: 18px; color: #4CAF50; font-weight: bold; text-align: center;")
-        current_layout.addWidget(self.output_a_title, 3, 1)
-        current_layout.addWidget(self.output_a_value, 4, 1)
-
-        # PWM Input B
-        self.input_b_title = QLabel("Input B")
-        self.input_b_title.setStyleSheet("font-size: 11px; color: #999; font-weight: bold;")
-        self.input_b_value = QLabel("--")
-        self.input_b_value.setStyleSheet(f"{card_style} font-size: 18px; color: #2196F3; font-weight: bold; text-align: center;")
-        current_layout.addWidget(self.input_b_title, 3, 2)
-        current_layout.addWidget(self.input_b_value, 4, 2)
-
-        # PWM Output B
-        self.output_b_title = QLabel("Output B")
-        self.output_b_title.setStyleSheet("font-size: 11px; color: #999; font-weight: bold;")
-        self.output_b_value = QLabel("--")
-        self.output_b_value.setStyleSheet(f"{card_style} font-size: 18px; color: #4CAF50; font-weight: bold; text-align: center;")
-        current_layout.addWidget(self.output_b_title, 3, 3)
-        current_layout.addWidget(self.output_b_value, 4, 3)
-
-        current_frame.setLayout(current_layout)
-        parsed_layout.addWidget(current_frame)
-
-        # History section
-        history_label = QLabel("History:")
-        history_label.setStyleSheet("font-weight: bold; margin-top: 15px;")
-        parsed_layout.addWidget(history_label)
-
-        self.parsed_history = QTextEdit()
-        self.parsed_history.setReadOnly(True)
-        self.parsed_history.setFont(font)
-        parsed_layout.addWidget(self.parsed_history)
+        parsed_layout.addWidget(self.telemetry_table)
 
         parsed_widget.setLayout(parsed_layout)
-        self.tabs.addTab(parsed_widget, "Parsed Data")
+        self.tabs.addTab(parsed_widget, "Telemetry")
 
         # Control tab
         control_widget = QWidget()
@@ -418,11 +384,16 @@ class SerialMonitorUI(QMainWindow):
 
         # Read settings section
         read_section = QFrame()
-        read_section.setStyleSheet("border: 2px solid #2196F3; border-radius: 12px; padding: 15px;")
+        read_section.setStyleSheet("QFrame { border: 1px solid #2d4a7a; border-radius: 8px; padding: 10px; background-color: #1e2430; }")
         read_layout = QHBoxLayout()
         read_layout.addWidget(QLabel("Read Current Settings:"))
         self.read_settings_btn = QPushButton("Read Settings")
-        self.read_settings_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold;")
+        self.read_settings_btn.setStyleSheet(
+            "QPushButton { background-color: #1a3d7a; color: #7ec8f8; border: 1px solid #2d6abf; border-radius: 5px; font-weight: 700; padding: 5px 14px; }"
+            "QPushButton:hover { background-color: #2055a0; }"
+            "QPushButton:pressed { background-color: #122d5a; }"
+            "QPushButton:disabled { background-color: #1e2128; color: #444; border-color: #252930; }"
+        )
         self.read_settings_btn.setEnabled(False)
         self.read_settings_btn.clicked.connect(self.send_read_settings)
         read_layout.addWidget(self.read_settings_btn)
@@ -432,7 +403,7 @@ class SerialMonitorUI(QMainWindow):
 
         # Current settings display
         display_frame = QFrame()
-        display_frame.setStyleSheet("border: 1px solid #444; border-radius: 6px; padding: 10px; background-color: #1a1a1a;")
+        display_frame.setStyleSheet("QFrame { border: 1px solid #2a2f3a; border-radius: 6px; padding: 8px; background-color: #141720; }")
         display_layout = QGridLayout()
         display_layout.setSpacing(10)
 
@@ -447,7 +418,7 @@ class SerialMonitorUI(QMainWindow):
 
         # Settings controls
         settings_frame = QFrame()
-        settings_frame.setStyleSheet("border: 2px solid #FF9800; border-radius: 12px; padding: 15px;")
+        settings_frame.setStyleSheet("QFrame { border: 1px solid #5a3a00; border-radius: 8px; padding: 10px; background-color: #1e1e16; }")
         settings_layout = QGridLayout()
         settings_layout.setSpacing(10)
 
@@ -542,7 +513,12 @@ class SerialMonitorUI(QMainWindow):
         reset_layout = QHBoxLayout()
         reset_layout.addStretch()
         self.reset_defaults_btn = QPushButton("Reset to Defaults")
-        self.reset_defaults_btn.setStyleSheet("background-color: #FF5252; color: white; font-weight: bold;")
+        self.reset_defaults_btn.setStyleSheet(
+            "QPushButton { background-color: #5a1a1a; color: #f88080; border: 1px solid #902020; border-radius: 5px; font-weight: 700; padding: 5px 14px; }"
+            "QPushButton:hover { background-color: #6a2020; }"
+            "QPushButton:pressed { background-color: #3a1010; }"
+            "QPushButton:disabled { background-color: #1e2128; color: #444; border-color: #252930; }"
+        )
         self.reset_defaults_btn.setEnabled(False)
         self.reset_defaults_btn.clicked.connect(self.send_reset_to_defaults)
         reset_layout.addWidget(self.reset_defaults_btn)
@@ -564,14 +540,24 @@ class SerialMonitorUI(QMainWindow):
         command_layout.addWidget(self.command_input)
 
         self.send_command_btn = QPushButton("Send")
-        self.send_command_btn.setStyleSheet("background-color: #9C27B0; color: white; font-weight: bold;")
+        self.send_command_btn.setStyleSheet(
+            "QPushButton { background-color: #3a1a5a; color: #c49ef8; border: 1px solid #6030a0; border-radius: 5px; font-weight: 700; }"
+            "QPushButton:hover { background-color: #4a2070; }"
+            "QPushButton:pressed { background-color: #2a1040; }"
+            "QPushButton:disabled { background-color: #1e2128; color: #444; border-color: #252930; }"
+        )
         self.send_command_btn.setFixedWidth(80)
         self.send_command_btn.setEnabled(False)
         self.send_command_btn.clicked.connect(self.send_custom_command)
         command_layout.addWidget(self.send_command_btn)
 
         self.clear_input_btn = QPushButton("Clear Input")
-        self.clear_input_btn.setStyleSheet("background-color: #607D8B; color: white; font-weight: bold;")
+        self.clear_input_btn.setStyleSheet(
+            "QPushButton { background-color: #252930; color: #8090a0; border: 1px solid #3a3f4b; border-radius: 5px; font-weight: 600; }"
+            "QPushButton:hover { background-color: #2e3440; }"
+            "QPushButton:pressed { background-color: #1e2128; }"
+            "QPushButton:disabled { background-color: #1e2128; color: #444; border-color: #252930; }"
+        )
         self.clear_input_btn.setFixedWidth(100)
         self.clear_input_btn.setEnabled(False)
         self.clear_input_btn.clicked.connect(self.clear_command_input)
@@ -583,20 +569,25 @@ class SerialMonitorUI(QMainWindow):
 
         # Right panel - Control settings
         right_panel = QFrame()
-        right_panel.setStyleSheet("border-left: 2px solid #444;")
-        right_panel.setMinimumWidth(350)
-        right_panel.setMaximumWidth(450)
+        right_panel.setStyleSheet("QFrame { border-left: 1px solid #252930; background-color: #1a1d23; }")
+        right_panel.setMinimumWidth(320)
+        right_panel.setMaximumWidth(420)
         right_scroll = QVBoxLayout()
+        right_scroll.setContentsMargins(0, 0, 0, 0)
+        right_scroll.setSpacing(0)
 
         right_title = QLabel("Settings")
-        right_title.setStyleSheet("font-weight: bold; font-size: 14px; padding: 10px;")
+        right_title.setStyleSheet(
+            "font-weight: 700; font-size: 13px; padding: 12px 16px 10px 16px; "
+            "color: #c0c8d8; border-bottom: 1px solid #252930; background-color: #1e2128; letter-spacing: 1px;"
+        )
         right_scroll.addWidget(right_title)
 
         # Use scroll area for control widget
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setWidget(control_widget)
-        scroll_area.setStyleSheet("QScrollArea { background-color: #1e1e1e; }")
+        scroll_area.setStyleSheet("QScrollArea { background-color: #1a1d23; border: none; }")
         right_scroll.addWidget(scroll_area)
 
         right_panel.setLayout(right_scroll)
@@ -642,8 +633,8 @@ class SerialMonitorUI(QMainWindow):
     def connect(self):
         port = self.port_combo.currentText()
         if not port:
-            self.status_label.setText("No port selected")
-            self.status_label.setStyleSheet("color: red; font-weight: bold;")
+            self.status_label.setText("● No port selected")
+            self.status_label.setStyleSheet("color: #e05555; font-weight: bold; letter-spacing: 0.5px;")
             return
 
         self.serial_worker = SerialWorker(port)
@@ -676,64 +667,68 @@ class SerialMonitorUI(QMainWindow):
     def parse_01_telemetry(self, line):
         try:
             parts = line.rstrip('\r\n').split(',')
-            if len(parts) < 9:
+            if len(parts) < 11:
                 return
 
             boot_s = int(parts[1])
-            temp_str = parts[2]
-            fan_str = parts[3]
-            in_dc_a = int(parts[4])
-            out_dc_a = int(parts[5])
-            in_dc_b = int(parts[6])
-            out_dc_b = int(parts[7])
-            state_str = parts[8]
+            ds_temp_str = parts[2]
+            hdc_temp_str = parts[3]
+            hdc_rh_str = parts[4]
+            fan_str = parts[5]
+            in_dc_a = int(parts[6])
+            out_dc_a = int(parts[7])
+            in_dc_b = int(parts[8])
+            out_dc_b = int(parts[9])
+            state_str = parts[10]
 
-            # Update current display
             now = QDateTime.currentDateTime()
-            self.datetime_label.setText(f"Last received: {now.toString('yyyy-MM-dd hh:mm:ss.zzz')}")
-
             boot_time = self.format_uptime(boot_s)
-            self.uptime_value.setText(boot_time)
 
-            if temp_str == "ERR":
-                self.temp_value.setText("SENSOR ERROR")
-                self.temp_value.setStyleSheet("font-size: 14px; font-weight: bold; color: #FF0000;")
-            else:
-                temp_int = int(temp_str)
-                self.temp_value.setText(f"{temp_int}°C")
-                if temp_int < 30:
-                    self.temp_value.setStyleSheet("font-size: 14px; font-weight: bold; color: #2196F3;")
-                elif temp_int < 50:
-                    self.temp_value.setStyleSheet("font-size: 14px; font-weight: bold; color: #FFA500;")
-                else:
-                    self.temp_value.setStyleSheet("font-size: 14px; font-weight: bold; color: #FF0000;")
+            fan_states = [('ON' if (i < len(fan_str) and fan_str[i] == '1') else 'OFF') for i in range(4)]
 
-            self.state_value.setText(state_str)
-            state_color = {"TEMP_LOW": "#2196F3", "TEMP_HIGH": "#FFA500", "TEMP_CRIT": "#FF0000", "SENSOR_LOST": "#FF0000"}
-            self.state_value.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {state_color.get(state_str, '#666')};")
+            max_rows = 100
+            if self.telemetry_table.rowCount() >= max_rows:
+                self.telemetry_table.removeRow(self.telemetry_table.rowCount() - 1)
 
-            fan_display_list = []
-            for i, char in enumerate(fan_str):
-                fan_status = f"FAN{i+1}:{'ON' if char == '1' else 'OFF'}"
-                fan_display_list.append(fan_status)
+            self.telemetry_table.insertRow(0)
+            row = 0
 
-            fan_text = "  |  ".join(fan_display_list)
-            self.fans_value.setText(fan_text)
-            self.fans_value.setStyleSheet("font-size: 12px; font-weight: bold; color: #333;")
+            self.telemetry_table.setItem(row, 0, QTableWidgetItem(now.toString("hh:mm:ss.zzz")))
+            self.telemetry_table.setItem(row, 1, QTableWidgetItem(ds_temp_str))
+            self.telemetry_table.setItem(row, 2, QTableWidgetItem(hdc_temp_str))
+            self.telemetry_table.setItem(row, 3, QTableWidgetItem(hdc_rh_str))
+            self.telemetry_table.setItem(row, 4, QTableWidgetItem(state_str))
+            self.telemetry_table.setItem(row, 5, QTableWidgetItem(boot_time))
+            self.telemetry_table.setItem(row, 6, QTableWidgetItem(fan_states[0]))
+            self.telemetry_table.setItem(row, 7, QTableWidgetItem(fan_states[1]))
+            self.telemetry_table.setItem(row, 8, QTableWidgetItem(fan_states[2]))
+            self.telemetry_table.setItem(row, 9, QTableWidgetItem(fan_states[3]))
+            self.telemetry_table.setItem(row, 10, QTableWidgetItem(str(in_dc_a)))
+            self.telemetry_table.setItem(row, 11, QTableWidgetItem(str(out_dc_a)))
+            self.telemetry_table.setItem(row, 12, QTableWidgetItem(str(in_dc_b)))
+            self.telemetry_table.setItem(row, 13, QTableWidgetItem(str(out_dc_b)))
 
-            self.input_a_value.setText(f"{in_dc_a}%")
-            self.output_a_value.setText(f"{out_dc_a}%")
-            self.input_b_value.setText(f"{in_dc_b}%")
-            self.output_b_value.setText(f"{out_dc_b}%")
+            self.telemetry_table.scrollToTop()
 
-            # Add to history
-            history_line = (
-                f"[{now.toString('hh:mm:ss.zzz')}] Uptime: {boot_time} | "
-                f"Temp: {self.temp_value.text()} | State: {state_str} | "
-                f"Fans: {' | '.join(fan_display_list)} | "
-                f"A:{in_dc_a}%→{out_dc_a}% B:{in_dc_b}%→{out_dc_b}%\n"
-            )
-            self.parsed_history.insertPlainText(history_line)
+            for col in range(14):
+                item = self.telemetry_table.item(row, col)
+                if item:
+                    item.setForeground(QColor("#c8d0e0"))
+                    if col == 1 or col == 2:
+                        try:
+                            temp_val = int(parts[col + 1]) if parts[col + 1] != "ERR" else -1
+                            if temp_val >= 50:
+                                item.setForeground(QColor("#f07070"))
+                            elif temp_val >= 40:
+                                item.setForeground(QColor("#ffa040"))
+                        except (ValueError, IndexError):
+                            pass
+                    elif col == 4:
+                        state_color = {"TEMP_LOW": "#5a9ee8", "TEMP_HIGH": "#ffa040", "TEMP_CRIT": "#f07070", "SENSOR_LOST": "#f07070"}
+                        item.setForeground(QColor(state_color.get(state_str, "#c8d0e0")))
+                    elif 6 <= col <= 9:
+                        fan_color = "#7ee89a" if fan_states[col - 6] == "ON" else "#f07070"
+                        item.setForeground(QColor(fan_color))
         except (ValueError, IndexError):
             pass
 
@@ -788,8 +783,8 @@ class SerialMonitorUI(QMainWindow):
 
     def on_connection_state(self, connected):
         if connected:
-            self.status_label.setText("Connected")
-            self.status_label.setStyleSheet("color: green; font-weight: bold;")
+            self.status_label.setText("● Connected")
+            self.status_label.setStyleSheet("color: #4caf50; font-weight: bold; letter-spacing: 0.5px;")
             self.connect_btn.setText("Disconnect")
             self.port_combo.setEnabled(False)
             self.mode_normal_btn.setEnabled(True)
@@ -818,8 +813,8 @@ class SerialMonitorUI(QMainWindow):
                 getattr(self, f"fan{fan_num}_on_btn").setEnabled(True)
                 getattr(self, f"fan{fan_num}_off_btn").setEnabled(True)
         else:
-            self.status_label.setText("Disconnected")
-            self.status_label.setStyleSheet("color: red; font-weight: bold;")
+            self.status_label.setText("● Disconnected")
+            self.status_label.setStyleSheet("color: #e05555; font-weight: bold; letter-spacing: 0.5px;")
             self.connect_btn.setText("Connect")
             self.port_combo.setEnabled(True)
             self.mode_normal_btn.setEnabled(False)
@@ -855,8 +850,6 @@ class SerialMonitorUI(QMainWindow):
     def autoscroll_to_bottom(self):
         if self.autoscroll_enabled:
             scrollbar = self.raw_text.verticalScrollBar()
-            scrollbar.setValue(scrollbar.maximum())
-            scrollbar = self.parsed_history.verticalScrollBar()
             scrollbar.setValue(scrollbar.maximum())
 
     def on_autoscroll_toggled(self, state):
@@ -1064,8 +1057,161 @@ class SerialMonitorUI(QMainWindow):
         event.accept()
 
 
+DARK_STYLESHEET = """
+    QMainWindow, QWidget {
+        background-color: #1a1d23;
+        color: #e0e0e0;
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 12px;
+    }
+    QLabel {
+        color: #b0b8c8;
+        background: transparent;
+    }
+    QComboBox {
+        background-color: #252930;
+        color: #e0e0e0;
+        border: 1px solid #3a3f4b;
+        border-radius: 5px;
+        padding: 4px 8px;
+        min-height: 22px;
+    }
+    QComboBox:hover { border-color: #5a8dee; }
+    QComboBox::drop-down { border: none; }
+    QComboBox QAbstractItemView {
+        background-color: #252930;
+        color: #e0e0e0;
+        selection-background-color: #2d5da6;
+        border: 1px solid #3a3f4b;
+    }
+    QLineEdit {
+        background-color: #252930;
+        color: #e0e0e0;
+        border: 1px solid #3a3f4b;
+        border-radius: 5px;
+        padding: 4px 8px;
+        min-height: 22px;
+    }
+    QLineEdit:hover { border-color: #5a8dee; }
+    QLineEdit:focus { border-color: #5a8dee; background-color: #2a2f3a; }
+    QLineEdit:disabled { background-color: #1e2128; color: #555; border-color: #2a2f3a; }
+    QLineEdit::placeholder { color: #555; }
+    QCheckBox {
+        color: #b0b8c8;
+        spacing: 6px;
+    }
+    QCheckBox::indicator {
+        width: 14px; height: 14px;
+        border: 1px solid #3a3f4b;
+        border-radius: 3px;
+        background-color: #252930;
+    }
+    QCheckBox::indicator:checked {
+        background-color: #5a8dee;
+        border-color: #5a8dee;
+    }
+    QPushButton {
+        background-color: #2d3240;
+        color: #c8d0e0;
+        border: 1px solid #3a3f4b;
+        border-radius: 5px;
+        padding: 5px 14px;
+        font-weight: 600;
+        min-height: 24px;
+    }
+    QPushButton:hover { background-color: #363c4e; border-color: #5a6a88; }
+    QPushButton:pressed { background-color: #252a38; }
+    QPushButton:disabled { background-color: #1e2128; color: #444; border-color: #252930; }
+    QTextEdit {
+        background-color: #141720;
+        color: #c8ffc8;
+        border: 1px solid #2a2f3a;
+        border-radius: 5px;
+        font-family: 'Consolas', monospace;
+        font-size: 11px;
+        selection-background-color: #2d5da6;
+    }
+    QTabWidget::pane {
+        border: 1px solid #2a2f3a;
+        border-radius: 5px;
+        background-color: #1a1d23;
+    }
+    QTabBar::tab {
+        background-color: #1e2128;
+        color: #7a8a9a;
+        border: 1px solid #2a2f3a;
+        border-bottom: none;
+        padding: 6px 18px;
+        border-top-left-radius: 5px;
+        border-top-right-radius: 5px;
+        margin-right: 2px;
+    }
+    QTabBar::tab:selected {
+        background-color: #252930;
+        color: #e0e0e0;
+        border-color: #3a3f4b;
+    }
+    QTabBar::tab:hover:!selected { background-color: #22262e; color: #b0b8c8; }
+    QTableWidget {
+        background-color: #1a1d23;
+        color: #c8d0e0;
+        gridline-color: #252930;
+        border: 1px solid #2a2f3a;
+        border-radius: 4px;
+        font-family: 'Consolas', monospace;
+        font-size: 11px;
+    }
+    QHeaderView::section {
+        background-color: #1e2128;
+        color: #7a8a9a;
+        border: none;
+        border-right: 1px solid #2a2f3a;
+        border-bottom: 1px solid #2a2f3a;
+        padding: 5px 6px;
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    QTableWidget::item { padding: 4px 6px; border: none; }
+    QTableWidget::item:selected { background-color: #2d3a56; color: #e0e0e0; }
+    QTableWidget::item:alternate { background-color: #1e2128; }
+    QScrollBar:vertical {
+        background: #1a1d23;
+        width: 10px;
+        border-radius: 5px;
+    }
+    QScrollBar::handle:vertical {
+        background: #3a3f4b;
+        border-radius: 5px;
+        min-height: 20px;
+    }
+    QScrollBar::handle:vertical:hover { background: #5a6a88; }
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
+    QScrollBar:horizontal {
+        background: #1a1d23;
+        height: 10px;
+        border-radius: 5px;
+    }
+    QScrollBar::handle:horizontal {
+        background: #3a3f4b;
+        border-radius: 5px;
+    }
+    QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; }
+    QScrollArea { border: none; background: transparent; }
+    QFrame { border: none; }
+    QStatusBar {
+        background-color: #141720;
+        color: #7a8a9a;
+        border-top: 1px solid #252930;
+        font-size: 11px;
+    }
+"""
+
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app.setStyleSheet(DARK_STYLESHEET)
     window = SerialMonitorUI()
     window.show()
     sys.exit(app.exec())
