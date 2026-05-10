@@ -4,51 +4,29 @@
 
 #define DEBOUNCE_MS 20U
 
-typedef enum
-{
-    DebounceIdle,
-    DebounceWaiting,
-} DebouncePhase;
-
 static bool stableState;
-static bool pendingState;
-static DebouncePhase phase;
+static bool currentLevel;
 static uint32_t debounceStart;
 
 void push_button_init(void)
 {
     stableState = board_fan_force_en_read();
-    pendingState = stableState;
-    phase = DebounceIdle;
-    debounceStart = 0U;
+    currentLevel = stableState;
+    debounceStart = HAL_GetTick();
 }
 
 void push_button_task(void)
 {
     bool raw = board_fan_force_en_read();
 
-    switch (phase)
+    if (raw != currentLevel)
     {
-        case DebounceIdle:
-            if (raw != stableState)
-            {
-                pendingState = raw;
-                debounceStart = HAL_GetTick();
-                phase = DebounceWaiting;
-            }
-            break;
-
-        case DebounceWaiting:
-            if (raw != pendingState)
-            {
-                phase = DebounceIdle;
-            }
-            else if (HAL_GetTick() - debounceStart >= DEBOUNCE_MS)
-            {
-                stableState = pendingState;
-                phase = DebounceIdle;
-            }
-            break;
+        currentLevel = raw;
+        debounceStart = HAL_GetTick();
+    }
+    else if (HAL_GetTick() - debounceStart >= DEBOUNCE_MS)
+    {
+        stableState = currentLevel;
     }
 }
 
