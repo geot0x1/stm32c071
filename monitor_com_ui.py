@@ -480,10 +480,10 @@ class SerialMonitorUI(QMainWindow):
         self.ctrl_pwm_b_btn = btn_b
 
         # Temp Throttle On
-        settings_layout.addWidget(QLabel("Temp Throttle On (value in ×100):"), 2, 0)
+        settings_layout.addWidget(QLabel("Temp Throttle On (1-254°C):"), 2, 0)
         self.ctrl_temp_throttle = QLineEdit()
-        self.ctrl_temp_throttle.setValidator(QIntValidator(-10000, 10000))
-        self.ctrl_temp_throttle.setMaxLength(6)
+        self.ctrl_temp_throttle.setValidator(QIntValidator(0, 254))
+        self.ctrl_temp_throttle.setMaxLength(3)
         self.ctrl_temp_throttle.setEnabled(False)
         settings_layout.addWidget(self.ctrl_temp_throttle, 2, 1)
         btn_throttle = QPushButton("Set")
@@ -494,10 +494,10 @@ class SerialMonitorUI(QMainWindow):
         self.ctrl_temp_throttle_btn = btn_throttle
 
         # Temp Fan On
-        settings_layout.addWidget(QLabel("Temp Fan On (1-80°C as ×100):"), 3, 0)
+        settings_layout.addWidget(QLabel("Temp Fan On (1-80°C):"), 3, 0)
         self.ctrl_temp_fan_on = QLineEdit()
-        self.ctrl_temp_fan_on.setValidator(QIntValidator(-10000, 10000))
-        self.ctrl_temp_fan_on.setMaxLength(6)
+        self.ctrl_temp_fan_on.setValidator(QIntValidator(0, 254))
+        self.ctrl_temp_fan_on.setMaxLength(3)
         self.ctrl_temp_fan_on.setEnabled(False)
         settings_layout.addWidget(self.ctrl_temp_fan_on, 3, 1)
         btn_fan_on = QPushButton("Set")
@@ -508,10 +508,10 @@ class SerialMonitorUI(QMainWindow):
         self.ctrl_temp_fan_on_btn = btn_fan_on
 
         # Temp Fan Off
-        settings_layout.addWidget(QLabel("Temp Fan Off (0-79°C as ×100):"), 4, 0)
+        settings_layout.addWidget(QLabel("Temp Fan Off (0-79°C):"), 4, 0)
         self.ctrl_temp_fan_off = QLineEdit()
-        self.ctrl_temp_fan_off.setValidator(QIntValidator(-10000, 10000))
-        self.ctrl_temp_fan_off.setMaxLength(6)
+        self.ctrl_temp_fan_off.setValidator(QIntValidator(0, 254))
+        self.ctrl_temp_fan_off.setMaxLength(3)
         self.ctrl_temp_fan_off.setEnabled(False)
         settings_layout.addWidget(self.ctrl_temp_fan_off, 4, 1)
         btn_fan_off = QPushButton("Set")
@@ -522,10 +522,10 @@ class SerialMonitorUI(QMainWindow):
         self.ctrl_temp_fan_off_btn = btn_fan_off
 
         # Temp Critical
-        settings_layout.addWidget(QLabel("Temp Critical (2-90°C as ×100):"), 5, 0)
+        settings_layout.addWidget(QLabel("Temp Critical (2-90°C):"), 5, 0)
         self.ctrl_temp_critical = QLineEdit()
-        self.ctrl_temp_critical.setValidator(QIntValidator(-10000, 10000))
-        self.ctrl_temp_critical.setMaxLength(6)
+        self.ctrl_temp_critical.setValidator(QIntValidator(0, 254))
+        self.ctrl_temp_critical.setMaxLength(3)
         self.ctrl_temp_critical.setEnabled(False)
         settings_layout.addWidget(self.ctrl_temp_critical, 5, 1)
         btn_critical = QPushButton("Set")
@@ -659,6 +659,7 @@ class SerialMonitorUI(QMainWindow):
                 self.serial_worker.terminate()
                 self.serial_worker.wait(1000)
             self.serial_worker = None
+            self.on_connection_state(False)
 
     def on_data_received(self, data):
         self.raw_text.insertPlainText(data)
@@ -774,13 +775,13 @@ class SerialMonitorUI(QMainWindow):
         if 'PWM_THROTTLE_B' in settings:
             self.ctrl_pwm_b.setText(settings['PWM_THROTTLE_B'])
         if 'TEMP_THROTTLE_ON' in settings:
-            self.ctrl_temp_throttle.setText(str(int(settings['TEMP_THROTTLE_ON']) * 100))
+            self.ctrl_temp_throttle.setText(settings['TEMP_THROTTLE_ON'])
         if 'TEMP_FAN_ON' in settings:
-            self.ctrl_temp_fan_on.setText(str(int(settings['TEMP_FAN_ON']) * 100))
+            self.ctrl_temp_fan_on.setText(settings['TEMP_FAN_ON'])
         if 'TEMP_FAN_OFF' in settings:
-            self.ctrl_temp_fan_off.setText(str(int(settings['TEMP_FAN_OFF']) * 100))
+            self.ctrl_temp_fan_off.setText(settings['TEMP_FAN_OFF'])
         if 'TEMP_CRITICAL' in settings:
-            self.ctrl_temp_critical.setText(str(int(settings['TEMP_CRITICAL']) * 100))
+            self.ctrl_temp_critical.setText(settings['TEMP_CRITICAL'])
 
     def on_status_changed(self, status):
         self.statusBar().showMessage(status)
@@ -990,10 +991,9 @@ class SerialMonitorUI(QMainWindow):
             return
         value = self.ctrl_temp_throttle.text().strip()
         if not value or not self._is_valid_int(value):
-            self.statusBar().showMessage("Temp Throttle: Enter a valid integer")
+            self.statusBar().showMessage("Temp Throttle: Enter a valid integer (0-254)")
             return
-        temp_c = int(value) // 100
-        cmd = f"PWMTHRTEMP={temp_c}"
+        cmd = f"PWMTHRTEMP={value}"
         self.raw_text.insertPlainText(f"\n>>> {cmd}\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
             self.serial_worker.ser.write(f"{cmd}\r\n".encode())
@@ -1005,10 +1005,9 @@ class SerialMonitorUI(QMainWindow):
             return
         value = self.ctrl_temp_fan_on.text().strip()
         if not value or not self._is_valid_int(value):
-            self.statusBar().showMessage("Temp Fan On: Enter a valid integer")
+            self.statusBar().showMessage("Temp Fan On: Enter a valid integer (1-80)")
             return
-        temp_c = int(value) // 100
-        cmd = f"FANTEMPON={temp_c}"
+        cmd = f"FANTEMPON={value}"
         self.raw_text.insertPlainText(f"\n>>> {cmd}\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
             self.serial_worker.ser.write(f"{cmd}\r\n".encode())
@@ -1020,10 +1019,9 @@ class SerialMonitorUI(QMainWindow):
             return
         value = self.ctrl_temp_fan_off.text().strip()
         if not value or not self._is_valid_int(value):
-            self.statusBar().showMessage("Temp Fan Off: Enter a valid integer")
+            self.statusBar().showMessage("Temp Fan Off: Enter a valid integer (0-79)")
             return
-        temp_c = int(value) // 100
-        cmd = f"FANTEMPOFF={temp_c}"
+        cmd = f"FANTEMPOFF={value}"
         self.raw_text.insertPlainText(f"\n>>> {cmd}\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
             self.serial_worker.ser.write(f"{cmd}\r\n".encode())
@@ -1035,10 +1033,9 @@ class SerialMonitorUI(QMainWindow):
             return
         value = self.ctrl_temp_critical.text().strip()
         if not value or not self._is_valid_int(value):
-            self.statusBar().showMessage("Temp Critical: Enter a valid integer")
+            self.statusBar().showMessage("Temp Critical: Enter a valid integer (2-90)")
             return
-        temp_c = int(value) // 100
-        cmd = f"TEMPCRIT={temp_c}"
+        cmd = f"TEMPCRIT={value}"
         self.raw_text.insertPlainText(f"\n>>> {cmd}\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
             self.serial_worker.ser.write(f"{cmd}\r\n".encode())

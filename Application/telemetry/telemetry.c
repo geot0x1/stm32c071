@@ -45,13 +45,13 @@ static ThermalState compute_thermal_state(void)
         return ThermalSensorLost;
     }
 
-    int16_t temp = (int16_t)raw_temp;
+    int16_t temp_deg = (int16_t)raw_temp / 100;
 
-    if (temp >= s->temp_critical)
+    if (temp_deg >= (int16_t)s->temp_critical)
     {
         return ThermalCritical;
     }
-    if (temp >= s->temp_fan_on)
+    if (temp_deg >= (int16_t)s->temp_fan_on)
     {
         return ThermalHigh;
     }

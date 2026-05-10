@@ -69,50 +69,51 @@ static ThermalState thermal_step(ThermalState prev, uint16_t raw, const Settings
         return ThermalSensorLost;
     }
 
-    int16_t t        = (int16_t)raw;
-    int16_t crit_on  = s->temp_critical;
-    int16_t crit_off = (int16_t)(s->temp_critical - APP_CRITICAL_HYSTERESIS_CDEG);
-    int16_t fan_on   = s->temp_fan_on;
-    int16_t fan_off  = s->temp_fan_off;
+    int16_t t_cdeg   = (int16_t)raw;
+    int16_t t_deg    = t_cdeg / 100;
+    int16_t crit_on  = (int16_t)s->temp_critical;
+    int16_t crit_off = crit_on - (APP_CRITICAL_HYSTERESIS_CDEG / 100);
+    int16_t fan_on   = (int16_t)s->temp_fan_on;
+    int16_t fan_off  = (int16_t)s->temp_fan_off;
 
     switch (prev)
     {
         case ThermalSensorLost:
             /* Re-enter normal SM as if from Low */
-            if (t >= crit_on)
+            if (t_deg >= crit_on)
             {
                 return ThermalCritical;
             }
-            if (t >= fan_on)
+            if (t_deg >= fan_on)
             {
                 return ThermalHigh;
             }
             return ThermalLow;
 
         case ThermalLow:
-            if (t >= crit_on)
+            if (t_deg >= crit_on)
             {
                 return ThermalCritical;
             }
-            if (t >= fan_on)
+            if (t_deg >= fan_on)
             {
                 return ThermalHigh;
             }
             return ThermalLow;
 
         case ThermalHigh:
-            if (t >= crit_on)
+            if (t_deg >= crit_on)
             {
                 return ThermalCritical;
             }
-            if (t < fan_off)
+            if (t_deg < fan_off)
             {
                 return ThermalLow;
             }
             return ThermalHigh;
 
         case ThermalCritical:
-            if (t < crit_off)
+            if (t_deg < crit_off)
             {
                 return ThermalHigh;
             }
@@ -450,8 +451,8 @@ int main(void)
     board_onewire_power_set(true);
     board_onewire_pullup_set(true);
     temperature_sensor_init();
-    temperature_sensor_set_setpoint_a(s->temp_fan_off);
-    temperature_sensor_set_setpoint_b(s->temp_fan_on);
+    temperature_sensor_set_setpoint_a((uint16_t)(s->temp_fan_off * 100U));
+    temperature_sensor_set_setpoint_b((uint16_t)(s->temp_fan_on * 100U));
     temperature_sensor_set_hysteresis(APP_TEMP_HYSTERESIS_CDEG);
 
     fan_control_init(timers_get_fan_power(), timers_get_fan_remote());

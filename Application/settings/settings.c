@@ -51,6 +51,14 @@ static bool settings_save(void)
     return flash_write(SETTINGS_ADDR, &record, (uint16_t)sizeof(record));
 }
 
+static bool settings_record_has_erased_temps(const Settings *settings)
+{
+    return settings->temp_throttle_on == SETTINGS_TEMP_INVALID
+        || settings->temp_fan_on == SETTINGS_TEMP_INVALID
+        || settings->temp_fan_off == SETTINGS_TEMP_INVALID
+        || settings->temp_critical == SETTINGS_TEMP_INVALID;
+}
+
 void settings_init(void)
 {
     SettingsRecord record;
@@ -60,11 +68,18 @@ void settings_init(void)
     {
         if (record.magic == SETTINGS_MAGIC)
         {
-            uint32_t computed = crc32_gen(&record.data, sizeof(record.data));
-            if (computed == record.crc32)
+            if (settings_record_has_erased_temps(&record.data))
             {
-                current = record.data;
-                valid = true;
+                valid = false;
+            }
+            else
+            {
+                uint32_t computed = crc32_gen(&record.data, sizeof(record.data));
+                if (computed == record.crc32)
+                {
+                    current = record.data;
+                    valid = true;
+                }
             }
         }
     }
@@ -101,43 +116,47 @@ bool settings_set_pwm_throttle_b(uint8_t percent)
     return settings_save();
 }
 
-bool settings_set_temp_throttle_on(int16_t value_centideg)
+bool settings_set_temp_throttle_on(uint8_t temp_deg)
 {
-    if (value_centideg <= current.temp_fan_off || value_centideg >= current.temp_critical)
+    if (temp_deg == SETTINGS_TEMP_INVALID
+        || temp_deg <= current.temp_fan_off
+        || temp_deg >= current.temp_critical)
     {
         return false;
     }
-    current.temp_throttle_on = value_centideg;
+    current.temp_throttle_on = temp_deg;
     return settings_save();
 }
 
-bool settings_set_temp_fan_on(int16_t value_centideg)
+bool settings_set_temp_fan_on(uint8_t temp_deg)
 {
-    if (value_centideg <= current.temp_fan_off || value_centideg >= current.temp_critical)
+    if (temp_deg == SETTINGS_TEMP_INVALID
+        || temp_deg <= current.temp_fan_off
+        || temp_deg >= current.temp_critical)
     {
         return false;
     }
-    current.temp_fan_on = value_centideg;
+    current.temp_fan_on = temp_deg;
     return settings_save();
 }
 
-bool settings_set_temp_fan_off(int16_t value_centideg)
+bool settings_set_temp_fan_off(uint8_t temp_deg)
 {
-    if (value_centideg >= current.temp_fan_on)
+    if (temp_deg == SETTINGS_TEMP_INVALID || temp_deg >= current.temp_fan_on)
     {
         return false;
     }
-    current.temp_fan_off = value_centideg;
+    current.temp_fan_off = temp_deg;
     return settings_save();
 }
 
-bool settings_set_temp_critical(int16_t value_centideg)
+bool settings_set_temp_critical(uint8_t temp_deg)
 {
-    if (value_centideg <= current.temp_fan_on)
+    if (temp_deg == SETTINGS_TEMP_INVALID || temp_deg <= current.temp_fan_on)
     {
         return false;
     }
-    current.temp_critical = value_centideg;
+    current.temp_critical = temp_deg;
     return settings_save();
 }
 
