@@ -12,6 +12,7 @@
 #include "serial.h"
 #include "settings.h"
 #include "stm32c0xx_hal.h"
+#include "system_temp.h"
 #include "telemetry.h"
 #include "temperature_sensor.h"
 #include "timers/timers.h"
@@ -224,21 +225,6 @@ static void update_led(ThermalState state, bool fans_on)
     }
 }
 
-static uint16_t get_system_temperature(void)
-{
-    uint16_t ds_temp = get_temperature();
-
-    if (!hdc2010_ok || !hdc2010_valid)
-        return ds_temp;
-
-    if (ds_temp == 0xFFFFU)
-        return (uint16_t)hdc2010_last_temp;
-
-    int16_t hdc = hdc2010_last_temp;
-    int16_t ds  = (int16_t)ds_temp;
-    return (uint16_t)(ds > hdc ? ds : hdc);
-}
-
 static const char *app_mode_str(AppMode mode)
 {
     switch (mode)
@@ -369,7 +355,7 @@ static void app_task(void)
         case ModeNormal:
         {
             /* Normal mode: thermal state machine controls behavior */
-            app.thermal         = thermal_step(app.thermal, get_system_temperature(), s);
+            app.thermal         = thermal_step(app.thermal, system_temp_get(), s);
             app.button_override = push_button_is_pressed();
 
             bool fans_auto_on     = (app.thermal == ThermalHigh) || (app.thermal == ThermalCritical);
