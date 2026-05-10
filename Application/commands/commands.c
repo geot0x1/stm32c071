@@ -51,6 +51,22 @@ typedef struct
     uint8_t len;
 }CommandLineBuffer;
 
+typedef struct
+{
+    const char* key;
+    void (*handler)(int value);
+} CommandEntry;
+
+static CommandEntry command_table[] = {
+    {"pwma", handle_pwm_a},
+    {"pwmb", handle_pwm_b},
+    {"fantype", handle_fan_type},
+    {"tempon", handle_temp_on},
+    {"tempoff", handle_temp_off},
+    {"tempcrit", handle_temp_crit},
+    {NULL, NULL}
+};
+
 static CommandLineBuffer lineBuf = {0};
 
 static bool parse_int(const char *s, int32_t *out)
@@ -81,35 +97,7 @@ static char *strip_spaces(char *s)
     return s;
 }
 
-static uint8_t tokenize(char *buf, char **tokens, uint8_t max)
-{
-    uint8_t count = 0;
-    char *p = buf;
 
-    while ((*p != '\0') && (count < max))
-    {
-        p = strip_spaces(p);
-        if (*p == '\0')
-        {
-            break;
-        }
-
-        char *space = strchr(p, ' ');
-        if (space != NULL)
-        {
-            *space = '\0';
-        }
-        tokens[count] = p;
-        count++;
-        if (space == NULL)
-        {
-            break;
-        }
-        p = space + 1;
-    }
-
-    return count;
-}
 
 static CommandSubType identify_sub_cmd(const char *s)
 {
