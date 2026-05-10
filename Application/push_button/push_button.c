@@ -4,33 +4,43 @@
 
 #define DEBOUNCE_MS 20U
 
-static bool stableState;
-static bool currentLevel;
-static uint32_t debounceStart;
+typedef struct
+{
+    bool stableState;
+    bool currentLevel;
+    uint32_t debounceStart;
+} PushButtonState;
+
+static PushButtonState button_state;
+
+static bool debounce_timer_expired(void)
+{
+    return (HAL_GetTick() - button_state.debounceStart) >= DEBOUNCE_MS;
+}
 
 void push_button_init(void)
 {
-    stableState = board_fan_force_en_read();
-    currentLevel = stableState;
-    debounceStart = HAL_GetTick();
+    button_state.stableState = board_fan_force_en_read();
+    button_state.currentLevel = button_state.stableState;
+    button_state.debounceStart = HAL_GetTick();
 }
 
 void push_button_task(void)
 {
     bool raw = board_fan_force_en_read();
 
-    if (raw != currentLevel)
+    if (raw != button_state.currentLevel)
     {
-        currentLevel = raw;
-        debounceStart = HAL_GetTick();
+        button_state.currentLevel = raw;
+        button_state.debounceStart = HAL_GetTick();
     }
-    else if (HAL_GetTick() - debounceStart >= DEBOUNCE_MS)
+    else if (debounce_timer_expired())
     {
-        stableState = currentLevel;
+        button_state.stableState = button_state.currentLevel;
     }
 }
 
 bool push_button_is_pressed(void)
 {
-    return stableState;
+    return button_state.stableState;
 }
