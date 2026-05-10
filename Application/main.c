@@ -22,13 +22,10 @@
 #include <stdint.h>
 
 /* Tunables */
-#define APP_FAN_PWM_FREQ_HZ              25000U
-#define APP_TEMP_HYSTERESIS_CDEG         50U      /* setpoint hysteresis for temp_sensor module */
-#define APP_CRITICAL_HYSTERESIS_CDEG     200      /* +/-2 C around T_critical */
-#define APP_PRESENCE_SAMPLE_MS           100U
-#define APP_RPM_PRESENT_THRESHOLD        100U
-#define APP_PRESENCE_MISSING_DEBOUNCE_MS 1500U
-#define APP_FAN_COUNT                    4U
+#define APP_FAN_PWM_FREQ_HZ          25000U
+#define APP_TEMP_HYSTERESIS_CDEG     50U      /* setpoint hysteresis for temp_sensor module */
+#define APP_CRITICAL_HYSTERESIS_CDEG 200      /* +/-2 C around T_critical */
+#define APP_FAN_COUNT                4U
 
 typedef enum
 {
@@ -43,9 +40,6 @@ typedef struct
     AppMode      mode;
     ThermalState thermal;
     bool         button_override;
-    bool         fan_present[APP_FAN_COUNT];
-    uint32_t     missing_since_ms[APP_FAN_COUNT];
-    uint32_t     last_presence_sample_ms;
     bool         throttle_override_active;
     uint32_t     throttle_override_a;
     uint32_t     throttle_override_b;
@@ -162,53 +156,6 @@ static void apply_fans(bool fans_on)
     }
 }
 
-static void update_fan_presence(uint32_t now_ms)
-{
-    if (now_ms - app.last_presence_sample_ms < APP_PRESENCE_SAMPLE_MS)
-    {
-        return;
-    }
-    app.last_presence_sample_ms = now_ms;
-
-    for (uint8_t i = 0U; i < APP_FAN_COUNT; i++)
-    {
-        uint8_t unit = i + 1U;
-
-        if (fan_control_get_type(unit) == FanType2Wire)
-        {
-            /* No tacho available — assume present */
-            app.fan_present[i]      = true;
-            app.missing_since_ms[i] = 0U;
-            continue;
-        }
-
-        bool commanded_on = (fan_control_get_unit_duty(unit) > 0U);
-        if (!commanded_on)
-        {
-            app.missing_since_ms[i] = 0U;
-            continue;
-        }
-
-        uint32_t rpm = fan_tacho_get_rpm(unit);
-        if (rpm >= APP_RPM_PRESENT_THRESHOLD)
-        {
-            app.fan_present[i]      = true;
-            app.missing_since_ms[i] = 0U;
-        }
-        else
-        {
-            if (app.missing_since_ms[i] == 0U)
-            {
-                app.missing_since_ms[i] = now_ms;
-            }
-            else if (now_ms - app.missing_since_ms[i] >= APP_PRESENCE_MISSING_DEBOUNCE_MS)
-            {
-                app.fan_present[i] = false;
-            }
-        }
-    }
-}
-
 static void update_led(ThermalState state, bool fans_on)
 {
     if (state == ThermalSensorLost || state == ThermalCritical)
@@ -222,16 +169,6 @@ static void update_led(ThermalState state, bool fans_on)
     else
     {
         program_led_set_state(ProgramLedFansOff);
-    }
-}
-
-static const char *app_mode_str(AppMode mode)
-{
-    switch (mode)
-    {
-        case ModeNormal: return "NORMAL";
-        case ModeManual: return "MANUAL";
-        default:         return "UNKNOWN";
     }
 }
 
@@ -329,15 +266,9 @@ static void app_state_init(void)
     app.mode                      = ModeNormal;
     app.thermal                   = ThermalLow;
     app.button_override           = false;
-    app.last_presence_sample_ms   = 0U;
     app.throttle_override_active  = false;
     app.throttle_override_a       = 100U;
     app.throttle_override_b       = 100U;
-    for (uint8_t i = 0U; i < APP_FAN_COUNT; i++)
-    {
-        app.fan_present[i]      = true; /* assume present until proven otherwise */
-        app.missing_since_ms[i] = 0U;
-    }
 }
 
 static void app_task(void)
@@ -363,7 +294,6 @@ static void app_task(void)
 
             apply_throttle(app.thermal, s);
             apply_fans(fans_required_on);
-            update_fan_presence(now_ms);
             update_led(app.thermal, fans_required_on);
             break;
         }
