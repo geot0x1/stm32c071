@@ -12,9 +12,9 @@ void sys_time_handler(void)
     systemTick++;
 }
 
-uint64_t millis(void)
+millis_t millis(void)
 {
-    uint64_t m;
+    millis_t m;
     uint32_t pri = __get_PRIMASK();
     __disable_irq();
     m = systemTick;

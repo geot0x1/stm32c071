@@ -1,6 +1,6 @@
 #include "push_button.h"
 #include "board.h"
-#include "stm32c0xx_hal.h"
+#include "sys_time.h"
 
 #define DEBOUNCE_MS 20U
 
@@ -8,21 +8,21 @@ typedef struct
 {
     bool stableState;
     bool currentLevel;
-    uint32_t debounceStart;
+    millis_t debounceStart;
 } PushButtonState;
 
 static PushButtonState button_state;
 
 static bool debounce_timer_expired(void)
 {
-    return (HAL_GetTick() - button_state.debounceStart) >= DEBOUNCE_MS;
+    return (millis() - button_state.debounceStart) >= DEBOUNCE_MS;
 }
 
 void push_button_init(void)
 {
     button_state.stableState = board_fan_force_en_read();
     button_state.currentLevel = button_state.stableState;
-    button_state.debounceStart = HAL_GetTick();
+    button_state.debounceStart = millis();
 }
 
 void push_button_task(void)
@@ -32,7 +32,7 @@ void push_button_task(void)
     if (raw != button_state.currentLevel)
     {
         button_state.currentLevel = raw;
-        button_state.debounceStart = HAL_GetTick();
+        button_state.debounceStart = millis();
     }
     else if (debounce_timer_expired())
     {
