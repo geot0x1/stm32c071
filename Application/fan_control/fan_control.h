@@ -12,6 +12,12 @@ typedef enum
     FanChannelFour
 } FanChannel;
 
+typedef enum
+{
+    FanType2Wire = 0,
+    FanType34Wire = 1,
+} FanType;
+
 /**
  * @brief Initialize fan control and store timer handles.
  *
@@ -32,11 +38,8 @@ uint8_t fan_control_get_remote_channel_duty(FanChannel channel);
 void fan_control_set_unit_duty(uint8_t unit_idx, uint8_t duty_pct);
 uint8_t fan_control_get_unit_duty(uint8_t unit_idx);
 
-typedef enum
-{
-    FanType2Wire = 0,
-    FanType34Wire = 1,
-} FanType;
+void fan_control_all_on(void);
+void fan_control_all_off(void);
 
 /**
  * @brief Return the fan type detected from the DIP switch for a given unit.
