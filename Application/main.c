@@ -302,7 +302,10 @@ static void hdc2010_poll_task(void)
     static uint32_t         poll_ms    = 0U;
 
     if (!hdc2010_ok)
+    {
+        usb_printf("HDC2010 not detected; skipping environmental sensor polling\r\n");
         return;
+    }
 
     uint32_t now = HAL_GetTick();
 
