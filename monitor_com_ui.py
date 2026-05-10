@@ -79,26 +79,59 @@ class SerialWorker(QThread):
                 pass
             self.ser = None
 
+    def _is_port_available(self):
+        try:
+            available_ports = [p.device for p in serial.tools.list_ports.comports()]
+            return self.port in available_ports
+        except Exception:
+            return False
+
     def run(self):
         if not self._connect_with_retry():
             return
 
+        read_errors = 0
+        max_consecutive_errors = 3
+
         try:
             while self.running:
-                if self.ser and self.ser.is_open:
-                    try:
-                        line = self.ser.readline()
-                        if line:
-                            text = line.decode('utf-8', errors='ignore')
-                            text = text.rstrip('\r\n') + '\n'
-                            self.data_received.emit(text)
-                    except Exception as e:
-                        self.data_received.emit(f"\n[DECODE ERROR] {e}\n")
-                else:
+                if not self.ser or not self.ser.is_open:
+                    self.status_changed.emit("Port closed")
                     break
 
+                if not self._is_port_available():
+                    self.status_changed.emit("Port disconnected by system")
+                    break
+
+                try:
+                    line = self.ser.readline()
+                    if line:
+                        read_errors = 0
+                        text = line.decode('utf-8', errors='ignore')
+                        text = text.rstrip('\r\n') + '\n'
+                        self.data_received.emit(text)
+                    else:
+                        time.sleep(0.01)
+                except serial.SerialException as e:
+                    read_errors += 1
+                    if read_errors >= max_consecutive_errors:
+                        self.status_changed.emit(f"Serial connection lost")
+                        break
+                    time.sleep(0.05)
+                except UnicodeDecodeError as e:
+                    self.data_received.emit(f"\n[DECODE ERROR]\n")
+                    read_errors += 1
+                    if read_errors >= max_consecutive_errors:
+                        break
+                except Exception as e:
+                    read_errors += 1
+                    if read_errors >= max_consecutive_errors:
+                        self.status_changed.emit(f"Multiple read errors - disconnecting")
+                        break
+                    time.sleep(0.05)
+
         except Exception as e:
-            self.status_changed.emit(f"Error: {e}")
+            self.status_changed.emit(f"Thread error: {e}")
             self.connection_state.emit(False)
         finally:
             if self.ser:
@@ -574,7 +607,9 @@ class SerialMonitorUI(QMainWindow):
     def disconnect(self):
         if self.serial_worker:
             self.serial_worker.stop()
-            self.serial_worker.wait()
+            if not self.serial_worker.wait(timeout=2000):
+                self.serial_worker.terminate()
+                self.serial_worker.wait(timeout=1000)
             self.serial_worker = None
 
     def on_data_received(self, data):
