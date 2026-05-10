@@ -42,6 +42,7 @@ class SerialWorker(QThread):
                 self.connection_state.emit(True)
                 return True
             except serial.SerialException as e:
+                self._cleanup_partial_connection()
                 retry_count += 1
                 if retry_count < MAX_RETRIES:
                     self.status_changed.emit(
@@ -54,6 +55,7 @@ class SerialWorker(QThread):
                     self.connection_state.emit(False)
                     return False
             except Exception as e:
+                self._cleanup_partial_connection()
                 retry_count += 1
                 if retry_count < MAX_RETRIES:
                     self.status_changed.emit(
@@ -67,6 +69,15 @@ class SerialWorker(QThread):
                     return False
 
         return False
+
+    def _cleanup_partial_connection(self):
+        if self.ser:
+            try:
+                if self.ser.is_open:
+                    self.ser.close()
+            except Exception:
+                pass
+            self.ser = None
 
     def run(self):
         if not self._connect_with_retry():
@@ -90,14 +101,24 @@ class SerialWorker(QThread):
             self.status_changed.emit(f"Error: {e}")
             self.connection_state.emit(False)
         finally:
-            if self.ser and self.ser.is_open:
-                self.ser.close()
+            if self.ser:
+                try:
+                    if self.ser.is_open:
+                        self.ser.close()
+                except Exception:
+                    pass
+                self.ser = None
             self.connection_state.emit(False)
 
     def stop(self):
         self.running = False
-        if self.ser and self.ser.is_open:
-            self.ser.close()
+        if self.ser:
+            try:
+                if self.ser.is_open:
+                    self.ser.close()
+            except Exception:
+                pass
+            self.ser = None
 
 
 class SerialMonitorUI(QMainWindow):
