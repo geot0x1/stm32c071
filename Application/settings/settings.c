@@ -30,7 +30,7 @@ static Settings current;
 static const Settings defaults = {
     .pwm_throttle_a = SETTINGS_DEFAULT_PWM_THROTTLE_A,
     .pwm_throttle_b = SETTINGS_DEFAULT_PWM_THROTTLE_B,
-    .fan_type_override = {FanOverride2Wire, FanOverride2Wire, FanOverride2Wire, FanOverride2Wire},
+    .temp_throttle_on = SETTINGS_DEFAULT_TEMP_THROTTLE_ON,
     .temp_fan_on = SETTINGS_DEFAULT_TEMP_FAN_ON,
     .temp_fan_off = SETTINGS_DEFAULT_TEMP_FAN_OFF,
     .temp_critical = SETTINGS_DEFAULT_TEMP_CRITICAL,
@@ -63,20 +63,8 @@ void settings_init(void)
             uint32_t computed = crc32_gen(&record.data, sizeof(record.data));
             if (computed == record.crc32)
             {
-                bool override_ok = true;
-                for (uint8_t i = 0U; i < 4U; i++)
-                {
-                    if (record.data.fan_type_override[i] > (uint8_t)FanOverride34Wire)
-                    {
-                        override_ok = false;
-                        break;
-                    }
-                }
-                if (override_ok)
-                {
-                    current = record.data;
-                    valid = true;
-                }
+                current = record.data;
+                valid = true;
             }
         }
     }
@@ -113,6 +101,16 @@ bool settings_set_pwm_throttle_b(uint8_t percent)
     return settings_save();
 }
 
+bool settings_set_temp_throttle_on(int16_t value_centideg)
+{
+    if (value_centideg <= current.temp_fan_off || value_centideg >= current.temp_critical)
+    {
+        return false;
+    }
+    current.temp_throttle_on = value_centideg;
+    return settings_save();
+}
+
 bool settings_set_temp_fan_on(int16_t value_centideg)
 {
     if (value_centideg <= current.temp_fan_off || value_centideg >= current.temp_critical)
@@ -140,20 +138,6 @@ bool settings_set_temp_critical(int16_t value_centideg)
         return false;
     }
     current.temp_critical = value_centideg;
-    return settings_save();
-}
-
-bool settings_set_fan_type_override(uint8_t unit, FanTypeOverride type)
-{
-    if (unit >= 4U)
-    {
-        return false;
-    }
-    if (type != FanOverride2Wire && type != FanOverride34Wire)
-    {
-        return false;
-    }
-    current.fan_type_override[unit] = (uint8_t)type;
     return settings_save();
 }
 
