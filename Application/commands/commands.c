@@ -18,10 +18,6 @@ typedef enum
 } AppMode;
 
 extern void app_set_mode(AppMode mode);
-extern void app_set_throttle_override(uint32_t throttle_a, uint32_t throttle_b);
-extern void app_clear_throttle_override(void);
-extern uint32_t app_get_throttle_override_a(void);
-extern uint32_t app_get_throttle_override_b(void);
 
 #define CMD_LINE_BUF_SIZE 128U
 #define CMD_USB_CHUNK_SIZE 64U
@@ -218,7 +214,7 @@ static void handle_fan(const char *token)
     const char *equals = strchr(token, '=');
     if (equals == NULL)
     {
-        usb_printf("ERR INVALID_FORMAT fan\r\n");
+        usb_printf("ERR INVALID_FORMAT FAN\r\n");
         return;
     }
 
