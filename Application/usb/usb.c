@@ -3,6 +3,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#define USB_WRITE_GUARD_MIN_AVAILABLE 64U
+
 /**
  * @brief Initialize the USB module.
  */
@@ -31,11 +33,15 @@ void usb_task(void)
  */
 uint32_t usb_write(const void *buffer, uint32_t size)
 {
-    uint32_t total_sent = 0;
-
-    // Check if the FIFO has enough space
     uint32_t available = tud_cdc_write_available();
 
+    if (available < USB_WRITE_GUARD_MIN_AVAILABLE)
+    {
+        usb_task();
+        available = tud_cdc_write_available();
+    }
+
+    uint32_t total_sent = 0;
     if (available > 0)
     {
         total_sent = tud_cdc_write(buffer, size);
