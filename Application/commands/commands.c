@@ -54,25 +54,6 @@ static bool parse_int(const char *s, int32_t *out)
     return true;
 }
 
-static char *strip_spaces(char *s)
-{
-    while (*s == ' ')
-    {
-        s++;
-    }
-    if (*s != '\0')
-    {
-        char *end = s + strlen(s) - 1;
-        while ((end > s) && (*end == ' '))
-        {
-            *end = '\0';
-            end--;
-        }
-    }
-    return s;
-}
-
-
 
 static bool parse_pwm_throttle(const char *params)
 {
