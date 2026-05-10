@@ -1,6 +1,7 @@
 add_subdirectory(bsp)
 add_subdirectory(watchdog)
 add_subdirectory(board)
+add_subdirectory(fifo)
 add_subdirectory(timers)
 add_subdirectory(pwm_repeater)
 add_subdirectory(crc32)
