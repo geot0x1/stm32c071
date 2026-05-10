@@ -353,6 +353,146 @@ class SerialMonitorUI(QMainWindow):
         parsed_widget.setLayout(parsed_layout)
         self.tabs.addTab(parsed_widget, "Parsed Data")
 
+        # Control tab
+        control_widget = QWidget()
+        control_layout = QVBoxLayout()
+
+        # Read settings section
+        read_section = QFrame()
+        read_section.setStyleSheet("border: 2px solid #2196F3; border-radius: 12px; padding: 15px;")
+        read_layout = QHBoxLayout()
+        read_layout.addWidget(QLabel("Read Current Settings:"))
+        self.read_settings_btn = QPushButton("Read Settings")
+        self.read_settings_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold;")
+        self.read_settings_btn.setEnabled(False)
+        self.read_settings_btn.clicked.connect(self.send_read_settings)
+        read_layout.addWidget(self.read_settings_btn)
+        read_layout.addStretch()
+        read_section.setLayout(read_layout)
+        control_layout.addWidget(read_section)
+
+        # Current settings display
+        display_frame = QFrame()
+        display_frame.setStyleSheet("border: 1px solid #444; border-radius: 6px; padding: 10px; background-color: #1a1a1a;")
+        display_layout = QGridLayout()
+        display_layout.setSpacing(10)
+
+        self.settings_display = QTextEdit()
+        self.settings_display.setReadOnly(True)
+        self.settings_display.setFont(QFont("Consolas", 9))
+        self.settings_display.setMaximumHeight(120)
+        display_layout.addWidget(self.settings_display, 0, 0, 1, 2)
+
+        display_frame.setLayout(display_layout)
+        control_layout.addWidget(display_frame)
+
+        # Settings controls
+        settings_frame = QFrame()
+        settings_frame.setStyleSheet("border: 2px solid #FF9800; border-radius: 12px; padding: 15px;")
+        settings_layout = QGridLayout()
+        settings_layout.setSpacing(10)
+
+        # PWM Throttle A
+        settings_layout.addWidget(QLabel("PWM Throttle A (0-100%):"), 0, 0)
+        self.ctrl_pwm_a = QLineEdit()
+        self.ctrl_pwm_a.setValidator(QIntValidator(0, 100))
+        self.ctrl_pwm_a.setMaxLength(3)
+        self.ctrl_pwm_a.setEnabled(False)
+        settings_layout.addWidget(self.ctrl_pwm_a, 0, 1)
+        btn_a = QPushButton("Set")
+        btn_a.setEnabled(False)
+        btn_a.clicked.connect(lambda: self.send_set_pwm_a())
+        btn_a.setFixedWidth(60)
+        settings_layout.addWidget(btn_a, 0, 2)
+        self.ctrl_pwm_a_btn = btn_a
+
+        # PWM Throttle B
+        settings_layout.addWidget(QLabel("PWM Throttle B (0-100%):"), 1, 0)
+        self.ctrl_pwm_b = QLineEdit()
+        self.ctrl_pwm_b.setValidator(QIntValidator(0, 100))
+        self.ctrl_pwm_b.setMaxLength(3)
+        self.ctrl_pwm_b.setEnabled(False)
+        settings_layout.addWidget(self.ctrl_pwm_b, 1, 1)
+        btn_b = QPushButton("Set")
+        btn_b.setEnabled(False)
+        btn_b.clicked.connect(lambda: self.send_set_pwm_b())
+        btn_b.setFixedWidth(60)
+        settings_layout.addWidget(btn_b, 1, 2)
+        self.ctrl_pwm_b_btn = btn_b
+
+        # Temp Throttle On
+        settings_layout.addWidget(QLabel("Temp Throttle On (°C × 100):"), 2, 0)
+        self.ctrl_temp_throttle = QLineEdit()
+        self.ctrl_temp_throttle.setValidator(QIntValidator(-10000, 10000))
+        self.ctrl_temp_throttle.setMaxLength(6)
+        self.ctrl_temp_throttle.setEnabled(False)
+        settings_layout.addWidget(self.ctrl_temp_throttle, 2, 1)
+        btn_throttle = QPushButton("Set")
+        btn_throttle.setEnabled(False)
+        btn_throttle.clicked.connect(lambda: self.send_set_temp_throttle())
+        btn_throttle.setFixedWidth(60)
+        settings_layout.addWidget(btn_throttle, 2, 2)
+        self.ctrl_temp_throttle_btn = btn_throttle
+
+        # Temp Fan On
+        settings_layout.addWidget(QLabel("Temp Fan On (°C × 100):"), 3, 0)
+        self.ctrl_temp_fan_on = QLineEdit()
+        self.ctrl_temp_fan_on.setValidator(QIntValidator(-10000, 10000))
+        self.ctrl_temp_fan_on.setMaxLength(6)
+        self.ctrl_temp_fan_on.setEnabled(False)
+        settings_layout.addWidget(self.ctrl_temp_fan_on, 3, 1)
+        btn_fan_on = QPushButton("Set")
+        btn_fan_on.setEnabled(False)
+        btn_fan_on.clicked.connect(lambda: self.send_set_temp_fan_on())
+        btn_fan_on.setFixedWidth(60)
+        settings_layout.addWidget(btn_fan_on, 3, 2)
+        self.ctrl_temp_fan_on_btn = btn_fan_on
+
+        # Temp Fan Off
+        settings_layout.addWidget(QLabel("Temp Fan Off (°C × 100):"), 4, 0)
+        self.ctrl_temp_fan_off = QLineEdit()
+        self.ctrl_temp_fan_off.setValidator(QIntValidator(-10000, 10000))
+        self.ctrl_temp_fan_off.setMaxLength(6)
+        self.ctrl_temp_fan_off.setEnabled(False)
+        settings_layout.addWidget(self.ctrl_temp_fan_off, 4, 1)
+        btn_fan_off = QPushButton("Set")
+        btn_fan_off.setEnabled(False)
+        btn_fan_off.clicked.connect(lambda: self.send_set_temp_fan_off())
+        btn_fan_off.setFixedWidth(60)
+        settings_layout.addWidget(btn_fan_off, 4, 2)
+        self.ctrl_temp_fan_off_btn = btn_fan_off
+
+        # Temp Critical
+        settings_layout.addWidget(QLabel("Temp Critical (°C × 100):"), 5, 0)
+        self.ctrl_temp_critical = QLineEdit()
+        self.ctrl_temp_critical.setValidator(QIntValidator(-10000, 10000))
+        self.ctrl_temp_critical.setMaxLength(6)
+        self.ctrl_temp_critical.setEnabled(False)
+        settings_layout.addWidget(self.ctrl_temp_critical, 5, 1)
+        btn_critical = QPushButton("Set")
+        btn_critical.setEnabled(False)
+        btn_critical.clicked.connect(lambda: self.send_set_temp_critical())
+        btn_critical.setFixedWidth(60)
+        settings_layout.addWidget(btn_critical, 5, 2)
+        self.ctrl_temp_critical_btn = btn_critical
+
+        settings_frame.setLayout(settings_layout)
+        control_layout.addWidget(settings_frame)
+
+        # Reset button
+        reset_layout = QHBoxLayout()
+        reset_layout.addStretch()
+        self.reset_defaults_btn = QPushButton("Reset to Defaults")
+        self.reset_defaults_btn.setStyleSheet("background-color: #FF5252; color: white; font-weight: bold;")
+        self.reset_defaults_btn.setEnabled(False)
+        self.reset_defaults_btn.clicked.connect(self.send_reset_to_defaults)
+        reset_layout.addWidget(self.reset_defaults_btn)
+        control_layout.addLayout(reset_layout)
+
+        control_layout.addStretch()
+        control_widget.setLayout(control_layout)
+        self.tabs.addTab(control_widget, "Control")
+
         main_layout.addWidget(self.tabs)
 
         # Command input layout (at the bottom)
@@ -535,6 +675,20 @@ class SerialMonitorUI(QMainWindow):
             self.command_input.setEnabled(True)
             self.send_command_btn.setEnabled(True)
             self.clear_input_btn.setEnabled(True)
+            self.read_settings_btn.setEnabled(True)
+            self.ctrl_pwm_a.setEnabled(True)
+            self.ctrl_pwm_b.setEnabled(True)
+            self.ctrl_temp_throttle.setEnabled(True)
+            self.ctrl_temp_fan_on.setEnabled(True)
+            self.ctrl_temp_fan_off.setEnabled(True)
+            self.ctrl_temp_critical.setEnabled(True)
+            self.ctrl_pwm_a_btn.setEnabled(True)
+            self.ctrl_pwm_b_btn.setEnabled(True)
+            self.ctrl_temp_throttle_btn.setEnabled(True)
+            self.ctrl_temp_fan_on_btn.setEnabled(True)
+            self.ctrl_temp_fan_off_btn.setEnabled(True)
+            self.ctrl_temp_critical_btn.setEnabled(True)
+            self.reset_defaults_btn.setEnabled(True)
             for fan_num in range(1, 5):
                 getattr(self, f"fan{fan_num}_on_btn").setEnabled(True)
                 getattr(self, f"fan{fan_num}_off_btn").setEnabled(True)
@@ -551,6 +705,20 @@ class SerialMonitorUI(QMainWindow):
             self.command_input.setEnabled(False)
             self.send_command_btn.setEnabled(False)
             self.clear_input_btn.setEnabled(False)
+            self.read_settings_btn.setEnabled(False)
+            self.ctrl_pwm_a.setEnabled(False)
+            self.ctrl_pwm_b.setEnabled(False)
+            self.ctrl_temp_throttle.setEnabled(False)
+            self.ctrl_temp_fan_on.setEnabled(False)
+            self.ctrl_temp_fan_off.setEnabled(False)
+            self.ctrl_temp_critical.setEnabled(False)
+            self.ctrl_pwm_a_btn.setEnabled(False)
+            self.ctrl_pwm_b_btn.setEnabled(False)
+            self.ctrl_temp_throttle_btn.setEnabled(False)
+            self.ctrl_temp_fan_on_btn.setEnabled(False)
+            self.ctrl_temp_fan_off_btn.setEnabled(False)
+            self.ctrl_temp_critical_btn.setEnabled(False)
+            self.reset_defaults_btn.setEnabled(False)
             for fan_num in range(1, 5):
                 getattr(self, f"fan{fan_num}_on_btn").setEnabled(False)
                 getattr(self, f"fan{fan_num}_off_btn").setEnabled(False)
@@ -654,6 +822,109 @@ class SerialMonitorUI(QMainWindow):
 
     def clear_command_input(self):
         self.command_input.clear()
+
+    def send_read_settings(self):
+        if self.serial_worker is None or not self.serial_worker.isRunning():
+            self.statusBar().showMessage("Not connected - cannot send command")
+            return
+        self.raw_text.insertPlainText("\n>>> SETTINGS?\n")
+        if self.serial_worker.ser and self.serial_worker.ser.is_open:
+            self.serial_worker.ser.write(b"SETTINGS?\r\n")
+        self.autoscroll_to_bottom()
+
+    def send_set_pwm_a(self):
+        if self.serial_worker is None or not self.serial_worker.isRunning():
+            self.statusBar().showMessage("Not connected - cannot send command")
+            return
+        value = self.ctrl_pwm_a.text().strip()
+        if not value or not value.isdigit() or int(value) > 100:
+            self.statusBar().showMessage("PWM A: Enter a value between 0-100")
+            return
+        self.raw_text.insertPlainText(f"\n>>> SETTINGS=PWM_A,{value}\n")
+        if self.serial_worker.ser and self.serial_worker.ser.is_open:
+            self.serial_worker.ser.write(f"SETTINGS=PWM_A,{value}\r\n".encode())
+        self.autoscroll_to_bottom()
+
+    def send_set_pwm_b(self):
+        if self.serial_worker is None or not self.serial_worker.isRunning():
+            self.statusBar().showMessage("Not connected - cannot send command")
+            return
+        value = self.ctrl_pwm_b.text().strip()
+        if not value or not value.isdigit() or int(value) > 100:
+            self.statusBar().showMessage("PWM B: Enter a value between 0-100")
+            return
+        self.raw_text.insertPlainText(f"\n>>> SETTINGS=PWM_B,{value}\n")
+        if self.serial_worker.ser and self.serial_worker.ser.is_open:
+            self.serial_worker.ser.write(f"SETTINGS=PWM_B,{value}\r\n".encode())
+        self.autoscroll_to_bottom()
+
+    def send_set_temp_throttle(self):
+        if self.serial_worker is None or not self.serial_worker.isRunning():
+            self.statusBar().showMessage("Not connected - cannot send command")
+            return
+        value = self.ctrl_temp_throttle.text().strip()
+        if not value or not self._is_valid_int(value):
+            self.statusBar().showMessage("Temp Throttle: Enter a valid integer")
+            return
+        self.raw_text.insertPlainText(f"\n>>> SETTINGS=TEMP_THROTTLE,{value}\n")
+        if self.serial_worker.ser and self.serial_worker.ser.is_open:
+            self.serial_worker.ser.write(f"SETTINGS=TEMP_THROTTLE,{value}\r\n".encode())
+        self.autoscroll_to_bottom()
+
+    def send_set_temp_fan_on(self):
+        if self.serial_worker is None or not self.serial_worker.isRunning():
+            self.statusBar().showMessage("Not connected - cannot send command")
+            return
+        value = self.ctrl_temp_fan_on.text().strip()
+        if not value or not self._is_valid_int(value):
+            self.statusBar().showMessage("Temp Fan On: Enter a valid integer")
+            return
+        self.raw_text.insertPlainText(f"\n>>> SETTINGS=TEMP_FAN_ON,{value}\n")
+        if self.serial_worker.ser and self.serial_worker.ser.is_open:
+            self.serial_worker.ser.write(f"SETTINGS=TEMP_FAN_ON,{value}\r\n".encode())
+        self.autoscroll_to_bottom()
+
+    def send_set_temp_fan_off(self):
+        if self.serial_worker is None or not self.serial_worker.isRunning():
+            self.statusBar().showMessage("Not connected - cannot send command")
+            return
+        value = self.ctrl_temp_fan_off.text().strip()
+        if not value or not self._is_valid_int(value):
+            self.statusBar().showMessage("Temp Fan Off: Enter a valid integer")
+            return
+        self.raw_text.insertPlainText(f"\n>>> SETTINGS=TEMP_FAN_OFF,{value}\n")
+        if self.serial_worker.ser and self.serial_worker.ser.is_open:
+            self.serial_worker.ser.write(f"SETTINGS=TEMP_FAN_OFF,{value}\r\n".encode())
+        self.autoscroll_to_bottom()
+
+    def send_set_temp_critical(self):
+        if self.serial_worker is None or not self.serial_worker.isRunning():
+            self.statusBar().showMessage("Not connected - cannot send command")
+            return
+        value = self.ctrl_temp_critical.text().strip()
+        if not value or not self._is_valid_int(value):
+            self.statusBar().showMessage("Temp Critical: Enter a valid integer")
+            return
+        self.raw_text.insertPlainText(f"\n>>> SETTINGS=TEMP_CRITICAL,{value}\n")
+        if self.serial_worker.ser and self.serial_worker.ser.is_open:
+            self.serial_worker.ser.write(f"SETTINGS=TEMP_CRITICAL,{value}\r\n".encode())
+        self.autoscroll_to_bottom()
+
+    def send_reset_to_defaults(self):
+        if self.serial_worker is None or not self.serial_worker.isRunning():
+            self.statusBar().showMessage("Not connected - cannot send command")
+            return
+        self.raw_text.insertPlainText("\n>>> SETTINGS=RESET\n")
+        if self.serial_worker.ser and self.serial_worker.ser.is_open:
+            self.serial_worker.ser.write(b"SETTINGS=RESET\r\n")
+        self.autoscroll_to_bottom()
+
+    def _is_valid_int(self, value):
+        try:
+            int(value)
+            return True
+        except ValueError:
+            return False
 
     def closeEvent(self, event):
         self.find_ports_timer.stop()
