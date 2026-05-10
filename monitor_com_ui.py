@@ -5,7 +5,7 @@ import time
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTabWidget, QTextEdit, QPushButton, QComboBox, QLabel, QStatusBar,
-    QFrame, QCheckBox, QGridLayout, QLineEdit
+    QFrame, QCheckBox, QGridLayout, QLineEdit, QScrollArea
 )
 from PyQt6.QtGui import QIntValidator
 from PyQt6.QtCore import QDateTime
@@ -90,58 +90,83 @@ class SerialWorker(QThread):
         if not self._connect_with_retry():
             return
 
-        read_errors = 0
-        max_consecutive_errors = 3
-
         try:
             while self.running:
-                if not self.ser or not self.ser.is_open:
-                    self.status_changed.emit("Port closed")
-                    break
-
-                if not self._is_port_available():
-                    self.status_changed.emit("Port disconnected by system")
-                    break
+                read_errors = 0
+                max_consecutive_errors = 3
 
                 try:
-                    line = self.ser.readline()
-                    if line:
-                        read_errors = 0
-                        text = line.decode('utf-8', errors='ignore')
-                        text = text.rstrip('\r\n') + '\n'
-                        self.data_received.emit(text)
-                    else:
-                        time.sleep(0.01)
+                    while self.running:
+                        if not self.ser or not self.ser.is_open:
+                            raise serial.SerialException("Port closed")
+
+                        if not self._is_port_available():
+                            raise serial.SerialException("Port disconnected by system")
+
+                        try:
+                            line = self.ser.readline()
+                            if line:
+                                read_errors = 0
+                                text = line.decode('utf-8', errors='ignore')
+                                text = text.rstrip('\r\n') + '\n'
+                                self.data_received.emit(text)
+                            else:
+                                time.sleep(0.01)
+                        except serial.SerialException as e:
+                            read_errors += 1
+                            if read_errors >= max_consecutive_errors:
+                                raise
+                            time.sleep(0.05)
+                        except UnicodeDecodeError:
+                            self.data_received.emit(f"\n[DECODE ERROR]\n")
+                            read_errors += 1
+                            if read_errors >= max_consecutive_errors:
+                                raise serial.SerialException("Multiple decode errors")
+                        except Exception as e:
+                            read_errors += 1
+                            if read_errors >= max_consecutive_errors:
+                                raise serial.SerialException(str(e))
+                            time.sleep(0.05)
+
                 except serial.SerialException as e:
-                    read_errors += 1
-                    if read_errors >= max_consecutive_errors:
-                        self.status_changed.emit(f"Serial connection lost")
+                    self._cleanup_partial_connection()
+                    if self.running:
+                        self.connection_state.emit(False)
+                        retry_count = 0
+                        current_delay = INITIAL_RETRY_DELAY
+
+                        while self.running:
+                            self.status_changed.emit(
+                                f"Connection lost - Retrying in {current_delay:.1f}s..."
+                            )
+                            time.sleep(current_delay)
+
+                            try:
+                                self.ser = serial.Serial(self.port, BAUD, timeout=0.1)
+                                self.ser.reset_input_buffer()
+                                self.status_changed.emit(f"Reconnected to {self.port}")
+                                self.connection_state.emit(True)
+                                break
+                            except (serial.SerialException, Exception):
+                                retry_count += 1
+                                current_delay = min(current_delay * 2, 5.0)
+                                if not self.running:
+                                    break
+                        else:
+                            continue
+
+                        if self.running:
+                            continue
+                        else:
+                            break
+                    else:
                         break
-                    time.sleep(0.05)
-                except UnicodeDecodeError as e:
-                    self.data_received.emit(f"\n[DECODE ERROR]\n")
-                    read_errors += 1
-                    if read_errors >= max_consecutive_errors:
-                        break
-                except Exception as e:
-                    read_errors += 1
-                    if read_errors >= max_consecutive_errors:
-                        self.status_changed.emit(f"Multiple read errors - disconnecting")
-                        break
-                    time.sleep(0.05)
 
         except Exception as e:
             self.status_changed.emit(f"Thread error: {e}")
             self.connection_state.emit(False)
         finally:
-            if self.ser:
-                try:
-                    if self.ser.is_open:
-                        self.ser.close()
-                except Exception:
-                    pass
-                self.ser = None
-            self.connection_state.emit(False)
+            self._cleanup_partial_connection()
 
     def stop(self):
         self.running = False
@@ -173,7 +198,8 @@ class SerialMonitorUI(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        main_layout = QVBoxLayout()
+        main_layout = QHBoxLayout()
+        left_layout = QVBoxLayout()
 
         # Connection control layout
         control_layout = QHBoxLayout()
@@ -201,7 +227,7 @@ class SerialMonitorUI(QMainWindow):
         self.status_label.setStyleSheet("color: red; font-weight: bold;")
         control_layout.addWidget(self.status_label)
 
-        main_layout.addLayout(control_layout)
+        left_layout.addLayout(control_layout)
 
         # Mode control layout
         mode_layout = QHBoxLayout()
@@ -221,7 +247,7 @@ class SerialMonitorUI(QMainWindow):
 
         mode_layout.addStretch()
 
-        main_layout.addLayout(mode_layout)
+        left_layout.addLayout(mode_layout)
 
         # PWM Throttle control layout
         throttle_layout = QHBoxLayout()
@@ -249,7 +275,7 @@ class SerialMonitorUI(QMainWindow):
 
         throttle_layout.addStretch()
 
-        main_layout.addLayout(throttle_layout)
+        left_layout.addLayout(throttle_layout)
 
         # Fan control layout
         fan_container_layout = QVBoxLayout()
@@ -281,7 +307,7 @@ class SerialMonitorUI(QMainWindow):
 
         fan_container_layout.addLayout(fan_layout)
 
-        main_layout.addLayout(fan_container_layout)
+        left_layout.addLayout(fan_container_layout)
 
         self.tabs = QTabWidget()
 
@@ -454,7 +480,7 @@ class SerialMonitorUI(QMainWindow):
         self.ctrl_pwm_b_btn = btn_b
 
         # Temp Throttle On
-        settings_layout.addWidget(QLabel("Temp Throttle On (°C × 100):"), 2, 0)
+        settings_layout.addWidget(QLabel("Temp Throttle On (value in ×100):"), 2, 0)
         self.ctrl_temp_throttle = QLineEdit()
         self.ctrl_temp_throttle.setValidator(QIntValidator(-10000, 10000))
         self.ctrl_temp_throttle.setMaxLength(6)
@@ -468,7 +494,7 @@ class SerialMonitorUI(QMainWindow):
         self.ctrl_temp_throttle_btn = btn_throttle
 
         # Temp Fan On
-        settings_layout.addWidget(QLabel("Temp Fan On (°C × 100):"), 3, 0)
+        settings_layout.addWidget(QLabel("Temp Fan On (1-80°C as ×100):"), 3, 0)
         self.ctrl_temp_fan_on = QLineEdit()
         self.ctrl_temp_fan_on.setValidator(QIntValidator(-10000, 10000))
         self.ctrl_temp_fan_on.setMaxLength(6)
@@ -482,7 +508,7 @@ class SerialMonitorUI(QMainWindow):
         self.ctrl_temp_fan_on_btn = btn_fan_on
 
         # Temp Fan Off
-        settings_layout.addWidget(QLabel("Temp Fan Off (°C × 100):"), 4, 0)
+        settings_layout.addWidget(QLabel("Temp Fan Off (0-79°C as ×100):"), 4, 0)
         self.ctrl_temp_fan_off = QLineEdit()
         self.ctrl_temp_fan_off.setValidator(QIntValidator(-10000, 10000))
         self.ctrl_temp_fan_off.setMaxLength(6)
@@ -496,7 +522,7 @@ class SerialMonitorUI(QMainWindow):
         self.ctrl_temp_fan_off_btn = btn_fan_off
 
         # Temp Critical
-        settings_layout.addWidget(QLabel("Temp Critical (°C × 100):"), 5, 0)
+        settings_layout.addWidget(QLabel("Temp Critical (2-90°C as ×100):"), 5, 0)
         self.ctrl_temp_critical = QLineEdit()
         self.ctrl_temp_critical.setValidator(QIntValidator(-10000, 10000))
         self.ctrl_temp_critical.setMaxLength(6)
@@ -524,9 +550,8 @@ class SerialMonitorUI(QMainWindow):
 
         control_layout.addStretch()
         control_widget.setLayout(control_layout)
-        self.tabs.addTab(control_widget, "Control")
 
-        main_layout.addWidget(self.tabs)
+        left_layout.addWidget(self.tabs)
 
         # Command input layout (at the bottom)
         command_layout = QHBoxLayout()
@@ -552,7 +577,30 @@ class SerialMonitorUI(QMainWindow):
         self.clear_input_btn.clicked.connect(self.clear_command_input)
         command_layout.addWidget(self.clear_input_btn)
 
-        main_layout.addLayout(command_layout)
+        left_layout.addLayout(command_layout)
+
+        main_layout.addLayout(left_layout)
+
+        # Right panel - Control settings
+        right_panel = QFrame()
+        right_panel.setStyleSheet("border-left: 2px solid #444;")
+        right_panel.setMinimumWidth(350)
+        right_panel.setMaximumWidth(450)
+        right_scroll = QVBoxLayout()
+
+        right_title = QLabel("Settings")
+        right_title.setStyleSheet("font-weight: bold; font-size: 14px; padding: 10px;")
+        right_scroll.addWidget(right_title)
+
+        # Use scroll area for control widget
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(control_widget)
+        scroll_area.setStyleSheet("QScrollArea { background-color: #1e1e1e; }")
+        right_scroll.addWidget(scroll_area)
+
+        right_panel.setLayout(right_scroll)
+        main_layout.addWidget(right_panel)
 
         central_widget.setLayout(main_layout)
 
@@ -607,14 +655,15 @@ class SerialMonitorUI(QMainWindow):
     def disconnect(self):
         if self.serial_worker:
             self.serial_worker.stop()
-            if not self.serial_worker.wait(timeout=2000):
+            if not self.serial_worker.wait(2000):
                 self.serial_worker.terminate()
-                self.serial_worker.wait(timeout=1000)
+                self.serial_worker.wait(1000)
             self.serial_worker = None
 
     def on_data_received(self, data):
         self.raw_text.insertPlainText(data)
         self.parse_telemetry(data)
+        self.parse_settings_response(data)
         self.autoscroll_to_bottom()
 
     def parse_telemetry(self, data):
@@ -692,6 +741,46 @@ class SerialMonitorUI(QMainWindow):
         minutes = (seconds % 3600) // 60
         secs = seconds % 60
         return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+    def parse_settings_response(self, data):
+        lines = data.strip().split('\n')
+        settings = {}
+
+        for line in lines:
+            line = line.rstrip('\r\n')
+            if '=' in line:
+                parts = line.split('=', 1)
+                if len(parts) == 2:
+                    key, value = parts
+                    key = key.strip()
+                    value = value.strip()
+
+                    if key in ['PWM_THROTTLE_A', 'PWM_THROTTLE_B', 'TEMP_THROTTLE_ON',
+                               'TEMP_FAN_ON', 'TEMP_FAN_OFF', 'TEMP_CRITICAL']:
+                        settings[key] = value
+
+        if settings:
+            self.update_settings_display(settings)
+
+    def update_settings_display(self, settings):
+        display_text = ""
+        for key, value in settings.items():
+            display_text += f"{key} = {value}\n"
+
+        self.settings_display.setPlainText(display_text)
+
+        if 'PWM_THROTTLE_A' in settings:
+            self.ctrl_pwm_a.setText(settings['PWM_THROTTLE_A'])
+        if 'PWM_THROTTLE_B' in settings:
+            self.ctrl_pwm_b.setText(settings['PWM_THROTTLE_B'])
+        if 'TEMP_THROTTLE_ON' in settings:
+            self.ctrl_temp_throttle.setText(str(int(settings['TEMP_THROTTLE_ON']) * 100))
+        if 'TEMP_FAN_ON' in settings:
+            self.ctrl_temp_fan_on.setText(str(int(settings['TEMP_FAN_ON']) * 100))
+        if 'TEMP_FAN_OFF' in settings:
+            self.ctrl_temp_fan_off.setText(str(int(settings['TEMP_FAN_OFF']) * 100))
+        if 'TEMP_CRITICAL' in settings:
+            self.ctrl_temp_critical.setText(str(int(settings['TEMP_CRITICAL']) * 100))
 
     def on_status_changed(self, status):
         self.statusBar().showMessage(status)
@@ -875,9 +964,10 @@ class SerialMonitorUI(QMainWindow):
         if not value or not value.isdigit() or int(value) > 100:
             self.statusBar().showMessage("PWM A: Enter a value between 0-100")
             return
-        self.raw_text.insertPlainText(f"\n>>> SETTINGS=PWM_A,{value}\n")
+        cmd = f"PWMTHR=A{value}"
+        self.raw_text.insertPlainText(f"\n>>> {cmd}\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
-            self.serial_worker.ser.write(f"SETTINGS=PWM_A,{value}\r\n".encode())
+            self.serial_worker.ser.write(f"{cmd}\r\n".encode())
         self.autoscroll_to_bottom()
 
     def send_set_pwm_b(self):
@@ -888,9 +978,10 @@ class SerialMonitorUI(QMainWindow):
         if not value or not value.isdigit() or int(value) > 100:
             self.statusBar().showMessage("PWM B: Enter a value between 0-100")
             return
-        self.raw_text.insertPlainText(f"\n>>> SETTINGS=PWM_B,{value}\n")
+        cmd = f"PWMTHR=B{value}"
+        self.raw_text.insertPlainText(f"\n>>> {cmd}\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
-            self.serial_worker.ser.write(f"SETTINGS=PWM_B,{value}\r\n".encode())
+            self.serial_worker.ser.write(f"{cmd}\r\n".encode())
         self.autoscroll_to_bottom()
 
     def send_set_temp_throttle(self):
@@ -901,9 +992,11 @@ class SerialMonitorUI(QMainWindow):
         if not value or not self._is_valid_int(value):
             self.statusBar().showMessage("Temp Throttle: Enter a valid integer")
             return
-        self.raw_text.insertPlainText(f"\n>>> SETTINGS=TEMP_THROTTLE,{value}\n")
+        temp_c = int(value) // 100
+        cmd = f"PWMTHRTEMP={temp_c}"
+        self.raw_text.insertPlainText(f"\n>>> {cmd}\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
-            self.serial_worker.ser.write(f"SETTINGS=TEMP_THROTTLE,{value}\r\n".encode())
+            self.serial_worker.ser.write(f"{cmd}\r\n".encode())
         self.autoscroll_to_bottom()
 
     def send_set_temp_fan_on(self):
@@ -914,9 +1007,11 @@ class SerialMonitorUI(QMainWindow):
         if not value or not self._is_valid_int(value):
             self.statusBar().showMessage("Temp Fan On: Enter a valid integer")
             return
-        self.raw_text.insertPlainText(f"\n>>> SETTINGS=TEMP_FAN_ON,{value}\n")
+        temp_c = int(value) // 100
+        cmd = f"FANTEMPON={temp_c}"
+        self.raw_text.insertPlainText(f"\n>>> {cmd}\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
-            self.serial_worker.ser.write(f"SETTINGS=TEMP_FAN_ON,{value}\r\n".encode())
+            self.serial_worker.ser.write(f"{cmd}\r\n".encode())
         self.autoscroll_to_bottom()
 
     def send_set_temp_fan_off(self):
@@ -927,9 +1022,11 @@ class SerialMonitorUI(QMainWindow):
         if not value or not self._is_valid_int(value):
             self.statusBar().showMessage("Temp Fan Off: Enter a valid integer")
             return
-        self.raw_text.insertPlainText(f"\n>>> SETTINGS=TEMP_FAN_OFF,{value}\n")
+        temp_c = int(value) // 100
+        cmd = f"FANTEMPOFF={temp_c}"
+        self.raw_text.insertPlainText(f"\n>>> {cmd}\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
-            self.serial_worker.ser.write(f"SETTINGS=TEMP_FAN_OFF,{value}\r\n".encode())
+            self.serial_worker.ser.write(f"{cmd}\r\n".encode())
         self.autoscroll_to_bottom()
 
     def send_set_temp_critical(self):
@@ -940,18 +1037,20 @@ class SerialMonitorUI(QMainWindow):
         if not value or not self._is_valid_int(value):
             self.statusBar().showMessage("Temp Critical: Enter a valid integer")
             return
-        self.raw_text.insertPlainText(f"\n>>> SETTINGS=TEMP_CRITICAL,{value}\n")
+        temp_c = int(value) // 100
+        cmd = f"TEMPCRIT={temp_c}"
+        self.raw_text.insertPlainText(f"\n>>> {cmd}\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
-            self.serial_worker.ser.write(f"SETTINGS=TEMP_CRITICAL,{value}\r\n".encode())
+            self.serial_worker.ser.write(f"{cmd}\r\n".encode())
         self.autoscroll_to_bottom()
 
     def send_reset_to_defaults(self):
         if self.serial_worker is None or not self.serial_worker.isRunning():
             self.statusBar().showMessage("Not connected - cannot send command")
             return
-        self.raw_text.insertPlainText("\n>>> SETTINGS=RESET\n")
+        self.raw_text.insertPlainText("\n>>> DEFAULT\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
-            self.serial_worker.ser.write(b"SETTINGS=RESET\r\n")
+            self.serial_worker.ser.write(b"DEFAULT\r\n")
         self.autoscroll_to_bottom()
 
     def _is_valid_int(self, value):
