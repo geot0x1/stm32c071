@@ -4,6 +4,7 @@
 #include "usb.h"
 #include "fan_control.h"
 #include "pwm_repeater.h"
+#include "fifo.h"
 #include "stm32c0xx_hal.h"
 #include <stdint.h>
 #include <stdbool.h>
@@ -57,17 +58,20 @@ typedef struct
     void (*handler)(int value);
 } CommandEntry;
 
-static CommandEntry command_table[] = {
-    {"pwma", handle_pwm_a},
-    {"pwmb", handle_pwm_b},
-    {"fantype", handle_fan_type},
-    {"tempon", handle_temp_on},
-    {"tempoff", handle_temp_off},
-    {"tempcrit", handle_temp_crit},
-    {NULL, NULL}
-};
+// static CommandEntry command_table[] = {
+//     {"pwma", handle_pwm_a},
+//     {"pwmb", handle_pwm_b},
+//     {"fantype", handle_fan_type},
+//     {"tempon", handle_temp_on},
+//     {"tempoff", handle_temp_off},
+//     {"tempcrit", handle_temp_crit},
+//     {NULL, NULL}
+// };
 
 static CommandLineBuffer lineBuf = {0};
+
+static uint8_t usb_fifo_buffer[256];
+static Fifo usb_fifo;
 
 static bool parse_int(const char *s, int32_t *out)
 {
@@ -537,13 +541,20 @@ static bool linebuffer_append_byte(uint8_t byte)
     return false;
 }
 
-static char *append_bytes_to_line_buffer(const uint8_t *data, uint32_t len)
+static char *usb_read_line(void)
 {
-    for (uint32_t i = 0U; i < len; i++)
-    {
-        uint8_t b = data[i];
+    uint8_t chunk[CMD_USB_CHUNK_SIZE];
+    uint32_t n = usb_read(chunk, CMD_USB_CHUNK_SIZE);
 
-        if ((b == '\r') || (b == '\n'))
+    if (n > 0)
+    {
+        fifo_push_array(&usb_fifo, chunk, (uint16_t)n);
+    }
+
+    uint8_t byte;
+    while (fifo_pop(&usb_fifo, &byte))
+    {
+        if ((byte == '\r') || (byte == '\n'))
         {
             usb_write("\r\n", 2U);
             if (lineBuf.len > 0U)
@@ -554,7 +565,7 @@ static char *append_bytes_to_line_buffer(const uint8_t *data, uint32_t len)
                 return result;
             }
         }
-        else if ((b == 0x08U) || (b == 0x7FU))
+        else if ((byte == 0x08U) || (byte == 0x7FU))
         {
             if (lineBuf.len > 0U)
             {
@@ -562,11 +573,11 @@ static char *append_bytes_to_line_buffer(const uint8_t *data, uint32_t len)
                 usb_write("\b \b", 3U);
             }
         }
-        else if ((b >= 0x20U) && (b <= 0x7EU))
+        else if ((byte >= 0x20U) && (byte <= 0x7EU))
         {
-            if (linebuffer_append_byte(b))
+            if (linebuffer_append_byte(byte))
             {
-                usb_write(&b, 1U);
+                usb_write(&byte, 1U);
             }
             else
             {
@@ -577,13 +588,6 @@ static char *append_bytes_to_line_buffer(const uint8_t *data, uint32_t len)
     }
 
     return NULL;
-}
-
-static char *usb_read_line(void)
-{
-    uint8_t chunk[CMD_USB_CHUNK_SIZE];
-    uint32_t n = usb_read(chunk, CMD_USB_CHUNK_SIZE);
-    return append_bytes_to_line_buffer(chunk, n);
 }
 
 static void process_line(void)
@@ -613,6 +617,7 @@ static void process_line(void)
 void commands_init(void)
 {
     lineBuf.len = 0U;
+    fifo_init(&usb_fifo, usb_fifo_buffer, sizeof(usb_fifo_buffer));
 }
 
 void commands_task(void)
