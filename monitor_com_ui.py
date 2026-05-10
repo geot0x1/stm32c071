@@ -139,6 +139,9 @@ class SerialWorker(QThread):
                             )
                             time.sleep(current_delay)
 
+                            if not self.running:
+                                break
+
                             try:
                                 self.ser = serial.Serial(self.port, BAUD, timeout=0.1)
                                 self.ser.reset_input_buffer()
@@ -785,6 +788,7 @@ class SerialMonitorUI(QMainWindow):
         if connected:
             self.status_label.setText("● Connected")
             self.status_label.setStyleSheet("color: #4caf50; font-weight: bold; letter-spacing: 0.5px;")
+            self.statusBar().clearMessage()
             self.connect_btn.setText("Disconnect")
             self.port_combo.setEnabled(False)
             self.mode_normal_btn.setEnabled(True)
@@ -815,6 +819,7 @@ class SerialMonitorUI(QMainWindow):
         else:
             self.status_label.setText("● Disconnected")
             self.status_label.setStyleSheet("color: #e05555; font-weight: bold; letter-spacing: 0.5px;")
+            self.statusBar().showMessage("Disconnected")
             self.connect_btn.setText("Connect")
             self.port_combo.setEnabled(True)
             self.mode_normal_btn.setEnabled(False)
