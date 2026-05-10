@@ -407,17 +407,6 @@ static void app_task(void)
             break;
         }
     }
-
-    /* USB print input PWM measurements */
-    static uint32_t last_usb_print_ms = 0U;
-    if (now_ms - last_usb_print_ms >= 500U)
-    {
-        last_usb_print_ms = now_ms;
-        usb_printf("[APP] Mode: %s | Input PWM-A: %lu Hz, %lu | Input PWM-B: %lu Hz, %lu\r\n",
-                      app_mode_str(app.mode),
-                      pwm_get_frequency_a(), pwm_get_duty_a(),
-                      pwm_get_frequency_b(), pwm_get_duty_b());
-    }
 }
 
 int main(void)
