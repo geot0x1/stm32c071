@@ -298,6 +298,25 @@ class SerialMonitorUI(QMainWindow):
 
         main_layout.addWidget(self.tabs)
 
+        # Command input layout (at the bottom)
+        command_layout = QHBoxLayout()
+        command_layout.addWidget(QLabel("Command:"))
+
+        self.command_input = QLineEdit()
+        self.command_input.setPlaceholderText("Type command and press Enter or click Send...")
+        self.command_input.returnPressed.connect(self.send_custom_command)
+        self.command_input.setEnabled(False)
+        command_layout.addWidget(self.command_input)
+
+        self.send_command_btn = QPushButton("Send")
+        self.send_command_btn.setStyleSheet("background-color: #9C27B0; color: white; font-weight: bold;")
+        self.send_command_btn.setFixedWidth(80)
+        self.send_command_btn.setEnabled(False)
+        self.send_command_btn.clicked.connect(self.send_custom_command)
+        command_layout.addWidget(self.send_command_btn)
+
+        main_layout.addLayout(command_layout)
+
         central_widget.setLayout(main_layout)
 
         self.setStatusBar(QStatusBar())
@@ -449,6 +468,8 @@ class SerialMonitorUI(QMainWindow):
             self.throttle_a_input.setEnabled(True)
             self.throttle_b_input.setEnabled(True)
             self.throttle_apply_btn.setEnabled(True)
+            self.command_input.setEnabled(True)
+            self.send_command_btn.setEnabled(True)
             for fan_num in range(1, 5):
                 getattr(self, f"fan{fan_num}_on_btn").setEnabled(True)
                 getattr(self, f"fan{fan_num}_off_btn").setEnabled(True)
@@ -462,6 +483,8 @@ class SerialMonitorUI(QMainWindow):
             self.throttle_a_input.setEnabled(False)
             self.throttle_b_input.setEnabled(False)
             self.throttle_apply_btn.setEnabled(False)
+            self.command_input.setEnabled(False)
+            self.send_command_btn.setEnabled(False)
             for fan_num in range(1, 5):
                 getattr(self, f"fan{fan_num}_on_btn").setEnabled(False)
                 getattr(self, f"fan{fan_num}_off_btn").setEnabled(False)
@@ -546,6 +569,22 @@ class SerialMonitorUI(QMainWindow):
             if self.serial_worker.ser and self.serial_worker.ser.is_open:
                 self.serial_worker.ser.write(f"PWMTHR=B,{throttle_b}\r\n".encode())
 
+        self.autoscroll_to_bottom()
+
+    def send_custom_command(self):
+        if self.serial_worker is None or not self.serial_worker.isRunning():
+            self.statusBar().showMessage("Not connected - cannot send command")
+            return
+
+        command = self.command_input.text().strip()
+        if not command:
+            return
+
+        self.raw_text.insertPlainText(f"\n>>> {command}\n")
+        if self.serial_worker.ser and self.serial_worker.ser.is_open:
+            self.serial_worker.ser.write(f"{command}\r\n".encode())
+
+        self.command_input.clear()
         self.autoscroll_to_bottom()
 
     def closeEvent(self, event):
