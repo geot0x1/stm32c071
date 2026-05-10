@@ -39,7 +39,6 @@ typedef enum
     SubCmdUnknown = 0,
     SubCmdPwmA,
     SubCmdPwmB,
-    SubCmdFanType,
     SubCmdTempOn,
     SubCmdTempOff,
     SubCmdTempCrit,
@@ -113,10 +112,6 @@ static CommandSubType identify_sub_cmd(const char *s)
     {
         return SubCmdPwmB;
     }
-    if (strcmp(s, "fantype") == 0)
-    {
-        return SubCmdFanType;
-    }
     if (strcmp(s, "tempon") == 0)
     {
         return SubCmdTempOn;
@@ -186,39 +181,6 @@ static void handle_pwm_b(char **tokens, uint8_t count)
         return;
     }
     usb_printf("OK SETTINGSCHANGE pwmb %d\r\n", (int)val);
-}
-
-static void handle_fan_type(char **tokens, uint8_t count)
-{
-    if (count != 6U)
-    {
-        usb_printf("ERR WRONG_ARG_COUNT fantype needs 4 values\r\n");
-        return;
-    }
-    int32_t vals[4];
-    for (uint8_t i = 0U; i < 4U; i++)
-    {
-        if (!parse_int(tokens[2U + i], &vals[i]))
-        {
-            usb_printf("ERR INVALID_VALUE fantype[%u] %s\r\n", (unsigned int)i, tokens[2U + i]);
-            return;
-        }
-        if ((vals[i] < 0) || (vals[i] > 1))
-        {
-            usb_printf("ERR OUT_OF_RANGE fantype[%u] %d\r\n", (unsigned int)i, (int)vals[i]);
-            return;
-        }
-    }
-    for (uint8_t i = 0U; i < 4U; i++)
-    {
-        if (!settings_set_fan_type_override(i, (FanTypeOverride)vals[i]))
-        {
-            usb_printf("ERR SAVE_FAILED fantype[%u]\r\n", (unsigned int)i);
-            return;
-        }
-    }
-    usb_printf("OK SETTINGSCHANGE fantype %d %d %d %d\r\n", (int)vals[0], (int)vals[1],
-        (int)vals[2], (int)vals[3]);
 }
 
 static void handle_temp_on(char **tokens, uint8_t count)
