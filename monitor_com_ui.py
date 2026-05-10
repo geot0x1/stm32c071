@@ -1,6 +1,7 @@
 import sys
 import serial
 import serial.tools.list_ports
+import time
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTabWidget, QTextEdit, QPushButton, QComboBox, QLabel, QStatusBar,
@@ -14,6 +15,8 @@ from PyQt6.QtGui import QColor, QFont
 BAUD = 115200
 TINYUSB_VID = 0xCAFE
 TINYUSB_CDC_PID = 0x4000
+MAX_RETRIES = 5
+INITIAL_RETRY_DELAY = 0.5
 
 
 class SerialWorker(QThread):
@@ -27,13 +30,49 @@ class SerialWorker(QThread):
         self.running = True
         self.ser = None
 
-    def run(self):
-        try:
-            self.ser = serial.Serial(self.port, BAUD, timeout=0.1)
-            self.ser.reset_input_buffer()
-            self.status_changed.emit(f"Connected to {self.port}")
-            self.connection_state.emit(True)
+    def _connect_with_retry(self):
+        retry_count = 0
+        current_delay = INITIAL_RETRY_DELAY
 
+        while retry_count < MAX_RETRIES and self.running:
+            try:
+                self.ser = serial.Serial(self.port, BAUD, timeout=0.1)
+                self.ser.reset_input_buffer()
+                self.status_changed.emit(f"Connected to {self.port}")
+                self.connection_state.emit(True)
+                return True
+            except serial.SerialException as e:
+                retry_count += 1
+                if retry_count < MAX_RETRIES:
+                    self.status_changed.emit(
+                        f"Connection failed: {e} - Retrying in {current_delay:.1f}s ({retry_count}/{MAX_RETRIES})"
+                    )
+                    time.sleep(current_delay)
+                    current_delay = min(current_delay * 2, 5.0)
+                else:
+                    self.status_changed.emit(f"Failed to connect after {MAX_RETRIES} attempts: {e}")
+                    self.connection_state.emit(False)
+                    return False
+            except Exception as e:
+                retry_count += 1
+                if retry_count < MAX_RETRIES:
+                    self.status_changed.emit(
+                        f"Unexpected error: {e} - Retrying in {current_delay:.1f}s ({retry_count}/{MAX_RETRIES})"
+                    )
+                    time.sleep(current_delay)
+                    current_delay = min(current_delay * 2, 5.0)
+                else:
+                    self.status_changed.emit(f"Failed after {MAX_RETRIES} attempts: {e}")
+                    self.connection_state.emit(False)
+                    return False
+
+        return False
+
+    def run(self):
+        if not self._connect_with_retry():
+            return
+
+        try:
             while self.running:
                 if self.ser and self.ser.is_open:
                     try:
@@ -47,9 +86,6 @@ class SerialWorker(QThread):
                 else:
                     break
 
-        except serial.SerialException as e:
-            self.status_changed.emit(f"Serial Error: {e}")
-            self.connection_state.emit(False)
         except Exception as e:
             self.status_changed.emit(f"Error: {e}")
             self.connection_state.emit(False)
@@ -315,6 +351,13 @@ class SerialMonitorUI(QMainWindow):
         self.send_command_btn.clicked.connect(self.send_custom_command)
         command_layout.addWidget(self.send_command_btn)
 
+        self.clear_input_btn = QPushButton("Clear Input")
+        self.clear_input_btn.setStyleSheet("background-color: #607D8B; color: white; font-weight: bold;")
+        self.clear_input_btn.setFixedWidth(100)
+        self.clear_input_btn.setEnabled(False)
+        self.clear_input_btn.clicked.connect(self.clear_command_input)
+        command_layout.addWidget(self.clear_input_btn)
+
         main_layout.addLayout(command_layout)
 
         central_widget.setLayout(main_layout)
@@ -470,6 +513,7 @@ class SerialMonitorUI(QMainWindow):
             self.throttle_apply_btn.setEnabled(True)
             self.command_input.setEnabled(True)
             self.send_command_btn.setEnabled(True)
+            self.clear_input_btn.setEnabled(True)
             for fan_num in range(1, 5):
                 getattr(self, f"fan{fan_num}_on_btn").setEnabled(True)
                 getattr(self, f"fan{fan_num}_off_btn").setEnabled(True)
@@ -485,6 +529,7 @@ class SerialMonitorUI(QMainWindow):
             self.throttle_apply_btn.setEnabled(False)
             self.command_input.setEnabled(False)
             self.send_command_btn.setEnabled(False)
+            self.clear_input_btn.setEnabled(False)
             for fan_num in range(1, 5):
                 getattr(self, f"fan{fan_num}_on_btn").setEnabled(False)
                 getattr(self, f"fan{fan_num}_off_btn").setEnabled(False)
@@ -584,8 +629,10 @@ class SerialMonitorUI(QMainWindow):
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
             self.serial_worker.ser.write(f"{command}\r\n".encode())
 
-        self.command_input.clear()
         self.autoscroll_to_bottom()
+
+    def clear_command_input(self):
+        self.command_input.clear()
 
     def closeEvent(self, event):
         self.find_ports_timer.stop()
