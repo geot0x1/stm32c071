@@ -123,21 +123,20 @@ static bool parse_fan_temp_on(const char *value_str)
         usb_printf("ERR OUT_OF_RANGE FANTEMPON %d\r\n", (int)val);
         return false;
     }
-    int16_t centideg = (int16_t)(val * 100);
     const Settings *s = settings_get();
-    if (centideg <= s->temp_fan_off)
+    if (val <= s->temp_fan_off)
     {
         usb_printf("ERR ORDERING FANTEMPON %d must be > FANTEMPOFF %d\r\n", (int)val,
-            (int)(s->temp_fan_off / 100));
+            (int)s->temp_fan_off);
         return false;
     }
-    if (centideg >= s->temp_critical)
+    if (val >= s->temp_critical)
     {
         usb_printf("ERR ORDERING FANTEMPON %d must be < TEMPCRIT %d\r\n", (int)val,
-            (int)(s->temp_critical / 100));
+            (int)s->temp_critical);
         return false;
     }
-    if (!settings_set_temp_fan_on(centideg))
+    if (!settings_set_temp_fan_on((uint8_t)val))
     {
         usb_printf("ERR SAVE_FAILED FANTEMPON\r\n");
         return false;
@@ -159,15 +158,14 @@ static bool parse_fan_temp_off(const char *value_str)
         usb_printf("ERR OUT_OF_RANGE FANTEMPOFF %d\r\n", (int)val);
         return false;
     }
-    int16_t centideg = (int16_t)(val * 100);
     const Settings *s = settings_get();
-    if (centideg >= s->temp_fan_on)
+    if (val >= s->temp_fan_on)
     {
         usb_printf("ERR ORDERING FANTEMPOFF %d must be < FANTEMPON %d\r\n", (int)val,
-            (int)(s->temp_fan_on / 100));
+            (int)s->temp_fan_on);
         return false;
     }
-    if (!settings_set_temp_fan_off(centideg))
+    if (!settings_set_temp_fan_off((uint8_t)val))
     {
         usb_printf("ERR SAVE_FAILED FANTEMPOFF\r\n");
         return false;
@@ -184,8 +182,7 @@ static bool parse_pwm_throttle_temp(const char *value_str)
         usb_printf("ERR INVALID_VALUE PWMTHRTEMP %s\r\n", value_str);
         return false;
     }
-    int16_t centideg = (int16_t)(val * 100);
-    if (!settings_set_temp_throttle_on(centideg))
+    if (!settings_set_temp_throttle_on((uint8_t)val))
     {
         usb_printf("ERR SAVE_FAILED PWMTHRTEMP\r\n");
         return false;
@@ -207,15 +204,14 @@ static bool parse_critical_temp(const char *value_str)
         usb_printf("ERR OUT_OF_RANGE TEMPCRIT %d\r\n", (int)val);
         return false;
     }
-    int16_t centideg = (int16_t)(val * 100);
     const Settings *s = settings_get();
-    if (centideg <= s->temp_fan_on)
+    if (val <= s->temp_fan_on)
     {
         usb_printf("ERR ORDERING TEMPCRIT %d must be > FANTEMPON %d\r\n", (int)val,
-            (int)(s->temp_fan_on / 100));
+            (int)s->temp_fan_on);
         return false;
     }
-    if (!settings_set_temp_critical(centideg))
+    if (!settings_set_temp_critical((uint8_t)val))
     {
         usb_printf("ERR SAVE_FAILED TEMPCRIT\r\n");
         return false;
@@ -306,10 +302,10 @@ static void handle_settings(void)
     const Settings *s = settings_get();
     usb_printf("PWM_THROTTLE_A=%u\r\n", s->pwm_throttle_a);
     usb_printf("PWM_THROTTLE_B=%u\r\n", s->pwm_throttle_b);
-    usb_printf("TEMP_THROTTLE_ON=%d\r\n", (int)(s->temp_throttle_on / 100));
-    usb_printf("TEMP_FAN_ON=%d\r\n", (int)(s->temp_fan_on / 100));
-    usb_printf("TEMP_FAN_OFF=%d\r\n", (int)(s->temp_fan_off / 100));
-    usb_printf("TEMP_CRITICAL=%d\r\n", (int)(s->temp_critical / 100));
+    usb_printf("TEMP_THROTTLE_ON=%d\r\n", (int)s->temp_throttle_on);
+    usb_printf("TEMP_FAN_ON=%d\r\n", (int)s->temp_fan_on);
+    usb_printf("TEMP_FAN_OFF=%d\r\n", (int)s->temp_fan_off);
+    usb_printf("TEMP_CRITICAL=%d\r\n", (int)s->temp_critical);
 }
 
 
@@ -387,13 +383,6 @@ static void process_line(void)
         return;
     }
 
-    /* Fan control: FAN<1-4>=<ON|OFF> */
-    if (strstr(lineBuf.buf, "FAN") == lineBuf.buf && strchr(lineBuf.buf, '=') != NULL)
-    {
-        handle_fan(lineBuf.buf);
-        return;
-    }
-
     /* Application mode: MODE=<NORMAL|MANUAL> */
     if (strstr(lineBuf.buf, "MODE=") == lineBuf.buf)
     {
@@ -408,14 +397,14 @@ static void process_line(void)
         return;
     }
 
-    /* FANTEMPON=<1-80> - Fan ON temperature */
+    /* FANTEMPON=<1-80> - Fan ON temperature (check before FAN control) */
     if (strstr(lineBuf.buf, "FANTEMPON=") == lineBuf.buf)
     {
         parse_fan_temp_on(lineBuf.buf + 10);
         return;
     }
 
-    /* FANTEMPOFF=<0-79> - Fan OFF temperature */
+    /* FANTEMPOFF=<0-79> - Fan OFF temperature (check before FAN control) */
     if (strstr(lineBuf.buf, "FANTEMPOFF=") == lineBuf.buf)
     {
         parse_fan_temp_off(lineBuf.buf + 11);
@@ -433,6 +422,13 @@ static void process_line(void)
     if (strstr(lineBuf.buf, "TEMPCRIT=") == lineBuf.buf)
     {
         parse_critical_temp(lineBuf.buf + 9);
+        return;
+    }
+
+    /* Fan control: FAN<1-4>=<ON|OFF> (check after temperature commands) */
+    if (strstr(lineBuf.buf, "FAN") == lineBuf.buf && strchr(lineBuf.buf, '=') != NULL)
+    {
+        handle_fan(lineBuf.buf);
         return;
     }
 

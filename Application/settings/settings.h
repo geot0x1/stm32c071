@@ -8,21 +8,22 @@
 
 #define SETTINGS_DEFAULT_PWM_THROTTLE_A 50U
 #define SETTINGS_DEFAULT_PWM_THROTTLE_B 50U
-#define SETTINGS_DEFAULT_TEMP_THROTTLE_ON 4000
-#define SETTINGS_DEFAULT_TEMP_FAN_ON 3000
-#define SETTINGS_DEFAULT_TEMP_FAN_OFF 2500
-#define SETTINGS_DEFAULT_TEMP_CRITICAL 6000
+#define SETTINGS_DEFAULT_TEMP_THROTTLE_ON 40U
+#define SETTINGS_DEFAULT_TEMP_FAN_ON 30U
+#define SETTINGS_DEFAULT_TEMP_FAN_OFF 25U
+#define SETTINGS_DEFAULT_TEMP_CRITICAL 60U
+#define SETTINGS_TEMP_INVALID 255U
 
 /* Total size: 16 bytes (2 × 8-byte flash write blocks). */
 typedef struct
 {
     uint8_t pwm_throttle_a; /* offset  0 — 0–100 % */
     uint8_t pwm_throttle_b; /* offset  1 — 0–100 % */
-    int16_t temp_throttle_on; /* offset  2 — T_throttle: throttle above this, 1/100 °C */
-    int16_t temp_fan_on; /* offset  4 — T_high: fans ON above this, 1/100 °C */
-    int16_t temp_fan_off; /* offset  6 — T_low:  fans OFF below this, 1/100 °C */
-    int16_t temp_critical; /* offset  8 — T_critical: overheat threshold, 1/100 °C */
-    uint8_t _pad[6]; /* offset 10 — pads struct to 16 bytes */
+    uint8_t temp_throttle_on; /* offset  2 — T_throttle: throttle above this, 0–254 °C */
+    uint8_t temp_fan_on; /* offset  3 — T_high: fans ON above this, 0–254 °C */
+    uint8_t temp_fan_off; /* offset  4 — T_low:  fans OFF below this, 0–254 °C */
+    uint8_t temp_critical; /* offset  5 — T_critical: overheat threshold, 0–254 °C */
+    uint8_t _pad[10]; /* offset  6 — pads struct to 16 bytes */
 } Settings;
 
 /**
@@ -42,10 +43,10 @@ const Settings *settings_get(void);
  */
 bool settings_set_pwm_throttle_a(uint8_t percent);
 bool settings_set_pwm_throttle_b(uint8_t percent);
-bool settings_set_temp_throttle_on(int16_t value_centideg);
-bool settings_set_temp_fan_on(int16_t value_centideg);
-bool settings_set_temp_fan_off(int16_t value_centideg);
-bool settings_set_temp_critical(int16_t value_centideg);
+bool settings_set_temp_throttle_on(uint8_t temp_deg);
+bool settings_set_temp_fan_on(uint8_t temp_deg);
+bool settings_set_temp_fan_off(uint8_t temp_deg);
+bool settings_set_temp_critical(uint8_t temp_deg);
 
 /**
  * @brief Restore all settings to compile-time defaults and persist.
