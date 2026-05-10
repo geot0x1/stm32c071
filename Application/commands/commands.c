@@ -25,7 +25,6 @@ extern uint32_t app_get_throttle_override_b(void);
 
 #define CMD_LINE_BUF_SIZE 128U
 #define CMD_USB_CHUNK_SIZE 64U
-#define CMD_MAX_TOKENS 8U
 
 #define CMD_TEMPON_MIN 1
 #define CMD_TEMPON_MAX 80
@@ -34,38 +33,11 @@ extern uint32_t app_get_throttle_override_b(void);
 #define CMD_TEMPCRIT_MIN 2
 #define CMD_TEMPCRIT_MAX 90
 
-typedef enum
-{
-    SubCmdUnknown = 0,
-    SubCmdPwmA,
-    SubCmdPwmB,
-    SubCmdTempOn,
-    SubCmdTempOff,
-    SubCmdTempCrit,
-    SubCmdDefault
-} CommandSubType;
-
 typedef struct
 {
     char buf[CMD_LINE_BUF_SIZE];
     uint8_t len;
 }CommandLineBuffer;
-
-typedef struct
-{
-    const char* key;
-    void (*handler)(int value);
-} CommandEntry;
-
-// static CommandEntry command_table[] = {
-//     {"pwma", handle_pwm_a},
-//     {"pwmb", handle_pwm_b},
-//     {"fantype", handle_fan_type},
-//     {"tempon", handle_temp_on},
-//     {"tempoff", handle_temp_off},
-//     {"tempcrit", handle_temp_crit},
-//     {NULL, NULL}
-// };
 
 static CommandLineBuffer lineBuf = {0};
 
@@ -102,208 +74,154 @@ static char *strip_spaces(char *s)
 
 
 
-static CommandSubType identify_sub_cmd(const char *s)
+static bool parse_pwm_throttle(const char *params)
 {
-    if (strcmp(s, "pwma") == 0)
+    if (*params == '\0')
     {
-        return SubCmdPwmA;
+        usb_printf("ERR INVALID_FORMAT PWMTHR\r\n");
+        return false;
     }
-    if (strcmp(s, "pwmb") == 0)
+    char channel = *params;
+    if ((channel != 'A') && (channel != 'B') && (channel != 'a') && (channel != 'b'))
     {
-        return SubCmdPwmB;
+        usb_printf("ERR INVALID_CHANNEL %c\r\n", channel);
+        return false;
     }
-    if (strcmp(s, "tempon") == 0)
+    int32_t dc;
+    if (!parse_int(params + 1, &dc))
     {
-        return SubCmdTempOn;
+        usb_printf("ERR INVALID_VALUE PWMTHR %s\r\n", params + 1);
+        return false;
     }
-    if (strcmp(s, "tempoff") == 0)
+    if ((dc < 0) || (dc > 100))
     {
-        return SubCmdTempOff;
+        usb_printf("ERR OUT_OF_RANGE PWMTHR %d\r\n", (int)dc);
+        return false;
     }
-    if (strcmp(s, "tempcrit") == 0)
+    bool success = ((channel == 'A') || (channel == 'a'))
+        ? settings_set_pwm_throttle_a((uint8_t)dc)
+        : settings_set_pwm_throttle_b((uint8_t)dc);
+    if (!success)
     {
-        return SubCmdTempCrit;
+        usb_printf("ERR SAVE_FAILED PWMTHR\r\n");
+        return false;
     }
-    if (strcmp(s, "default") == 0)
-    {
-        return SubCmdDefault;
-    }
-    return SubCmdUnknown;
+    usb_printf("OK SETTINGSCHANGE PWMTHR %c %d\r\n", channel, (int)dc);
+    return true;
 }
 
-static void handle_pwm_a(char **tokens, uint8_t count)
+static bool parse_fan_temp_on(const char *value_str)
 {
-    if (count != 3U)
-    {
-        usb_printf("ERR WRONG_ARG_COUNT pwma needs 1 value\r\n");
-        return;
-    }
     int32_t val;
-    if (!parse_int(tokens[2], &val))
+    if (!parse_int(value_str, &val))
     {
-        usb_printf("ERR INVALID_VALUE pwma %s\r\n", tokens[2]);
-        return;
-    }
-    if ((val < 0) || (val > 100))
-    {
-        usb_printf("ERR OUT_OF_RANGE pwma %d\r\n", (int)val);
-        return;
-    }
-    if (!settings_set_pwm_throttle_a((uint8_t)val))
-    {
-        usb_printf("ERR SAVE_FAILED pwma\r\n");
-        return;
-    }
-    usb_printf("OK SETTINGSCHANGE pwma %d\r\n", (int)val);
-}
-
-static void handle_pwm_b(char **tokens, uint8_t count)
-{
-    if (count != 3U)
-    {
-        usb_printf("ERR WRONG_ARG_COUNT pwmb needs 1 value\r\n");
-        return;
-    }
-    int32_t val;
-    if (!parse_int(tokens[2], &val))
-    {
-        usb_printf("ERR INVALID_VALUE pwmb %s\r\n", tokens[2]);
-        return;
-    }
-    if ((val < 0) || (val > 100))
-    {
-        usb_printf("ERR OUT_OF_RANGE pwmb %d\r\n", (int)val);
-        return;
-    }
-    if (!settings_set_pwm_throttle_b((uint8_t)val))
-    {
-        usb_printf("ERR SAVE_FAILED pwmb\r\n");
-        return;
-    }
-    usb_printf("OK SETTINGSCHANGE pwmb %d\r\n", (int)val);
-}
-
-static void handle_temp_on(char **tokens, uint8_t count)
-{
-    if (count != 3U)
-    {
-        usb_printf("ERR WRONG_ARG_COUNT tempon needs 1 value\r\n");
-        return;
-    }
-    int32_t val;
-    if (!parse_int(tokens[2], &val))
-    {
-        usb_printf("ERR INVALID_VALUE tempon %s\r\n", tokens[2]);
-        return;
+        usb_printf("ERR INVALID_VALUE FANTEMPON %s\r\n", value_str);
+        return false;
     }
     if ((val < CMD_TEMPON_MIN) || (val > CMD_TEMPON_MAX))
     {
-        usb_printf("ERR OUT_OF_RANGE tempon %d\r\n", (int)val);
-        return;
+        usb_printf("ERR OUT_OF_RANGE FANTEMPON %d\r\n", (int)val);
+        return false;
     }
     int16_t centideg = (int16_t)(val * 100);
     const Settings *s = settings_get();
     if (centideg <= s->temp_fan_off)
     {
-        usb_printf("ERR ORDERING tempon %d must be > tempoff %d\r\n", (int)val,
+        usb_printf("ERR ORDERING FANTEMPON %d must be > FANTEMPOFF %d\r\n", (int)val,
             (int)(s->temp_fan_off / 100));
-        return;
+        return false;
     }
     if (centideg >= s->temp_critical)
     {
-        usb_printf("ERR ORDERING tempon %d must be < tempcrit %d\r\n", (int)val,
+        usb_printf("ERR ORDERING FANTEMPON %d must be < TEMPCRIT %d\r\n", (int)val,
             (int)(s->temp_critical / 100));
-        return;
+        return false;
     }
     if (!settings_set_temp_fan_on(centideg))
     {
-        usb_printf("ERR SAVE_FAILED tempon\r\n");
-        return;
+        usb_printf("ERR SAVE_FAILED FANTEMPON\r\n");
+        return false;
     }
-    usb_printf("OK SETTINGSCHANGE tempon %d\r\n", (int)val);
+    usb_printf("OK SETTINGSCHANGE FANTEMPON %d\r\n", (int)val);
+    return true;
 }
 
-static void handle_temp_off(char **tokens, uint8_t count)
+static bool parse_fan_temp_off(const char *value_str)
 {
-    if (count != 3U)
-    {
-        usb_printf("ERR WRONG_ARG_COUNT tempoff needs 1 value\r\n");
-        return;
-    }
     int32_t val;
-    if (!parse_int(tokens[2], &val))
+    if (!parse_int(value_str, &val))
     {
-        usb_printf("ERR INVALID_VALUE tempoff %s\r\n", tokens[2]);
-        return;
+        usb_printf("ERR INVALID_VALUE FANTEMPOFF %s\r\n", value_str);
+        return false;
     }
     if ((val < CMD_TEMPOFF_MIN) || (val > CMD_TEMPOFF_MAX))
     {
-        usb_printf("ERR OUT_OF_RANGE tempoff %d\r\n", (int)val);
-        return;
+        usb_printf("ERR OUT_OF_RANGE FANTEMPOFF %d\r\n", (int)val);
+        return false;
     }
     int16_t centideg = (int16_t)(val * 100);
     const Settings *s = settings_get();
     if (centideg >= s->temp_fan_on)
     {
-        usb_printf("ERR ORDERING tempoff %d must be < tempon %d\r\n", (int)val,
+        usb_printf("ERR ORDERING FANTEMPOFF %d must be < FANTEMPON %d\r\n", (int)val,
             (int)(s->temp_fan_on / 100));
-        return;
+        return false;
     }
     if (!settings_set_temp_fan_off(centideg))
     {
-        usb_printf("ERR SAVE_FAILED tempoff\r\n");
-        return;
+        usb_printf("ERR SAVE_FAILED FANTEMPOFF\r\n");
+        return false;
     }
-    usb_printf("OK SETTINGSCHANGE tempoff %d\r\n", (int)val);
+    usb_printf("OK SETTINGSCHANGE FANTEMPOFF %d\r\n", (int)val);
+    return true;
 }
 
-static void handle_temp_crit(char **tokens, uint8_t count)
+static bool parse_pwm_throttle_temp(const char *value_str)
 {
-    if (count != 3U)
-    {
-        usb_printf("ERR WRONG_ARG_COUNT tempcrit needs 1 value\r\n");
-        return;
-    }
     int32_t val;
-    if (!parse_int(tokens[2], &val))
+    if (!parse_int(value_str, &val))
     {
-        usb_printf("ERR INVALID_VALUE tempcrit %s\r\n", tokens[2]);
-        return;
+        usb_printf("ERR INVALID_VALUE PWMTHRTEMP %s\r\n", value_str);
+        return false;
+    }
+    int16_t centideg = (int16_t)(val * 100);
+    if (!settings_set_temp_throttle_on(centideg))
+    {
+        usb_printf("ERR SAVE_FAILED PWMTHRTEMP\r\n");
+        return false;
+    }
+    usb_printf("OK SETTINGSCHANGE PWMTHRTEMP %d\r\n", (int)val);
+    return true;
+}
+
+static bool parse_critical_temp(const char *value_str)
+{
+    int32_t val;
+    if (!parse_int(value_str, &val))
+    {
+        usb_printf("ERR INVALID_VALUE TEMPCRIT %s\r\n", value_str);
+        return false;
     }
     if ((val < CMD_TEMPCRIT_MIN) || (val > CMD_TEMPCRIT_MAX))
     {
-        usb_printf("ERR OUT_OF_RANGE tempcrit %d\r\n", (int)val);
-        return;
+        usb_printf("ERR OUT_OF_RANGE TEMPCRIT %d\r\n", (int)val);
+        return false;
     }
     int16_t centideg = (int16_t)(val * 100);
     const Settings *s = settings_get();
     if (centideg <= s->temp_fan_on)
     {
-        usb_printf("ERR ORDERING tempcrit %d must be > tempon %d\r\n", (int)val,
+        usb_printf("ERR ORDERING TEMPCRIT %d must be > FANTEMPON %d\r\n", (int)val,
             (int)(s->temp_fan_on / 100));
-        return;
+        return false;
     }
     if (!settings_set_temp_critical(centideg))
     {
-        usb_printf("ERR SAVE_FAILED tempcrit\r\n");
-        return;
+        usb_printf("ERR SAVE_FAILED TEMPCRIT\r\n");
+        return false;
     }
-    usb_printf("OK SETTINGSCHANGE tempcrit %d\r\n", (int)val);
-}
-
-static void handle_default(uint8_t count)
-{
-    if (count != 2U)
-    {
-        usb_printf("ERR WRONG_ARG_COUNT default takes no arguments\r\n");
-        return;
-    }
-    if (!settings_reset_to_defaults())
-    {
-        usb_printf("ERR SAVE_FAILED default\r\n");
-        return;
-    }
-    usb_printf("OK SETTINGSCHANGE default\r\n");
+    usb_printf("OK SETTINGSCHANGE TEMPCRIT %d\r\n", (int)val);
+    return true;
 }
 
 // need review if this reset should happen in this module.
@@ -318,17 +236,37 @@ static void handle_reset(void)
     HAL_NVIC_SystemReset();
 }
 
-static void handle_telemetry(char **tokens, uint8_t count)
+static void handle_telemetry(const char *line)
 {
-    if (count < 2U)
+    const char *subcmd_start = strip_spaces((char *)(line + 9));
+    if (*subcmd_start == '\0')
     {
         usb_printf("ERR WRONG_ARG_COUNT TELEMETRY\r\n");
         return;
     }
 
-    if (strcmp(tokens[1], "ON") == 0)
+    char subcmd_buf[16];
+    const char *space = strchr(subcmd_start, ' ');
+    if (space != NULL)
     {
-        if (count != 2U)
+        size_t len = (size_t)(space - subcmd_start);
+        if (len >= sizeof(subcmd_buf))
+        {
+            usb_printf("ERR INVALID_FORMAT TELEMETRY\r\n");
+            return;
+        }
+        strncpy(subcmd_buf, subcmd_start, len);
+        subcmd_buf[len] = '\0';
+    }
+    else
+    {
+        strncpy(subcmd_buf, subcmd_start, sizeof(subcmd_buf) - 1);
+        subcmd_buf[sizeof(subcmd_buf) - 1] = '\0';
+    }
+
+    if (strcmp(subcmd_buf, "ON") == 0)
+    {
+        if (space != NULL)
         {
             usb_printf("ERR WRONG_ARG_COUNT TELEMETRY ON takes no arguments\r\n");
             return;
@@ -336,9 +274,9 @@ static void handle_telemetry(char **tokens, uint8_t count)
         telemetry_enable(true);
         usb_printf("OK TELEMETRY ON\r\n");
     }
-    else if (strcmp(tokens[1], "OFF") == 0)
+    else if (strcmp(subcmd_buf, "OFF") == 0)
     {
-        if (count != 2U)
+        if (space != NULL)
         {
             usb_printf("ERR WRONG_ARG_COUNT TELEMETRY OFF takes no arguments\r\n");
             return;
@@ -346,17 +284,23 @@ static void handle_telemetry(char **tokens, uint8_t count)
         telemetry_enable(false);
         usb_printf("OK TELEMETRY OFF\r\n");
     }
-    else if (strcmp(tokens[1], "INTERVAL") == 0)
+    else if (strcmp(subcmd_buf, "INTERVAL") == 0)
     {
-        if (count != 3U)
+        if (space == NULL)
+        {
+            usb_printf("ERR WRONG_ARG_COUNT TELEMETRY INTERVAL needs a value\r\n");
+            return;
+        }
+        const char *value_str = strip_spaces((char *)(space + 1));
+        if (*value_str == '\0')
         {
             usb_printf("ERR WRONG_ARG_COUNT TELEMETRY INTERVAL needs a value\r\n");
             return;
         }
         int32_t val;
-        if (!parse_int(tokens[2], &val))
+        if (!parse_int(value_str, &val))
         {
-            usb_printf("ERR INVALID_VALUE TELEMETRY INTERVAL %s\r\n", tokens[2]);
+            usb_printf("ERR INVALID_VALUE TELEMETRY INTERVAL %s\r\n", value_str);
             return;
         }
         if (val < (int32_t)TELEMETRY_MIN_INTERVAL_MS || val > (int32_t)TELEMETRY_MAX_INTERVAL_MS)
@@ -370,7 +314,7 @@ static void handle_telemetry(char **tokens, uint8_t count)
     }
     else
     {
-        usb_printf("ERR UNKNOWN_SUBCMD TELEMETRY %s\r\n", tokens[1]);
+        usb_printf("ERR UNKNOWN_SUBCMD TELEMETRY %s\r\n", subcmd_buf);
     }
 }
 
@@ -439,59 +383,17 @@ static void handle_mode(const char *token)
     }
 }
 
-static void handle_pwm_throttle(const char *token)
+static void handle_settings(void)
 {
-    const char *equals = strchr(token, '=');
-    if (equals == NULL)
-    {
-        usb_printf("ERR INVALID_FORMAT pwmthr\r\n");
-        return;
-    }
-
-    const char *params = equals + 1;
-    const char *comma = strchr(params, ',');
-    if (comma == NULL)
-    {
-        usb_printf("ERR INVALID_FORMAT pwmthr\r\n");
-        return;
-    }
-
-    char channel = *params;
-    if ((channel != 'A') && (channel != 'B') && (channel != 'a') && (channel != 'b'))
-    {
-        usb_printf("ERR INVALID_CHANNEL %c\r\n", channel);
-        return;
-    }
-
-    int32_t throttle;
-    if (!parse_int(comma + 1, &throttle))
-    {
-        usb_printf("ERR INVALID_VALUE pwmthr %s\r\n", comma + 1);
-        return;
-    }
-
-    if ((throttle < 0) || (throttle > 100))
-    {
-        usb_printf("ERR OUT_OF_RANGE pwmthr %d\r\n", (int)throttle);
-        return;
-    }
-
-    uint32_t new_throttle_a = app_get_throttle_override_a();
-    uint32_t new_throttle_b = app_get_throttle_override_b();
-
-    if ((channel == 'A') || (channel == 'a'))
-    {
-        new_throttle_a = (uint32_t)throttle;
-        usb_printf("OK PWMTHR A %d\r\n", (int)throttle);
-    }
-    else
-    {
-        new_throttle_b = (uint32_t)throttle;
-        usb_printf("OK PWMTHR B %d\r\n", (int)throttle);
-    }
-
-    app_set_throttle_override(new_throttle_a, new_throttle_b);
+    const Settings *s = settings_get();
+    usb_printf("PWM_THROTTLE_A=%u\r\n", s->pwm_throttle_a);
+    usb_printf("PWM_THROTTLE_B=%u\r\n", s->pwm_throttle_b);
+    usb_printf("TEMP_THROTTLE_ON=%d\r\n", (int)(s->temp_throttle_on / 100));
+    usb_printf("TEMP_FAN_ON=%d\r\n", (int)(s->temp_fan_on / 100));
+    usb_printf("TEMP_FAN_OFF=%d\r\n", (int)(s->temp_fan_off / 100));
+    usb_printf("TEMP_CRITICAL=%d\r\n", (int)(s->temp_critical / 100));
 }
+
 
 static bool linebuffer_append_byte(uint8_t byte)
 {
@@ -553,23 +455,93 @@ static void process_line(void)
     usb_printf("\r\n");
     usb_printf("[CMD] Received line: %s\r\n", lineBuf.buf);
 
-    if (strstr(lineBuf.buf, "PWMTHR=") == lineBuf.buf && strchr(lineBuf.buf, ',') != NULL)
+    /* Query settings: SETTINGS? */
+    if (strcmp(lineBuf.buf, "SETTINGS?") == 0)
     {
-        handle_pwm_throttle(lineBuf.buf);
+        handle_settings();
         return;
     }
 
+    /* System reset: RESET */
+    if (strcmp(lineBuf.buf, "RESET") == 0)
+    {
+        handle_reset();
+        return;
+    }
+
+    /* Fan control: FAN<1-4>=<ON|OFF> */
     if (strstr(lineBuf.buf, "FAN") == lineBuf.buf && strchr(lineBuf.buf, '=') != NULL)
     {
         handle_fan(lineBuf.buf);
         return;
     }
 
+    /* Application mode: MODE=<NORMAL|MANUAL> */
     if (strstr(lineBuf.buf, "MODE=") == lineBuf.buf)
     {
         handle_mode(lineBuf.buf);
         return;
     }
+
+    /* PWMTHR=<A|B><0-100> - PWM throttle */
+    if (strstr(lineBuf.buf, "PWMTHR=") == lineBuf.buf)
+    {
+        parse_pwm_throttle(lineBuf.buf + 7);
+        return;
+    }
+
+    /* FANTEMPON=<1-80> - Fan ON temperature */
+    if (strstr(lineBuf.buf, "FANTEMPON=") == lineBuf.buf)
+    {
+        parse_fan_temp_on(lineBuf.buf + 10);
+        return;
+    }
+
+    /* FANTEMPOFF=<0-79> - Fan OFF temperature */
+    if (strstr(lineBuf.buf, "FANTEMPOFF=") == lineBuf.buf)
+    {
+        parse_fan_temp_off(lineBuf.buf + 11);
+        return;
+    }
+
+    /* PWMTHRTEMP=<value> - PWM throttle temperature threshold */
+    if (strstr(lineBuf.buf, "PWMTHRTEMP=") == lineBuf.buf)
+    {
+        parse_pwm_throttle_temp(lineBuf.buf + 11);
+        return;
+    }
+
+    /* TEMPCRIT=<2-90> - Critical temperature */
+    if (strstr(lineBuf.buf, "TEMPCRIT=") == lineBuf.buf)
+    {
+        parse_critical_temp(lineBuf.buf + 9);
+        return;
+    }
+
+    /* DEFAULT - Reset to defaults */
+    if (strcmp(lineBuf.buf, "DEFAULT") == 0)
+    {
+        if (!settings_reset_to_defaults())
+        {
+            usb_printf("ERR SAVE_FAILED DEFAULT\r\n");
+            return;
+        }
+        usb_printf("OK SETTINGSCHANGE DEFAULT\r\n");
+        return;
+    }
+
+    /* Telemetry commands: TELEMETRY <ON|OFF|INTERVAL> [args] */
+    if (strstr(lineBuf.buf, "TELEMETRY") == lineBuf.buf && strlen(lineBuf.buf) > 9U)
+    {
+        char first_char = lineBuf.buf[9];
+        if ((first_char == ' ') || (first_char == '\t') || (first_char == '\0'))
+        {
+            handle_telemetry(lineBuf.buf);
+            return;
+        }
+    }
+
+    usb_printf("ERR UNKNOWN_CMD\r\n");
 }
 
 void commands_init(void)
