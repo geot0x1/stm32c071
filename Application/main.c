@@ -31,6 +31,7 @@ typedef enum
 {
     ThermalLow,
     ThermalHigh,
+    ThermalThrottling,
     ThermalCritical,
     ThermalSensorLost,
 } ThermalState;
@@ -64,12 +65,13 @@ static ThermalState thermal_step(ThermalState prev, uint16_t raw, const Settings
         return ThermalSensorLost;
     }
 
-    int16_t t_cdeg   = (int16_t)raw;
-    int16_t t_deg    = t_cdeg / 100;
-    int16_t crit_on  = (int16_t)s->temp_critical;
-    int16_t crit_off = crit_on - (APP_CRITICAL_HYSTERESIS_CDEG / 100);
-    int16_t fan_on   = (int16_t)s->temp_fan_on;
-    int16_t fan_off  = (int16_t)s->temp_fan_off;
+    int16_t t_cdeg       = (int16_t)raw;
+    int16_t t_deg        = t_cdeg / 100;
+    int16_t crit_on      = (int16_t)s->temp_critical;
+    int16_t crit_off     = crit_on - (APP_CRITICAL_HYSTERESIS_CDEG / 100);
+    int16_t throttle_on  = (int16_t)s->temp_throttle_on;
+    int16_t fan_on       = (int16_t)s->temp_fan_on;
+    int16_t fan_off      = (int16_t)s->temp_fan_off;
 
     switch (prev)
     {
@@ -78,6 +80,10 @@ static ThermalState thermal_step(ThermalState prev, uint16_t raw, const Settings
             if (t_deg >= crit_on)
             {
                 return ThermalCritical;
+            }
+            if (t_deg >= throttle_on)
+            {
+                return ThermalThrottling;
             }
             if (t_deg >= fan_on)
             {
@@ -90,6 +96,10 @@ static ThermalState thermal_step(ThermalState prev, uint16_t raw, const Settings
             {
                 return ThermalCritical;
             }
+            if (t_deg >= throttle_on)
+            {
+                return ThermalThrottling;
+            }
             if (t_deg >= fan_on)
             {
                 return ThermalHigh;
@@ -101,16 +111,31 @@ static ThermalState thermal_step(ThermalState prev, uint16_t raw, const Settings
             {
                 return ThermalCritical;
             }
+            if (t_deg >= throttle_on)
+            {
+                return ThermalThrottling;
+            }
             if (t_deg < fan_off)
             {
                 return ThermalLow;
             }
             return ThermalHigh;
 
+        case ThermalThrottling:
+            if (t_deg >= crit_on)
+            {
+                return ThermalCritical;
+            }
+            if (t_deg < fan_on)
+            {
+                return ThermalLow;
+            }
+            return ThermalThrottling;
+
         case ThermalCritical:
             if (t_deg < crit_off)
             {
-                return ThermalHigh;
+                return ThermalThrottling;
             }
             return ThermalCritical;
     }
@@ -133,6 +158,7 @@ static void apply_throttle(ThermalState state, const Settings *s)
             pwm_set_throttle_b(0U);
             break;
 
+        case ThermalThrottling:
         case ThermalHigh:
         case ThermalSensorLost:
             pwm_set_throttle_a((uint32_t)s->pwm_throttle_a);
@@ -292,11 +318,13 @@ static void app_task(void)
             app.thermal         = thermal_step(app.thermal, system_temp_get(), s);
             app.button_override = push_button_is_pressed();
 
-            bool fans_auto_on     = (app.thermal == ThermalHigh) || (app.thermal == ThermalCritical);
+            bool fans_auto_on     = (app.thermal == ThermalHigh) || (app.thermal == ThermalThrottling) || (app.thermal == ThermalCritical);
             bool fans_required_on = app.button_override || fans_auto_on;
+            bool lcd_power_on     = (app.thermal != ThermalCritical);
 
             apply_throttle(app.thermal, s);
             apply_fans(fans_required_on);
+            board_lcd_power_set(lcd_power_on);
             update_led(app.thermal, fans_required_on);
             break;
         }
