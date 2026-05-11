@@ -4,4 +4,4 @@
 python build.py
 
 ### Monitor scripts
-monitor_com_ui.py
+monitor_com_ui/
