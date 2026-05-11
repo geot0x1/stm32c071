@@ -24,7 +24,8 @@
 /* Tunables */
 #define APP_FAN_PWM_FREQ_HZ          25000U
 #define APP_TEMP_HYSTERESIS_CDEG     50U      /* setpoint hysteresis for temp_sensor module */
-#define APP_CRITICAL_HYSTERESIS_CDEG 200      /* +/-2 C around T_critical */
+#define APP_CRITICAL_HYSTERESIS_CDEG  200     /* +/-2 C around T_critical */
+#define APP_THROTTLE_HYSTERESIS_CDEG  200     /* 2 C below T_throttle_on to exit throttling */
 #define APP_FAN_COUNT                4U
 
 typedef struct
@@ -33,8 +34,8 @@ typedef struct
     SystemState state;
     bool        button_override;
     bool        throttle_override_active;
-    uint32_t    throttle_override_a;
-    uint32_t    throttle_override_b;
+    uint8_t     throttle_override_a;
+    uint8_t     throttle_override_b;
 } AppState;
 
 static AppState app;
@@ -45,9 +46,9 @@ static int16_t  hdc2010_last_temp;
 static uint8_t  hdc2010_last_rh;
 
 /* User throttle override (set via PWMTHR command) */
-static bool     user_throttle_override_active = false;
-static uint32_t user_throttle_override_a = 100U;
-static uint32_t user_throttle_override_b = 100U;
+static bool    user_throttle_override_active = false;
+static uint8_t user_throttle_override_a = 100U;
+static uint8_t user_throttle_override_b = 100U;
 
 static SystemState thermal_step(SystemState prev, uint16_t raw, const Settings *s)
 {
@@ -61,6 +62,7 @@ static SystemState thermal_step(SystemState prev, uint16_t raw, const Settings *
     int16_t crit_on      = (int16_t)s->temp_critical;
     int16_t crit_off     = crit_on - (APP_CRITICAL_HYSTERESIS_CDEG / 100);
     int16_t throttle_on  = (int16_t)s->temp_throttle_on;
+    int16_t throttle_off = throttle_on - (APP_THROTTLE_HYSTERESIS_CDEG / 100);
     int16_t fan_on       = (int16_t)s->temp_fan_on;
     int16_t fan_off      = (int16_t)s->temp_fan_off;
 
@@ -117,9 +119,9 @@ static SystemState thermal_step(SystemState prev, uint16_t raw, const Settings *
             {
                 return SystemCritical;
             }
-            if (t_deg < fan_on)
+            if (t_deg < throttle_off)
             {
-                return SystemLow;
+                return SystemHigh;
             }
             return SystemThrottling;
 
@@ -154,13 +156,13 @@ static void apply_throttle(SystemState state, const Settings *s)
             break;
 
         case SystemThrottling:
-        case SystemHigh:
-        case SystemSensorLost:
-            pwm_set_throttle_a((uint32_t)s->pwm_throttle_a);
-            pwm_set_throttle_b((uint32_t)s->pwm_throttle_b);
+            pwm_set_throttle_a(s->pwm_throttle_a);
+            pwm_set_throttle_b(s->pwm_throttle_b);
             break;
 
         case SystemLow:
+        case SystemHigh:
+        case SystemSensorLost:
         default:
             pwm_set_throttle_a(100U);
             pwm_set_throttle_b(100U);
@@ -228,8 +230,8 @@ SystemState app_get_state(void)
 void app_set_throttle_override(uint32_t throttle_a, uint32_t throttle_b)
 {
     app.throttle_override_active = true;
-    app.throttle_override_a = (throttle_a > 100U) ? 100U : throttle_a;
-    app.throttle_override_b = (throttle_b > 100U) ? 100U : throttle_b;
+    app.throttle_override_a = (uint8_t)((throttle_a > 100U) ? 100U : throttle_a);
+    app.throttle_override_b = (uint8_t)((throttle_b > 100U) ? 100U : throttle_b);
     pwm_set_throttle_a(app.throttle_override_a);
     pwm_set_throttle_b(app.throttle_override_b);
 }

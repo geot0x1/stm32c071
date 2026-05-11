@@ -54,14 +54,14 @@ static uint32_t calculate_duty_pct(uint32_t period_ticks, uint32_t pulse_ticks);
 
 /* ── Public API ────────────────────────────────────────────────────────────── */
 
-void pwm_set_throttle_a(uint32_t limit_pct)
+void pwm_set_throttle_a(uint8_t limit_pct)
 {
-    pwmOutputA.throttle_val = (limit_pct > 100) ? 100 : limit_pct;
+    pwmOutputA.throttle_val = (limit_pct > 100U) ? 100U : limit_pct;
 }
 
-void pwm_set_throttle_b(uint32_t limit_pct)
+void pwm_set_throttle_b(uint8_t limit_pct)
 {
-    pwmOutputB.throttle_val = (limit_pct > 100) ? 100 : limit_pct;
+    pwmOutputB.throttle_val = (limit_pct > 100U) ? 100U : limit_pct;
 }
 
 void pwm_repeater_init(Tim *capture_tim, Tim *out_a_tim, Tim *out_b_tim)
