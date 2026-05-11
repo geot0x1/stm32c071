@@ -381,10 +381,9 @@ class SerialMonitorUI(QMainWindow):
         if self.serial_worker:
             logger.info("Disconnect requested - stopping serial worker thread")
             self.serial_worker.stop()
-            self.on_connection_state(False)
             self.status_label.setText("● Disconnecting...")
             self.status_label.setStyleSheet("color: #ffc107; font-weight: bold; letter-spacing: 0.5px;")
-            self.connect_btn.setEnabled(False)
+            self.on_connection_state(False)
 
     def on_worker_finished(self):
         """Handle worker thread completion - ensure UI is updated"""
@@ -517,6 +516,7 @@ class SerialMonitorUI(QMainWindow):
             self.status_label.setStyleSheet("color: #e05555; font-weight: bold; letter-spacing: 0.5px;")
             self.statusBar().showMessage("Disconnected")
             self.connect_btn.setText("Connect")
+            self.connect_btn.setEnabled(True)
             self.port_combo.setEnabled(True)
             self.mode_normal_btn.setEnabled(False)
             self.mode_manual_btn.setEnabled(False)
