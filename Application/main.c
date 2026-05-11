@@ -27,23 +27,14 @@
 #define APP_CRITICAL_HYSTERESIS_CDEG 200      /* +/-2 C around T_critical */
 #define APP_FAN_COUNT                4U
 
-typedef enum
-{
-    ThermalLow,
-    ThermalHigh,
-    ThermalThrottling,
-    ThermalCritical,
-    ThermalSensorLost,
-} ThermalState;
-
 typedef struct
 {
-    AppMode      mode;
-    ThermalState thermal;
-    bool         button_override;
-    bool         throttle_override_active;
-    uint32_t     throttle_override_a;
-    uint32_t     throttle_override_b;
+    AppMode     mode;
+    SystemState state;
+    bool        button_override;
+    bool        throttle_override_active;
+    uint32_t    throttle_override_a;
+    uint32_t    throttle_override_b;
 } AppState;
 
 static AppState app;
@@ -58,11 +49,11 @@ static bool     user_throttle_override_active = false;
 static uint32_t user_throttle_override_a = 100U;
 static uint32_t user_throttle_override_b = 100U;
 
-static ThermalState thermal_step(ThermalState prev, uint16_t raw, const Settings *s)
+static SystemState thermal_step(SystemState prev, uint16_t raw, const Settings *s)
 {
     if (raw == 0xFFFFU)
     {
-        return ThermalSensorLost;
+        return SystemSensorLost;
     }
 
     int16_t t_cdeg       = (int16_t)raw;
@@ -75,74 +66,77 @@ static ThermalState thermal_step(ThermalState prev, uint16_t raw, const Settings
 
     switch (prev)
     {
-        case ThermalSensorLost:
+        case SystemSensorLost:
             /* Re-enter normal SM as if from Low */
             if (t_deg >= crit_on)
             {
-                return ThermalCritical;
+                return SystemCritical;
             }
             if (t_deg >= throttle_on)
             {
-                return ThermalThrottling;
+                return SystemThrottling;
             }
             if (t_deg >= fan_on)
             {
-                return ThermalHigh;
+                return SystemHigh;
             }
-            return ThermalLow;
+            return SystemLow;
 
-        case ThermalLow:
+        case SystemLow:
             if (t_deg >= crit_on)
             {
-                return ThermalCritical;
+                return SystemCritical;
             }
             if (t_deg >= throttle_on)
             {
-                return ThermalThrottling;
+                return SystemThrottling;
             }
             if (t_deg >= fan_on)
             {
-                return ThermalHigh;
+                return SystemHigh;
             }
-            return ThermalLow;
+            return SystemLow;
 
-        case ThermalHigh:
+        case SystemHigh:
             if (t_deg >= crit_on)
             {
-                return ThermalCritical;
+                return SystemCritical;
             }
             if (t_deg >= throttle_on)
             {
-                return ThermalThrottling;
+                return SystemThrottling;
             }
             if (t_deg < fan_off)
             {
-                return ThermalLow;
+                return SystemLow;
             }
-            return ThermalHigh;
+            return SystemHigh;
 
-        case ThermalThrottling:
+        case SystemThrottling:
             if (t_deg >= crit_on)
             {
-                return ThermalCritical;
+                return SystemCritical;
             }
             if (t_deg < fan_on)
             {
-                return ThermalLow;
+                return SystemLow;
             }
-            return ThermalThrottling;
+            return SystemThrottling;
 
-        case ThermalCritical:
+        case SystemCritical:
             if (t_deg < crit_off)
             {
-                return ThermalThrottling;
+                return SystemThrottling;
             }
-            return ThermalCritical;
+            return SystemCritical;
+
+        case SystemError:
+            return SystemError;
     }
-    return ThermalLow;
+    return SystemLow;
 }
 
-static void apply_throttle(ThermalState state, const Settings *s)
+static void apply_throttle(SystemState state, const Settings *s)
 {
     if (user_throttle_override_active)
     {
@@ -153,19 +147,20 @@ static void apply_throttle(ThermalState state, const Settings *s)
 
     switch (state)
     {
-        case ThermalCritical:
+        case SystemCritical:
+        case SystemError:
             pwm_set_throttle_a(0U);
             pwm_set_throttle_b(0U);
             break;
 
-        case ThermalThrottling:
-        case ThermalHigh:
-        case ThermalSensorLost:
+        case SystemThrottling:
+        case SystemHigh:
+        case SystemSensorLost:
             pwm_set_throttle_a((uint32_t)s->pwm_throttle_a);
             pwm_set_throttle_b((uint32_t)s->pwm_throttle_b);
             break;
 
-        case ThermalLow:
+        case SystemLow:
         default:
             pwm_set_throttle_a(100U);
             pwm_set_throttle_b(100U);
@@ -185,9 +180,9 @@ static void apply_fans(bool fans_on)
     }
 }
 
-static void update_led(ThermalState state, bool fans_on)
+static void update_led(SystemState state, bool fans_on)
 {
-    if (state == ThermalSensorLost || state == ThermalCritical)
+    if (state == SystemSensorLost || state == SystemCritical || state == SystemError)
     {
         program_led_set_state(ProgramLedError);
     }
@@ -218,6 +213,16 @@ void app_set_mode(AppMode mode)
 AppMode app_get_mode(void)
 {
     return app.mode;
+}
+
+void app_set_state(SystemState state)
+{
+    app.state = state;
+}
+
+SystemState app_get_state(void)
+{
+    return app.state;
 }
 
 void app_set_throttle_override(uint32_t throttle_a, uint32_t throttle_b)
@@ -293,7 +298,7 @@ static void hdc2010_poll_task(void)
 static void app_state_init(void)
 {
     app.mode                      = ModeNormal;
-    app.thermal                   = ThermalLow;
+    app.state                     = SystemLow;
     app.button_override           = false;
     app.throttle_override_active  = false;
     app.throttle_override_a       = 100U;
@@ -308,24 +313,25 @@ static void app_task(void)
         return;
     }
 
-    uint32_t now_ms = HAL_GetTick();
-
     switch (app.mode)
     {
         case ModeNormal:
         {
-            /* Normal mode: thermal state machine controls behavior */
-            app.thermal         = thermal_step(app.thermal, system_temp_get(), s);
+            /* Normal mode: system state machine controls behavior */
+            if (app.state != SystemError)
+            {
+                app.state = thermal_step(app.state, system_temp_get(), s);
+            }
             app.button_override = push_button_is_pressed();
 
-            bool fans_auto_on     = (app.thermal == ThermalHigh) || (app.thermal == ThermalThrottling) || (app.thermal == ThermalCritical);
+            bool fans_auto_on     = (app.state == SystemHigh) || (app.state == SystemThrottling) || (app.state == SystemCritical);
             bool fans_required_on = app.button_override || fans_auto_on;
-            bool lcd_power_on     = (app.thermal != ThermalCritical);
+            bool lcd_power_on     = (app.state != SystemCritical && app.state != SystemError);
 
-            apply_throttle(app.thermal, s);
+            apply_throttle(app.state, s);
             apply_fans(fans_required_on);
             board_lcd_power_set(lcd_power_on);
-            update_led(app.thermal, fans_required_on);
+            update_led(app.state, fans_required_on);
             break;
         }
 
@@ -334,7 +340,7 @@ static void app_task(void)
             /* Manual mode: external control via USB commands */
             /* Throttle: set via PWMTHR=<channel>,<duty> commands */
             /* Fans: set via FAN<n>=ON/OFF commands */
-            /* Skip thermal state machine processing; use commands for all control */
+            /* Skip state machine processing; use commands for all control */
             app.button_override = false;
 
             if (app.throttle_override_active)
@@ -353,7 +359,7 @@ static void app_task(void)
                 }
             }
 
-            update_led(ThermalLow, any_fan_on);
+            update_led(SystemLow, any_fan_on);
             break;
         }
     }
