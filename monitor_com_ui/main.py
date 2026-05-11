@@ -372,6 +372,8 @@ class SerialMonitorUI(QMainWindow):
         self.serial_worker.status_changed.connect(self.on_status_changed)
         self.serial_worker.connection_state.connect(self.on_connection_state)
         self.serial_worker.start()
+        self.status_label.setText("● Connecting...")
+        self.status_label.setStyleSheet("color: #ffc107; font-weight: bold; letter-spacing: 0.5px;")
 
     def disconnect(self):
         """Close serial connection"""
