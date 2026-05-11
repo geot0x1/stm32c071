@@ -40,43 +40,71 @@
 
 ## 4. Control Logic (Automation)
 
-### Temperature Thresholds & Hysteresis
-The system implements a three-tier temperature control strategy with hysteresis to prevent rapid switching (flickering):
+### System State Machine
+The firmware implements a unified system state machine. In normal operation the state is driven by temperature (thermal states). A dedicated error state exists for fault conditions.
 
-**Threshold Hierarchy**: `T_critical > T_high > T_low`
+#### Thermal States
+Four thermal states are defined, governed by four configurable temperature thresholds:
 
-| Threshold | Condition | Action |
-| :--- | :--- | :--- |
-| **$T_{critical}$** | Temperature ≥ $T_{critical}$ | **Backlight switch turns OFF**. Fans remain **ON** to cool the device. Hysteresis: ±2°C. |
-| **$T_{high}$** | Temperature ≥ $T_{high}$ | All fans turn **ON**. PWM throttling begins. |
-| **$T_{low}$** | Temperature < $T_{low}$ | All fans turn **OFF**. |
+**Threshold Hierarchy**: `T_critical > T_throttle_on > T_fan_on > T_fan_off`
 
-**Note on Hysteresis**: 
-- Fans turn ON when temperature exceeds $T_{high}$ and turn OFF when it drops below $T_{low}$ (preventing oscillation).
-- $T_{critical}$ has an additional ±2°C hysteresis around the threshold to stabilize backlight switching behavior.
+| State | Entry Condition | PWM Throttle | Fans | Backlight |
+| :--- | :--- | :--- | :--- | :--- |
+| **SystemLow** | Temperature < $T_{fan\_off}$ | 100% (no cap) | OFF | ON |
+| **SystemHigh** | Temperature ≥ $T_{fan\_on}$ | 100% (no cap) | ON | ON |
+| **SystemThrottling** | Temperature ≥ $T_{throttle\_on}$ | Capped to configured limit | ON | ON |
+| **SystemCritical** | Temperature ≥ $T_{critical}$ | 0% (fully capped) | ON | **OFF** |
+
+#### Hysteresis
+To prevent rapid state switching (flickering), all upward transitions are offset from downward transitions:
+
+| Transition | Exit Condition |
+| :--- | :--- |
+| **SystemCritical → SystemThrottling** | Temperature < $T_{critical}$ − 2°C |
+| **SystemThrottling → SystemHigh** | Temperature < $T_{throttle\_on}$ − 2°C |
+| **SystemHigh → SystemLow** | Temperature < $T_{fan\_off}$ |
+
+#### Sensor Lost State (SystemSensorLost)
+If the temperature sensor returns an invalid reading, the system enters **SystemSensorLost**:
+- PWM throttle: 100% (no cap).
+- Fans: remain in their current state.
+- LED: ERROR pattern.
+- Recovery: on the next valid reading, the state machine re-enters normally from the current temperature.
+
+#### Error State (SystemError)
+A latching fault state for non-thermal system errors:
+- PWM throttle: 0% (fully capped).
+- Backlight: OFF.
+- LED: ERROR pattern.
+- The state machine does not exit **SystemError** autonomously; it requires an explicit external action.
 
 ### Temperature Control Diagram
 
 ```
 Temperature
     ↑
-    │
     │  ┌────────────────────────────────────────────────────┐
-    │  │ T_critical (±2°C hysteresis)                       │
-    │  │ • Backlight SWITCH OFF                             │
-    │  │ • Fans remain ON (cooling)                         │
+    │  │ T_critical  (exit: T_critical − 2°C)               │
+    │  │ • SystemCritical                                   │
+    │  │ • PWM: 0%  |  Fans: ON  |  Backlight: OFF          │
     │  └────────────────────────────────────────────────────┘
     │
     │  ┌────────────────────────────────────────────────────┐
-    │  │ T_high                                             │
-    │  │ • Fans turn ON                                     │
-    │  │ • PWM throttling starts                            │
+    │  │ T_throttle_on  (exit: T_throttle_on − 2°C)         │
+    │  │ • SystemThrottling                                 │
+    │  │ • PWM: capped  |  Fans: ON  |  Backlight: ON       │
     │  └────────────────────────────────────────────────────┘
     │
     │  ┌────────────────────────────────────────────────────┐
-    │  │ T_low                                              │
-    │  │ • Fans turn OFF                                    │
-    │  │ • Normal PWM operation (no throttling)             │
+    │  │ T_fan_on  (exit: T_fan_off)                        │
+    │  │ • SystemHigh                                       │
+    │  │ • PWM: 100%  |  Fans: ON  |  Backlight: ON         │
+    │  └────────────────────────────────────────────────────┘
+    │
+    │  ┌────────────────────────────────────────────────────┐
+    │  │ Below T_fan_off                                    │
+    │  │ • SystemLow                                        │
+    │  │ • PWM: 100%  |  Fans: OFF  |  Backlight: ON        │
     │  └────────────────────────────────────────────────────┘
     │
     └──────────────────────────────────────────────────────→ Time
@@ -113,7 +141,7 @@ For **4-wire fans** (with Tacho), Tacho reading is not mandatory for basic opera
 All user-configurable parameters are persisted to internal flash and restored on power-up. This includes:
 
 - PWM throttle limits (per channel)
-- Temperature thresholds ($T_{low}$, $T_{high}$, $T_{critical}$)
+- Temperature thresholds ($T_{fan\_off}$, $T_{fan\_on}$, $T_{throttle\_on}$, $T_{critical}$)
 - Fan type selection (override of DIP switch, if applicable)
 
 **Defaults**: If no valid settings exist in flash (e.g., first boot or corrupted storage), the firmware boots with compile-time defaults and writes them to flash.
@@ -130,7 +158,7 @@ The device accepts ASCII commands over USB to read and write all user-configurab
 
 ### 8.2 Telemetry (Periodic Output)
 
-The device periodically emits ASCII telemetry (default interval: 1 s) reporting current system temperature, fan state, input and output duty cycles for both channels, and the current thermal state. Telemetry output can be enabled or disabled via command.
+The device periodically emits ASCII telemetry (default interval: 1 s) reporting current system temperature, fan state, input and output duty cycles for both channels, and the current system state. Telemetry output can be enabled or disabled via command.
 
 ---
 
