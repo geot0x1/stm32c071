@@ -12,8 +12,8 @@
 #include "serial.h"
 #include "settings.h"
 #include "stm32c0xx_hal.h"
-#include "system_temp.h"
 #include "telemetry.h"
+#include "thermal_control.h"
 #include "temperature_sensor.h"
 #include "timers/timers.h"
 #include "usb.h"
@@ -22,11 +22,9 @@
 #include <stdint.h>
 
 /* Tunables */
-#define APP_FAN_PWM_FREQ_HZ          25000U
-#define APP_TEMP_HYSTERESIS_CDEG     50U      /* setpoint hysteresis for temp_sensor module */
-#define APP_CRITICAL_HYSTERESIS_CDEG  200     /* +/-2 C around T_critical */
-#define APP_THROTTLE_HYSTERESIS_CDEG  200     /* 2 C below T_throttle_on to exit throttling */
-#define APP_FAN_COUNT                4U
+#define APP_FAN_PWM_FREQ_HZ      25000U
+#define APP_TEMP_HYSTERESIS_CDEG 50U      /* setpoint hysteresis for temp_sensor module */
+#define APP_FAN_COUNT            4U
 
 typedef struct
 {
@@ -49,94 +47,6 @@ static uint8_t  hdc2010_last_rh;
 static bool    user_throttle_override_active = false;
 static uint8_t user_throttle_override_a = 100U;
 static uint8_t user_throttle_override_b = 100U;
-
-static SystemState thermal_step(SystemState prev, uint16_t raw, const Settings *s)
-{
-    if (raw == 0xFFFFU)
-    {
-        return SystemSensorLost;
-    }
-
-    int16_t t_cdeg       = (int16_t)raw;
-    int16_t t_deg        = t_cdeg / 100;
-    int16_t crit_on      = (int16_t)s->temp_critical;
-    int16_t crit_off     = crit_on - (APP_CRITICAL_HYSTERESIS_CDEG / 100);
-    int16_t throttle_on  = (int16_t)s->temp_throttle_on;
-    int16_t throttle_off = throttle_on - (APP_THROTTLE_HYSTERESIS_CDEG / 100);
-    int16_t fan_on       = (int16_t)s->temp_fan_on;
-    int16_t fan_off      = (int16_t)s->temp_fan_off;
-
-    switch (prev)
-    {
-        case SystemSensorLost:
-            /* Re-enter normal SM as if from Low */
-            if (t_deg >= crit_on)
-            {
-                return SystemCritical;
-            }
-            if (t_deg >= throttle_on)
-            {
-                return SystemThrottling;
-            }
-            if (t_deg >= fan_on)
-            {
-                return SystemHigh;
-            }
-            return SystemLow;
-
-        case SystemLow:
-            if (t_deg >= crit_on)
-            {
-                return SystemCritical;
-            }
-            if (t_deg >= throttle_on)
-            {
-                return SystemThrottling;
-            }
-            if (t_deg >= fan_on)
-            {
-                return SystemHigh;
-            }
-            return SystemLow;
-
-        case SystemHigh:
-            if (t_deg >= crit_on)
-            {
-                return SystemCritical;
-            }
-            if (t_deg >= throttle_on)
-            {
-                return SystemThrottling;
-            }
-            if (t_deg < fan_off)
-            {
-                return SystemLow;
-            }
-            return SystemHigh;
-
-        case SystemThrottling:
-            if (t_deg >= crit_on)
-            {
-                return SystemCritical;
-            }
-            if (t_deg < throttle_off)
-            {
-                return SystemHigh;
-            }
-            return SystemThrottling;
-
-        case SystemCritical:
-            if (t_deg < crit_off)
-            {
-                return SystemThrottling;
-            }
-            return SystemCritical;
-
-        case SystemError:
-            return SystemError;
-    }
-    return SystemLow;
-}
 
 static void apply_throttle(SystemState state, const Settings *s)
 {
@@ -320,10 +230,7 @@ static void app_task(void)
         case ModeNormal:
         {
             /* Normal mode: system state machine controls behavior */
-            if (app.state != SystemError)
-            {
-                app.state = thermal_step(app.state, system_temp_get(), s);
-            }
+            app.state = thermal_control_step(app.state, s);
             app.button_override = push_button_is_pressed();
 
             bool fans_auto_on     = (app.state == SystemHigh) || (app.state == SystemThrottling) || (app.state == SystemCritical);
@@ -409,6 +316,7 @@ int main(void)
     fan_control_all_off();
 
     app_state_init();
+    thermal_control_init();
 
     /* Phase 5: Cooperative main loop */
     while (true)
