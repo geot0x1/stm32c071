@@ -64,10 +64,15 @@ static bool parse_pwm_throttle(const char *params)
         usb_printf("ERR INVALID_CHANNEL %c\r\n", channel);
         return false;
     }
-    int32_t dc;
-    if (!parse_int(params + 1, &dc))
+    if (params[1] != ',')
     {
-        usb_printf("ERR INVALID_VALUE PWMTHR %s\r\n", params + 1);
+        usb_printf("ERR INVALID_FORMAT PWMTHR\r\n");
+        return false;
+    }
+    int32_t dc;
+    if (!parse_int(params + 2, &dc))
+    {
+        usb_printf("ERR INVALID_VALUE PWMTHR %s\r\n", params + 2);
         return false;
     }
     if ((dc < 0) || (dc > 100))
