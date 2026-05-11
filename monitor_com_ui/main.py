@@ -371,6 +371,7 @@ class SerialMonitorUI(QMainWindow):
         self.serial_worker.data_received.connect(self.on_data_received)
         self.serial_worker.status_changed.connect(self.on_status_changed)
         self.serial_worker.connection_state.connect(self.on_connection_state)
+        self.serial_worker.finished.connect(self.on_worker_finished)
         self.serial_worker.start()
         self.status_label.setText("● Connecting...")
         self.status_label.setStyleSheet("color: #ffc107; font-weight: bold; letter-spacing: 0.5px;")
@@ -378,12 +379,18 @@ class SerialMonitorUI(QMainWindow):
     def disconnect(self):
         """Close serial connection"""
         if self.serial_worker:
+            logger.info("Disconnect requested - stopping serial worker thread")
             self.serial_worker.stop()
-            if not self.serial_worker.wait(2000):
-                self.serial_worker.terminate()
-                self.serial_worker.wait(1000)
-            self.serial_worker = None
             self.on_connection_state(False)
+            self.status_label.setText("● Disconnecting...")
+            self.status_label.setStyleSheet("color: #ffc107; font-weight: bold; letter-spacing: 0.5px;")
+            self.connect_btn.setEnabled(False)
+
+    def on_worker_finished(self):
+        """Handle worker thread completion - ensure UI is updated"""
+        logger.info("Serial worker thread has finished")
+        self.serial_worker = None
+        self.on_connection_state(False)
 
     def on_data_received(self, data):
         """Handle incoming serial data"""
@@ -476,7 +483,11 @@ class SerialMonitorUI(QMainWindow):
         self.statusBar().showMessage(status)
 
     def on_connection_state(self, connected):
-        """Handle connection state changes"""
+        """Handle connection state changes - updates UI but doesn't clean up worker reference.
+
+        The worker may emit False during reconnection but still be running.
+        Only clean up the worker reference when the thread actually finishes (in on_worker_finished).
+        """
         if connected:
             self.status_label.setText("● Connected")
             self.status_label.setStyleSheet("color: #4caf50; font-weight: bold; letter-spacing: 0.5px;")
@@ -525,7 +536,6 @@ class SerialMonitorUI(QMainWindow):
             self.ctrl_temp_fan_off_btn.setEnabled(False)
             self.ctrl_temp_critical_btn.setEnabled(False)
             self.reset_defaults_btn.setEnabled(False)
-            self.serial_worker = None
 
     def clear_output(self):
         """Clear the raw data display"""
