@@ -400,6 +400,12 @@ uint32_t pwm_get_frequency_a(void)
 
 uint32_t pwm_get_duty_a(void)
 {
+    if (pwmChannelA.period_ticks == 0)
+    {
+        /* Flat DC — no PWM signal detected. Read pin directly.
+         * Input BJT inverts: pin LOW = 100% DC, pin HIGH = 0% DC. */
+        return (gpio_read(&_ic_pin_a) == GPIO_PIN_RESET) ? 100 : 0;
+    }
     return calculate_duty_pct(pwmChannelA.period_ticks, pwmChannelA.low_level_ticks);
 }
 
@@ -410,6 +416,12 @@ uint32_t pwm_get_frequency_b(void)
 
 uint32_t pwm_get_duty_b(void)
 {
+    if (pwmChannelB.period_ticks == 0)
+    {
+        /* Flat DC — no PWM signal detected. Read pin directly.
+         * Input BJT inverts: pin LOW = 100% DC, pin HIGH = 0% DC. */
+        return (gpio_read(&_ic_pin_b) == GPIO_PIN_RESET) ? 100 : 0;
+    }
     return calculate_duty_pct(pwmChannelB.period_ticks, pwmChannelB.low_level_ticks);
 }
 
@@ -417,7 +429,9 @@ uint32_t pwm_get_output_duty_a(void)
 {
     if (pwmOutputA.period_ticks == 0U)
     {
-        return 0U;
+        /* Flat DC — no PWM signal detected. Read input pin directly.
+         * Input BJT inverts: pin LOW = 100% output, pin HIGH = 0% output. */
+        return (gpio_read(&_ic_pin_a) == GPIO_PIN_RESET) ? 100U : 0U;
     }
     uint32_t limit =
         (uint32_t)(((uint64_t)pwmOutputA.period_ticks * pwmOutputA.throttle_val) / 100U);
@@ -429,7 +443,9 @@ uint32_t pwm_get_output_duty_b(void)
 {
     if (pwmOutputB.period_ticks == 0U)
     {
-        return 0U;
+        /* Flat DC — no PWM signal detected. Read input pin directly.
+         * Input BJT inverts: pin LOW = 100% output, pin HIGH = 0% output. */
+        return (gpio_read(&_ic_pin_b) == GPIO_PIN_RESET) ? 100U : 0U;
     }
     uint32_t limit =
         (uint32_t)(((uint64_t)pwmOutputB.period_ticks * pwmOutputB.throttle_val) / 100U);
