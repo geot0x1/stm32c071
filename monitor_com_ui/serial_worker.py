@@ -157,18 +157,23 @@ class SerialWorker(QThread):
         retry_count = 0
         current_delay = SerialConfig.INITIAL_RETRY_DELAY
 
+        logger.info(f"Starting device reconnection (max {SerialConfig.MAX_RECONNECT_RETRIES} attempts)")
+
         while retry_count < SerialConfig.MAX_RECONNECT_RETRIES:
             if self._process_commands():
                 logger.info("Reconnection interrupted by user")
                 return False
 
-            self.status_changed.emit(f"Connection lost - Reconnecting in {current_delay:.1f}s...")
+            remaining_attempts = SerialConfig.MAX_RECONNECT_RETRIES - retry_count
+            self.status_changed.emit(f"Connection lost - Reconnecting in {current_delay:.1f}s... ({remaining_attempts} attempts left)")
 
             if self._sleep_interruptible(current_delay):
                 logger.info("Reconnection wait interrupted by user")
                 return False
 
+            logger.debug(f"Reconnection attempt {retry_count + 1}/{SerialConfig.MAX_RECONNECT_RETRIES}")
             if self._try_open_port():
+                logger.info(f"Reconnected to {self.port} after {retry_count + 1} attempts")
                 self.status_changed.emit(f"Reconnected to {self.port}")
                 self.connection_state.emit(True)
                 self._set_state("CONNECTED")
@@ -176,9 +181,11 @@ class SerialWorker(QThread):
 
             retry_count += 1
             current_delay = min(current_delay * 2, SerialConfig.MAX_RETRY_DELAY)
+            logger.debug(f"Reconnection attempt {retry_count} failed, next delay: {current_delay:.1f}s")
 
-        logger.warning(f"Max reconnection attempts ({SerialConfig.MAX_RECONNECT_RETRIES}) exceeded")
+        logger.warning(f"Max reconnection attempts ({SerialConfig.MAX_RECONNECT_RETRIES}) exceeded - giving up")
         self.connection_state.emit(False)
+        self.status_changed.emit(f"Failed to reconnect after {SerialConfig.MAX_RECONNECT_RETRIES} attempts")
         return False
 
     def _read_serial_data(self):
@@ -187,7 +194,9 @@ class SerialWorker(QThread):
         Returns False if STOP received, True if connection lost (should reconnect).
         """
         read_errors = 0
-        max_consecutive_errors = 3
+        max_consecutive_errors = 5
+        empty_reads = 0
+        max_empty_reads = 10
 
         try:
             while True:
@@ -195,31 +204,41 @@ class SerialWorker(QThread):
                     return False
 
                 if not self.ser or not self.ser.is_open:
+                    logger.warning("Serial port is closed")
                     return True
 
                 try:
                     line = self.ser.readline()
                     if line:
                         read_errors = 0
+                        empty_reads = 0
                         text = line.decode('utf-8', errors='ignore')
                         text = text.rstrip('\r\n') + '\n'
                         self.data_received.emit(text)
                     else:
+                        empty_reads += 1
+                        if empty_reads >= max_empty_reads:
+                            logger.warning(f"Port returned empty data {max_empty_reads} times - likely disconnected")
+                            return True
                         time.sleep(0.01)
-                except serial.SerialException:
+                except serial.SerialException as e:
+                    logger.warning(f"SerialException while reading: {e}")
                     read_errors += 1
                     if read_errors >= max_consecutive_errors:
+                        logger.warning(f"Too many serial exceptions ({max_consecutive_errors}), disconnecting")
                         return True
                     time.sleep(0.05)
                 except UnicodeDecodeError:
                     self.data_received.emit("\n[DECODE ERROR]\n")
                     read_errors += 1
                     if read_errors >= max_consecutive_errors:
+                        logger.warning(f"Too many decode errors ({max_consecutive_errors}), disconnecting")
                         return True
                 except Exception as e:
-                    logger.error(f"Error reading from serial: {e}")
+                    logger.error(f"Unexpected error reading from serial: {e}")
                     read_errors += 1
                     if read_errors >= max_consecutive_errors:
+                        logger.error(f"Too many errors ({max_consecutive_errors}), disconnecting")
                         return True
                     time.sleep(0.05)
 
