@@ -96,6 +96,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     telemetry
     program_led
     push_button
+    thermal_control
 )
 
 # Include build info generator
