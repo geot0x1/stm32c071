@@ -65,8 +65,8 @@ void pwm_repeater_task(void);
 /** @brief Route TIM2 global IRQ here from stm32c0xx_it.c. */
 void pwm_repeater_tim2_irq_handler(void);
 
-void pwm_set_throttle_a(uint32_t limit_pct);
-void pwm_set_throttle_b(uint32_t limit_pct);
+void pwm_set_throttle_a(uint8_t limit_pct);
+void pwm_set_throttle_b(uint8_t limit_pct);
 
 uint32_t pwm_get_frequency_a(void);
 uint32_t pwm_get_duty_a(void);
