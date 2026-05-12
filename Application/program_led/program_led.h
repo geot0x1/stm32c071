@@ -3,9 +3,11 @@
 
 typedef enum
 {
-    ProgramLedFansOff, /* ON 100ms / OFF 2000ms */
-    ProgramLedFansOn,  /* ON 100ms / OFF 1000ms */
-    ProgramLedError,   /* ON 200ms / OFF 200ms  */
+    ProgramLedLow,        /* Slow blink: ON 300ms / OFF 2000ms */
+    ProgramLedHigh,       /* 2 fast blinks + long off: ON 100 / OFF 100 / ON 100 / OFF 800ms */
+    ProgramLedThrottling, /* 3 fast blinks + long off: ON 100 / OFF 100 / ON 100 / OFF 100 / ON 100 / OFF 1000ms */
+    ProgramLedCritical,   /* Fast blink: ON 100ms / OFF 100ms */
+    ProgramLedError,      /* Fast blink: ON 100ms / OFF 100ms */
 } ProgramLedState;
 
 void program_led_init(void);

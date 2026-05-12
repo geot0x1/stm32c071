@@ -30,7 +30,6 @@ typedef struct
 {
     AppMode     mode;
     SystemState state;
-    bool        button_override;
 } AppState;
 
 static AppState app;
@@ -61,15 +60,12 @@ static void apply_throttle(SystemState state, const Settings *s)
     }
 }
 
-static bool fans_required(SystemState state, bool button_override)
+static bool apply_fans(SystemState state, bool button_override)
 {
     bool auto_on = (state == SystemHigh) || (state == SystemThrottling) || (state == SystemCritical);
-    return button_override || auto_on;
-}
+    bool fans_on = button_override || auto_on;
 
-static void apply_fans(SystemState state, bool button_override)
-{
-    if (fans_required(state, button_override))
+    if (fans_on)
     {
         fan_control_all_on();
     }
@@ -77,22 +73,47 @@ static void apply_fans(SystemState state, bool button_override)
     {
         fan_control_all_off();
     }
+
+    return fans_on;
 }
 
-static void update_led(SystemState state, bool fans_on)
+static bool apply_lcd_power(SystemState state)
 {
-    if (state == SystemSensorLost || state == SystemCritical || state == SystemError)
+    bool lcd_on = (state != SystemCritical && state != SystemError);
+    board_lcd_power_set(lcd_on);
+    return lcd_on;
+}
+
+static void apply_program_led(SystemState state)
+{
+    ProgramLedState led_state;
+
+    switch (state)
     {
-        program_led_set_state(ProgramLedError);
+        case SystemCritical:
+            led_state = ProgramLedCritical;
+            break;
+
+        case SystemThrottling:
+            led_state = ProgramLedThrottling;
+            break;
+
+        case SystemHigh:
+            led_state = ProgramLedHigh;
+            break;
+
+        case SystemLow:
+            led_state = ProgramLedLow;
+            break;
+
+        case SystemSensorLost:
+        case SystemError:
+        default:
+            led_state = ProgramLedError;
+            break;
     }
-    else if (fans_on)
-    {
-        program_led_set_state(ProgramLedFansOn);
-    }
-    else
-    {
-        program_led_set_state(ProgramLedFansOff);
-    }
+
+    program_led_set_state(led_state);
 }
 
 void app_set_mode(AppMode mode)
@@ -117,9 +138,8 @@ SystemState app_get_state(void)
 
 static void app_state_init(void)
 {
-    app.mode            = ModeNormal;
-    app.state           = SystemLow;
-    app.button_override = false;
+    app.mode  = ModeNormal;
+    app.state = SystemLow;
 }
 
 static void app_task(void)
@@ -136,14 +156,12 @@ static void app_task(void)
         {
             /* Normal mode: system state machine controls behavior */
             app.state = thermal_control_step(app.state, s);
-            app.button_override = push_button_is_pressed();
-
-            bool lcd_power_on = (app.state != SystemCritical && app.state != SystemError);
+            bool button_override = push_button_is_pressed();
 
             apply_throttle(app.state, s);
-            apply_fans(app.state, app.button_override);
-            board_lcd_power_set(lcd_power_on);
-            update_led(app.state, fans_required(app.state, app.button_override));
+            apply_fans(app.state, button_override);
+            apply_lcd_power(app.state);
+            apply_program_led(app.state);
             break;
         }
 
@@ -153,19 +171,8 @@ static void app_task(void)
             /* Throttle: set via PWMTHR=<channel>,<duty> commands */
             /* Fans: set via FAN<n>=ON/OFF commands */
             /* Skip state machine processing; use commands for all control */
-            app.button_override = false;
 
-            bool any_fan_on = false;
-            for (uint8_t i = 1U; i <= APP_FAN_COUNT; i++)
-            {
-                if (fan_control_get_unit_duty(i) > 0U)
-                {
-                    any_fan_on = true;
-                    break;
-                }
-            }
-
-            update_led(SystemLow, any_fan_on);
+            apply_program_led(SystemLow);
             break;
         }
     }

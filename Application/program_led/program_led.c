@@ -1,20 +1,69 @@
 #include "program_led.h"
 #include "board.h"
 #include "stm32c0xx_hal.h"
+#include <stddef.h>
 
-static const uint32_t ON_MS[]  = {100U, 100U, 200U};
-static const uint32_t OFF_MS[] = {2000U, 1000U, 200U};
+typedef struct
+{
+    uint32_t duration_ms;
+    bool     is_on;
+} PatternStep;
+
+typedef struct
+{
+    const PatternStep *steps;
+    size_t             step_count;
+} BlinkPattern;
+
+static const PatternStep low_pattern[] = {
+    {300U, true},
+    {2000U, false},
+};
+
+static const PatternStep high_pattern[] = {
+    {100U, true},
+    {100U, false},
+    {100U, true},
+    {800U, false},
+};
+
+static const PatternStep throttling_pattern[] = {
+    {100U, true},
+    {100U, false},
+    {100U, true},
+    {100U, false},
+    {100U, true},
+    {1000U, false},
+};
+
+static const PatternStep critical_pattern[] = {
+    {100U, true},
+    {100U, false},
+};
+
+static const PatternStep error_pattern[] = {
+    {100U, true},
+    {100U, false},
+};
+
+static const BlinkPattern patterns[] = {
+    {low_pattern, sizeof(low_pattern) / sizeof(low_pattern[0])},
+    {high_pattern, sizeof(high_pattern) / sizeof(high_pattern[0])},
+    {throttling_pattern, sizeof(throttling_pattern) / sizeof(throttling_pattern[0])},
+    {critical_pattern, sizeof(critical_pattern) / sizeof(critical_pattern[0])},
+    {error_pattern, sizeof(error_pattern) / sizeof(error_pattern[0])},
+};
 
 static ProgramLedState current_state;
+static size_t pattern_step;
 static uint32_t last_tick;
-static bool led_on;
 
 void program_led_init(void)
 {
-    current_state = ProgramLedFansOff;
+    current_state = ProgramLedLow;
+    pattern_step = 0U;
     last_tick = HAL_GetTick();
-    led_on = false;
-    board_led_set(false);
+    board_led_set(patterns[current_state].steps[0].is_on);
 }
 
 void program_led_set_state(ProgramLedState state)
@@ -24,20 +73,21 @@ void program_led_set_state(ProgramLedState state)
         return;
     }
     current_state = state;
+    pattern_step = 0U;
     last_tick = HAL_GetTick();
-    led_on = false;
-    board_led_set(false);
+    board_led_set(patterns[current_state].steps[0].is_on);
 }
 
 void program_led_task(void)
 {
-    uint32_t elapsed = HAL_GetTick() - last_tick;
-    uint32_t threshold = led_on ? ON_MS[current_state] : OFF_MS[current_state];
+    const BlinkPattern *pattern = &patterns[current_state];
+    const PatternStep *step = &pattern->steps[pattern_step];
 
-    if (elapsed >= threshold)
+    uint32_t elapsed = HAL_GetTick() - last_tick;
+    if (elapsed >= step->duration_ms)
     {
+        pattern_step = (pattern_step + 1U) % pattern->step_count;
         last_tick = HAL_GetTick();
-        led_on = !led_on;
-        board_led_set(led_on);
+        board_led_set(pattern->steps[pattern_step].is_on);
     }
 }
