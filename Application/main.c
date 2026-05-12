@@ -31,28 +31,13 @@ typedef struct
     AppMode     mode;
     SystemState state;
     bool        button_override;
-    bool        throttle_override_active;
-    uint8_t     throttle_override_a;
-    uint8_t     throttle_override_b;
 } AppState;
 
 static AppState app;
 static Hdc2010  hdc2010_dev;
 
-/* User throttle override (set via PWMTHR command) */
-static bool    user_throttle_override_active = false;
-static uint8_t user_throttle_override_a = 100U;
-static uint8_t user_throttle_override_b = 100U;
-
 static void apply_throttle(SystemState state, const Settings *s)
 {
-    if (user_throttle_override_active)
-    {
-        pwm_set_throttle_a(user_throttle_override_a);
-        pwm_set_throttle_b(user_throttle_override_b);
-        return;
-    }
-
     switch (state)
     {
         case SystemCritical:
@@ -76,9 +61,15 @@ static void apply_throttle(SystemState state, const Settings *s)
     }
 }
 
-static void apply_fans(bool fans_on)
+static bool fans_required(SystemState state, bool button_override)
 {
-    if (fans_on)
+    bool auto_on = (state == SystemHigh) || (state == SystemThrottling) || (state == SystemCritical);
+    return button_override || auto_on;
+}
+
+static void apply_fans(SystemState state, bool button_override)
+{
+    if (fans_required(state, button_override))
     {
         fan_control_all_on();
     }
@@ -104,18 +95,9 @@ static void update_led(SystemState state, bool fans_on)
     }
 }
 
-void app_clear_throttle_override(void);
-
 void app_set_mode(AppMode mode)
 {
-    if (app.mode != mode)
-    {
-        app.mode = mode;
-        if (mode == ModeNormal)
-        {
-            app_clear_throttle_override();
-        }
-    }
+    app.mode = mode;
 }
 
 AppMode app_get_mode(void)
@@ -133,40 +115,11 @@ SystemState app_get_state(void)
     return app.state;
 }
 
-void app_set_throttle_override(uint32_t throttle_a, uint32_t throttle_b)
-{
-    app.throttle_override_active = true;
-    app.throttle_override_a = (uint8_t)((throttle_a > 100U) ? 100U : throttle_a);
-    app.throttle_override_b = (uint8_t)((throttle_b > 100U) ? 100U : throttle_b);
-    pwm_set_throttle_a(app.throttle_override_a);
-    pwm_set_throttle_b(app.throttle_override_b);
-}
-
-void app_clear_throttle_override(void)
-{
-    app.throttle_override_active = false;
-    app.throttle_override_a = 100U;
-    app.throttle_override_b = 100U;
-}
-
-uint32_t app_get_throttle_override_a(void)
-{
-    return app.throttle_override_a;
-}
-
-uint32_t app_get_throttle_override_b(void)
-{
-    return app.throttle_override_b;
-}
-
 static void app_state_init(void)
 {
-    app.mode                      = ModeNormal;
-    app.state                     = SystemLow;
-    app.button_override           = false;
-    app.throttle_override_active  = false;
-    app.throttle_override_a       = 100U;
-    app.throttle_override_b       = 100U;
+    app.mode            = ModeNormal;
+    app.state           = SystemLow;
+    app.button_override = false;
 }
 
 static void app_task(void)
@@ -185,14 +138,12 @@ static void app_task(void)
             app.state = thermal_control_step(app.state, s);
             app.button_override = push_button_is_pressed();
 
-            bool fans_auto_on     = (app.state == SystemHigh) || (app.state == SystemThrottling) || (app.state == SystemCritical);
-            bool fans_required_on = app.button_override || fans_auto_on;
-            bool lcd_power_on     = (app.state != SystemCritical && app.state != SystemError);
+            bool lcd_power_on = (app.state != SystemCritical && app.state != SystemError);
 
             apply_throttle(app.state, s);
-            apply_fans(fans_required_on);
+            apply_fans(app.state, app.button_override);
             board_lcd_power_set(lcd_power_on);
-            update_led(app.state, fans_required_on);
+            update_led(app.state, fans_required(app.state, app.button_override));
             break;
         }
 
@@ -203,12 +154,6 @@ static void app_task(void)
             /* Fans: set via FAN<n>=ON/OFF commands */
             /* Skip state machine processing; use commands for all control */
             app.button_override = false;
-
-            if (app.throttle_override_active)
-            {
-                pwm_set_throttle_a(app.throttle_override_a);
-                pwm_set_throttle_b(app.throttle_override_b);
-            }
 
             bool any_fan_on = false;
             for (uint8_t i = 1U; i <= APP_FAN_COUNT; i++)
