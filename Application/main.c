@@ -38,10 +38,6 @@ typedef struct
 
 static AppState app;
 static Hdc2010  hdc2010_dev;
-static bool     hdc2010_ok;
-static bool     hdc2010_valid;
-static int16_t  hdc2010_last_temp;
-static uint8_t  hdc2010_last_rh;
 
 /* User throttle override (set via PWMTHR command) */
 static bool    user_throttle_override_active = false;
@@ -163,50 +159,6 @@ uint32_t app_get_throttle_override_b(void)
     return app.throttle_override_b;
 }
 
-static void hdc2010_poll_task(void)
-{
-    typedef enum { Hdc2010Idle, Hdc2010Waiting } Hdc2010PollState;
-    static Hdc2010PollState state      = Hdc2010Idle;
-    static uint32_t         trigger_ms = 0U;
-    static uint32_t         poll_ms    = 0U;
-
-    if (!hdc2010_ok)
-    {
-        usb_printf("HDC2010 not detected; skipping environmental sensor polling\r\n");
-        return;
-    }
-
-    uint32_t now = HAL_GetTick();
-
-    switch (state)
-    {
-        case Hdc2010Idle:
-            if (now - poll_ms >= 1000U)
-            {
-                hdc2010_start_measurement(&hdc2010_dev);
-                trigger_ms = now;
-                state      = Hdc2010Waiting;
-            }
-            break;
-
-        case Hdc2010Waiting:
-            if (now - trigger_ms >= 2U)
-            {
-                int16_t temp = 0;
-                uint8_t rh   = 0;
-                if (hdc2010_read(&hdc2010_dev, &temp, &rh) == HDC2010_OK)
-                {
-                    hdc2010_last_temp = temp;
-                    hdc2010_last_rh   = rh;
-                    hdc2010_valid     = true;
-                }
-                poll_ms = now;
-                state   = Hdc2010Idle;
-            }
-            break;
-    }
-}
-
 static void app_state_init(void)
 {
     app.mode                      = ModeNormal;
@@ -292,7 +244,7 @@ int main(void)
     usb_init();
     telemetry_init();
     commands_init();
-    hdc2010_ok = (hdc2010_init(&hdc2010_dev, board_get_i2c(), HDC2010_ADDR_LOW) == HDC2010_OK);
+    hdc2010_init(&hdc2010_dev, board_get_i2c(), HDC2010_ADDR_LOW);
 
     /* Phase 4: I/O */
     program_led_init();
@@ -327,7 +279,7 @@ int main(void)
         push_button_task();
         pwm_repeater_task();
         temperature_sensor_task();
-        hdc2010_poll_task();
+        hdc2010_task();
         program_led_task();
         telemetry_task();
 

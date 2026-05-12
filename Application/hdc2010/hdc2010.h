@@ -70,6 +70,15 @@ uint16_t hdc2010_get_temp(void);
  */
 uint8_t hdc2010_get_rh(void);
 
+/**
+ * @brief Cooperative polling task — call once per main loop iteration.
+ *
+ * Triggers a one-shot measurement every second and reads the result after
+ * the conversion delay. Does nothing if hdc2010_init() was not called or
+ * returned an error.
+ */
+void hdc2010_task(void);
+
 #ifdef __cplusplus
 }
 #endif
