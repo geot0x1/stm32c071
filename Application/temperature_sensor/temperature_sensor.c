@@ -24,49 +24,7 @@ static uint32_t _last_tick = 0;
 static uint16_t _last_temperature = 0xFFFF;
 static uint8_t _fail_count = 0;
 
-static uint16_t _setpoint_a = 0;
-static uint16_t _setpoint_b = 0;
-static uint16_t _hysteresis = 0;
-static TempSensorHandler _event_handler = NULL;
-
-static bool _is_above_a = false;
-static bool _is_above_b = false;
 static bool _is_lost = false;
-
-static void trigger_event(TempSensorEvent event)
-{
-    if (_event_handler != NULL)
-    {
-        _event_handler(event);
-    }
-}
-
-static void handle_setpoints(uint16_t current_temp)
-{
-    // Setpoint A
-    if (!_is_above_a && current_temp > _setpoint_a)
-    {
-        _is_above_a = true;
-        trigger_event(AboveA);
-    }
-    else if (_is_above_a && (current_temp < (_setpoint_a - _hysteresis)))
-    {
-        _is_above_a = false;
-        trigger_event(BelowA);
-    }
-
-    // Setpoint B
-    if (!_is_above_b && current_temp > _setpoint_b)
-    {
-        _is_above_b = true;
-        trigger_event(AboveB);
-    }
-    else if (_is_above_b && (current_temp < (_setpoint_b - _hysteresis)))
-    {
-        _is_above_b = false;
-        trigger_event(BelowB);
-    }
-}
 
 static void handle_failure(void)
 {
@@ -75,7 +33,6 @@ static void handle_failure(void)
     {
         _is_lost = true;
         _last_temperature = 0xFFFF;
-        trigger_event(SensorLost);
     }
 }
 
@@ -137,7 +94,6 @@ void temperature_sensor_task(void)
                 _last_temperature = (uint16_t)((int16_t)(celsius * 100.0f));
                 _fail_count = 0;
                 _is_lost = false;
-                handle_setpoints(_last_temperature);
             }
             else
             {
@@ -164,24 +120,4 @@ void temperature_sensor_task(void)
 uint16_t get_temperature(void)
 {
     return _last_temperature;
-}
-
-void temperature_sensor_set_setpoint_a(uint16_t setpoint)
-{
-    _setpoint_a = setpoint;
-}
-
-void temperature_sensor_set_setpoint_b(uint16_t setpoint)
-{
-    _setpoint_b = setpoint;
-}
-
-void temperature_sensor_set_hysteresis(uint16_t hysteresis)
-{
-    _hysteresis = hysteresis;
-}
-
-void temperature_sensor_register_handler(TempSensorHandler handler)
-{
-    _event_handler = handler;
 }
