@@ -34,7 +34,7 @@ typedef struct
 static AppState app;
 static Hdc2010  hdc2010_dev;
 
-static void apply_throttle(SystemState state, const Settings *s)
+static void apply_throttle(SystemState state, const Settings *settings)
 {
     switch (state)
     {
@@ -45,8 +45,8 @@ static void apply_throttle(SystemState state, const Settings *s)
             break;
 
         case SystemThrottling:
-            pwm_set_throttle_a(s->pwm_throttle_a);
-            pwm_set_throttle_b(s->pwm_throttle_b);
+            pwm_set_throttle_a(settings->pwm_throttle_a);
+            pwm_set_throttle_b(settings->pwm_throttle_b);
             break;
 
         case SystemLow:
@@ -141,8 +141,8 @@ static void app_state_init(void)
 
 static void app_task(void)
 {
-    const Settings *s = settings_get();
-    if (s == NULL)
+    const Settings *settings = settings_get();
+    if (settings == NULL)
     {
         return;
     }
@@ -152,10 +152,10 @@ static void app_task(void)
         case ModeNormal:
         {
             /* Normal mode: system state machine controls behavior */
-            app.state = thermal_control_step(app.state, s);
+            app.state = thermal_control_step(app.state, settings);
             bool button_override = push_button_is_pressed();
 
-            apply_throttle(app.state, s);
+            apply_throttle(app.state, settings);
             apply_fans(app.state, button_override);
             apply_lcd_power(app.state);
             apply_program_led(app.state);
@@ -186,7 +186,6 @@ int main(void)
 
     /* Phase 2: Persisted settings */
     settings_init();
-    const Settings *s = settings_get();
 
     /* Phase 3: USB up early so enumeration can start; nothing below blocks */
     usb_init();
