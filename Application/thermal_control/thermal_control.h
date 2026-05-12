@@ -1,7 +1,7 @@
 #ifndef THERMAL_CONTROL_H
 #define THERMAL_CONTROL_H
 
-#include "app_mode.h"
+#include "app_state.h"
 #include "settings.h"
 
 void        thermal_control_init(void);

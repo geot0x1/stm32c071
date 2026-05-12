@@ -5,9 +5,10 @@ target_sources(telemetry PRIVATE
     telemetry.c
 )
 
-target_include_directories(telemetry PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(telemetry PUBLIC . ..)
 
 target_link_libraries(telemetry PRIVATE
+    app_state
     bsp_tim
     bsp_i2c
     temperature_sensor

@@ -1,4 +1,5 @@
 #include "commands.h"
+#include "app_state.h"
 #include "settings.h"
 #include "telemetry.h"
 #include "usb.h"
@@ -10,14 +11,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
-
-typedef enum
-{
-    ModeNormal,
-    ModeManual,
-} AppMode;
-
-extern void app_set_mode(AppMode mode);
 
 #define CMD_LINE_BUF_SIZE 128U
 #define CMD_USB_CHUNK_SIZE 64U
