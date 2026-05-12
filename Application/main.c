@@ -60,7 +60,7 @@ static void apply_throttle(SystemState state, const Settings *s)
     }
 }
 
-static bool apply_fans(SystemState state, bool button_override)
+static void apply_fans(SystemState state, bool button_override)
 {
     bool auto_on = (state == SystemHigh) || (state == SystemThrottling) || (state == SystemCritical);
     bool fans_on = button_override || auto_on;
@@ -73,8 +73,6 @@ static bool apply_fans(SystemState state, bool button_override)
     {
         fan_control_all_off();
     }
-
-    return fans_on;
 }
 
 static bool apply_lcd_power(SystemState state)
