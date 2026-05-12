@@ -8,8 +8,10 @@ class DeviceState(Enum):
     """Device operating state"""
     TEMP_LOW = "TEMP_LOW"
     TEMP_HIGH = "TEMP_HIGH"
+    TEMP_THROTTLE = "TEMP_THROTTLE"
     TEMP_CRIT = "TEMP_CRIT"
     SENSOR_LOST = "SENSOR_LOST"
+    ERROR = "ERROR"
 
 
 @dataclass
