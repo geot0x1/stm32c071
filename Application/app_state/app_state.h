@@ -1,5 +1,5 @@
-#ifndef APP_MODE_H
-#define APP_MODE_H
+#ifndef APP_STATE_H
+#define APP_STATE_H
 
 typedef enum
 {
@@ -17,9 +17,10 @@ typedef enum
     SystemError,
 } SystemState;
 
+void app_state_init(void);
 void app_set_mode(AppMode mode);
 AppMode app_get_mode(void);
 void app_set_state(SystemState state);
 SystemState app_get_state(void);
 
-#endif /* APP_MODE_H */
+#endif /* APP_STATE_H */

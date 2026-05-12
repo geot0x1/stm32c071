@@ -2,21 +2,12 @@
 #include "temperature_sensor.h"
 #include "pwm_repeater.h"
 #include "fan_control.h"
-#include "settings.h"
 #include "sys_time.h"
 #include "usb.h"
 #include "hdc2010.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-
-typedef enum
-{
-    ThermalLow,
-    ThermalHigh,
-    ThermalCritical,
-    ThermalSensorLost
-} ThermalState;
 
 typedef struct
 {
@@ -31,31 +22,25 @@ static Telemetry telemetry = {
     .last_send_ms = 0U,
 };
 
-static ThermalState compute_thermal_state(void)
+static const char *system_state_to_string(SystemState state)
 {
-    uint16_t raw_temp = get_temperature();
-    if (raw_temp == 0xFFFFU)
+    switch (state)
     {
-        return ThermalSensorLost;
+        case SystemLow:
+            return "TEMP_LOW";
+        case SystemHigh:
+            return "TEMP_HIGH";
+        case SystemThrottling:
+            return "TEMP_THROTTLE";
+        case SystemCritical:
+            return "TEMP_CRIT";
+        case SystemSensorLost:
+            return "SENSOR_LOST";
+        case SystemError:
+            return "ERROR";
+        default:
+            return "UNKNOWN";
     }
-
-    const Settings *s = settings_get();
-    if (s == NULL)
-    {
-        return ThermalSensorLost;
-    }
-
-    int16_t temp_deg = (int16_t)raw_temp / 100;
-
-    if (temp_deg >= (int16_t)s->temp_critical)
-    {
-        return ThermalCritical;
-    }
-    if (temp_deg >= (int16_t)s->temp_fan_on)
-    {
-        return ThermalHigh;
-    }
-    return ThermalLow;
 }
 
 static const char *get_fan_state_str(void)
@@ -93,22 +78,8 @@ void telemetry_create(char *buf, size_t buf_size)
     uint32_t in_dc_b = pwm_get_duty_b();
     uint32_t out_dc_b = pwm_get_output_duty_b();
 
-    const char *state_str;
-    switch (compute_thermal_state())
-    {
-        case ThermalHigh:
-            state_str = "TEMP_HIGH";
-            break;
-        case ThermalCritical:
-            state_str = "TEMP_CRIT";
-            break;
-        case ThermalSensorLost:
-            state_str = "SENSOR_LOST";
-            break;
-        default:
-            state_str = "TEMP_LOW";
-            break;
-    }
+    SystemState state = app_get_state();
+    const char *state_str = system_state_to_string(state);
 
     char ds_temp_str[8];
     if (raw_temp == 0xFFFFU)

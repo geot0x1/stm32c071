@@ -72,6 +72,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
 
     # Add user defined libraries
+    app_state
     fifo
     board
     timers

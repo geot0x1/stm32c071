@@ -1,6 +1,7 @@
 #ifndef TELEMETRY_H
 #define TELEMETRY_H
 
+#include "app_state.h"
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>

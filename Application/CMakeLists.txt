@@ -1,3 +1,4 @@
+add_subdirectory(app_state)
 add_subdirectory(bsp)
 add_subdirectory(watchdog)
 add_subdirectory(board)

@@ -1,4 +1,4 @@
-#include "app_mode.h"
+#include "app_state.h"
 #include "board.h"
 #include "board/board_config.h"
 #include "commands.h"
@@ -25,14 +25,7 @@
 #define APP_FAN_PWM_FREQ_HZ 25000U
 #define APP_FAN_COUNT       4U
 
-typedef struct
-{
-    AppMode     mode;
-    SystemState state;
-} AppState;
-
-static AppState app;
-static Hdc2010  hdc2010_dev;
+static Hdc2010 hdc2010_dev;
 
 static void apply_throttle(SystemState state, const Settings *settings)
 {
@@ -113,32 +106,6 @@ static void apply_program_led(SystemState state)
     program_led_set_state(led_state);
 }
 
-void app_set_mode(AppMode mode)
-{
-    app.mode = mode;
-}
-
-AppMode app_get_mode(void)
-{
-    return app.mode;
-}
-
-void app_set_state(SystemState state)
-{
-    app.state = state;
-}
-
-SystemState app_get_state(void)
-{
-    return app.state;
-}
-
-static void app_state_init(void)
-{
-    app.mode  = ModeNormal;
-    app.state = SystemLow;
-}
-
 static void app_task(void)
 {
     const Settings *settings = settings_get();
@@ -147,18 +114,22 @@ static void app_task(void)
         return;
     }
 
-    switch (app.mode)
+    AppMode mode = app_get_mode();
+    SystemState state = app_get_state();
+
+    switch (mode)
     {
         case ModeNormal:
         {
             /* Normal mode: system state machine controls behavior */
-            app.state = thermal_control_step(app.state, settings);
+            state = thermal_control_step(state, settings);
+            app_set_state(state);
             bool button_override = push_button_is_pressed();
 
-            apply_throttle(app.state, settings);
-            apply_fans(app.state, button_override);
-            apply_lcd_power(app.state);
-            apply_program_led(app.state);
+            apply_throttle(state, settings);
+            apply_fans(state, button_override);
+            apply_lcd_power(state);
+            apply_program_led(state);
             break;
         }
 
