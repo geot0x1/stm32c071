@@ -22,9 +22,8 @@
 #include <stdint.h>
 
 /* Tunables */
-#define APP_FAN_PWM_FREQ_HZ      25000U
-#define APP_TEMP_HYSTERESIS_CDEG 50U      /* setpoint hysteresis for temp_sensor module */
-#define APP_FAN_COUNT            4U
+#define APP_FAN_PWM_FREQ_HZ 25000U
+#define APP_FAN_COUNT       4U
 
 typedef struct
 {
@@ -184,7 +183,6 @@ int main(void)
     timers_init();
     delay_init(timers_get_sys_timer());
     watchdog_init();
-    serial_init(BOARD_UART1_INSTANCE, BOARD_UART1_BAUD_RATE);
 
     /* Phase 2: Persisted settings */
     settings_init();
@@ -207,9 +205,6 @@ int main(void)
     board_onewire_power_set(true);
     board_onewire_pullup_set(true);
     temperature_sensor_init();
-    temperature_sensor_set_setpoint_a((uint16_t)(s->temp_fan_off * 100U));
-    temperature_sensor_set_setpoint_b((uint16_t)(s->temp_fan_on * 100U));
-    temperature_sensor_set_hysteresis(APP_TEMP_HYSTERESIS_CDEG);
 
     fan_control_init(timers_get_fan_power(), timers_get_fan_remote());
     fan_init(APP_FAN_PWM_FREQ_HZ);
