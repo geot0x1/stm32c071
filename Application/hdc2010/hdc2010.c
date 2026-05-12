@@ -1,12 +1,22 @@
 #include "hdc2010.h"
+#include "sys_time.h"
 #include <stdbool.h>
 #include <stddef.h>
 
 /* ── Cached values ───────────────────────────────────────────────────────── */
 
 static uint16_t cached_temp = 0xFFFFU;
-static uint8_t  cached_rh = 0xFFU;
+static uint8_t  cached_rh   = 0xFFU;
 static bool     cached_valid = false;
+
+/* ── Task state ──────────────────────────────────────────────────────────── */
+
+typedef enum { Hdc2010Idle, Hdc2010Waiting } Hdc2010PollState;
+
+static Hdc2010          *s_dev        = NULL;
+static Hdc2010PollState  s_state      = Hdc2010Idle;
+static millis_t          s_trigger_ms = 0U;
+static millis_t          s_poll_ms    = 0U;
 
 /* ── Register map ────────────────────────────────────────────────────────── */
 
@@ -79,6 +89,7 @@ Hdc2010Err hdc2010_init(Hdc2010 *dev, I2c *i2c, uint8_t addr)
         return HDC2010_ERR_NOT_FOUND;
     }
 
+    s_dev = dev;
     return HDC2010_OK;
 }
 
@@ -148,4 +159,37 @@ uint8_t hdc2010_get_rh(void)
         return 0xFFU;
     }
     return cached_rh;
+}
+
+void hdc2010_task(void)
+{
+    if (s_dev == NULL)
+    {
+        return;
+    }
+
+    millis_t now = millis();
+
+    switch (s_state)
+    {
+        case Hdc2010Idle:
+            if (now - s_poll_ms >= 1000U)
+            {
+                hdc2010_start_measurement(s_dev);
+                s_trigger_ms = now;
+                s_state      = Hdc2010Waiting;
+            }
+            break;
+
+        case Hdc2010Waiting:
+            if (now - s_trigger_ms >= 2U)
+            {
+                int16_t temp = 0;
+                uint8_t rh   = 0;
+                hdc2010_read(s_dev, &temp, &rh);
+                s_poll_ms = now;
+                s_state   = Hdc2010Idle;
+            }
+            break;
+    }
 }
