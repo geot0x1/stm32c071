@@ -21,7 +21,7 @@ static Ds18b20_t _ds18b20_dev = {.ow = &_ow_bus};
 
 static TempSensorState _current_state = StatePoll;
 static uint32_t _last_tick = 0;
-static uint16_t _last_temperature = 0xFFFF;
+static int16_t _last_temperature = INT16_MIN;
 static uint8_t _fail_count = 0;
 
 static bool _is_lost = false;
@@ -32,7 +32,7 @@ static void handle_failure(void)
     if (_fail_count >= MAX_FAILURES && !_is_lost)
     {
         _is_lost = true;
-        _last_temperature = 0xFFFF;
+        _last_temperature = INT16_MIN;
     }
 }
 
@@ -89,9 +89,7 @@ void temperature_sensor_task(void)
             if (raw_temp != -127 && raw_temp != 850)
             {
                 float celsius = ds18b20_raw_to_celsius(raw_temp);
-                // Store as Celsius * 100; intentional: negatives wrap via int16_t (two's
-                // complement)
-                _last_temperature = (uint16_t)((int16_t)(celsius * 100.0f));
+                _last_temperature = (int16_t)(celsius * 100.0f);
                 _fail_count = 0;
                 _is_lost = false;
             }
@@ -117,7 +115,7 @@ void temperature_sensor_task(void)
     }
 }
 
-uint16_t get_temperature(void)
+int16_t get_temperature(void)
 {
     return _last_temperature;
 }

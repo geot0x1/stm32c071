@@ -5,7 +5,7 @@
 
 /* ── Cached values ───────────────────────────────────────────────────────── */
 
-static uint16_t cached_temp = 0xFFFFU;
+static int16_t  cached_temp = INT16_MIN;
 static uint8_t  cached_rh   = 0xFFU;
 static bool     cached_valid = false;
 
@@ -118,7 +118,7 @@ Hdc2010Err hdc2010_read(Hdc2010 *dev, int16_t *temperature_cdeg, uint8_t *humidi
         /* T(cdeg) = raw * 165 * 100 / 65536 - 4000 */
         temp_value = (int16_t)(((uint32_t)raw * 16500UL) / 65536UL) - 4000;
         *temperature_cdeg = temp_value;
-        cached_temp = (uint16_t)temp_value;
+        cached_temp = temp_value;
     }
 
     if (humidity_pct != NULL)
@@ -143,11 +143,11 @@ Hdc2010Err hdc2010_read(Hdc2010 *dev, int16_t *temperature_cdeg, uint8_t *humidi
     return HDC2010_OK;
 }
 
-uint16_t hdc2010_get_temp(void)
+int16_t hdc2010_get_temp(void)
 {
     if (!cached_valid)
     {
-        return 0xFFFFU;
+        return INT16_MIN;
     }
     return cached_temp;
 }

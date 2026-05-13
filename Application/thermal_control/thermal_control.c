@@ -4,7 +4,7 @@
 #define CRITICAL_HYSTERESIS_CDEG  200     /* 2 C below T_critical to exit critical */
 #define THROTTLE_HYSTERESIS_CDEG  200     /* 2 C below T_throttle_on to exit throttling */
 
-static SystemState step(SystemState prev, uint16_t raw, const Settings *s);
+static SystemState step(SystemState prev, int16_t raw, const Settings *s);
 
 /* ── Public API ──────────────────────────────────────────────────────────── */
 
@@ -24,14 +24,14 @@ SystemState thermal_control_step(SystemState current, const Settings *s)
 
 /* ── Static functions ────────────────────────────────────────────────────── */
 
-static SystemState step(SystemState prev, uint16_t raw, const Settings *s)
+static SystemState step(SystemState prev, int16_t raw, const Settings *s)
 {
-    if (raw == 0xFFFFU)
+    if (raw == INT16_MIN)
     {
         return SystemSensorLost;
     }
 
-    int16_t t_cdeg       = (int16_t)raw;
+    int16_t t_cdeg       = raw;
     int16_t t_deg        = t_cdeg / 100;
     int16_t crit_on      = (int16_t)s->temp_critical;
     int16_t crit_off     = crit_on - (CRITICAL_HYSTERESIS_CDEG / 100);
