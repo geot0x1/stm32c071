@@ -10,7 +10,8 @@ class Command:
 
     # Settings commands
     SETTINGS_READ = "SETTINGS?"
-    RESET_DEFAULTS = "DEFAULT"
+    RESET_DEFAULTS = "SETDEFAULT"
+    SET_DEFAULT = "SETDEFAULT"
 
     @staticmethod
     def fan(fan_num: int, state: str) -> str:
