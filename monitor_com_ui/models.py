@@ -28,6 +28,7 @@ class TelemetryData:
     pwm_out_a: int
     pwm_in_b: int
     pwm_out_b: int
+    button: str
 
 
 @dataclass

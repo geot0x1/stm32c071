@@ -46,10 +46,11 @@ class TelemetryTableView:
         self.table.setItem(row, 11, QTableWidgetItem(str(data.pwm_out_a)))
         self.table.setItem(row, 12, QTableWidgetItem(str(data.pwm_in_b)))
         self.table.setItem(row, 13, QTableWidgetItem(str(data.pwm_out_b)))
+        self.table.setItem(row, 14, QTableWidgetItem(data.button))
 
     def _style_row(self, row: int, data: TelemetryData):
         """Apply color styling to row based on data values"""
-        for col in range(14):
+        for col in range(15):
             item = self.table.item(row, col)
             if not item:
                 continue
@@ -70,6 +71,10 @@ class TelemetryTableView:
         # Fan columns
         elif 6 <= col <= 9:
             is_on = data.fans[col - 6] == "ON"
+            return self.formatter.get_fan_color(is_on)
+        # Button column
+        elif col == 14:
+            is_on = data.button == "1"
             return self.formatter.get_fan_color(is_on)
         # Default color
         else:

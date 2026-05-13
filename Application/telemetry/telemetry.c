@@ -86,7 +86,7 @@ void telemetry_create(char *buf, size_t buf_size)
 
     SystemState state = app_get_state();
     const char *state_str = system_state_to_string(state);
-    const char *btn_str = push_button_is_pressed() ? "ON" : "OFF";
+    const char *btn_str = push_button_is_pressed() ? "1" : "0";
 
     char ds_temp_str[8];
     if (raw_temp == INT16_MIN)
