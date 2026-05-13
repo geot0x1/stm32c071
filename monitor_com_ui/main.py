@@ -283,7 +283,7 @@ class SerialMonitorUI(QMainWindow):
         return panel
 
     def _add_read_settings_row(self, grid, row):
-        self.read_settings_btn = QPushButton("Read Current Settings")
+        self.read_settings_btn = QPushButton("Read Settings")
         self.read_settings_btn.setStyleSheet(_STYLE_BTN_BLUE)
         self.read_settings_btn.setEnabled(False)
         self.read_settings_btn.clicked.connect(lambda: self.send_command(Command.SETTINGS_READ))
@@ -297,7 +297,33 @@ class SerialMonitorUI(QMainWindow):
         grid.addWidget(self.settings_display, row, 0, 1, 3)
         row += 1
 
-        self._connection_widgets.append(self.read_settings_btn)
+        divider = QFrame()
+        divider.setStyleSheet(_STYLE_DIVIDER)
+        divider.setFrameShape(QFrame.Shape.HLine)
+        grid.addWidget(divider, row, 0, 1, 3)
+        row += 1
+
+        lbl = QLabel("Firmware Version")
+        lbl.setStyleSheet(_STYLE_SECTION_LABEL)
+        grid.addWidget(lbl, row, 0, 1, 3)
+        row += 1
+
+        self.get_fw_btn = QPushButton("Request")
+        self.get_fw_btn.setStyleSheet(_STYLE_BTN_BLUE)
+        self.get_fw_btn.setEnabled(False)
+        self.get_fw_btn.setToolTip("Send GETFW command")
+        self.get_fw_btn.clicked.connect(lambda: self.send_command(Command.GET_FW_VERSION))
+        grid.addWidget(self.get_fw_btn, row, 0, 1, 3)
+        row += 1
+
+        self.fw_version_display = QLineEdit()
+        self.fw_version_display.setReadOnly(True)
+        self.fw_version_display.setFont(QFont("Consolas", 9))
+        self.fw_version_display.setPlaceholderText("—")
+        grid.addWidget(self.fw_version_display, row, 0, 1, 3)
+        row += 1
+
+        self._connection_widgets += [self.read_settings_btn, self.get_fw_btn]
         return row
 
     def _add_section_header(self, grid, row, title):
@@ -346,7 +372,7 @@ class SerialMonitorUI(QMainWindow):
         grid.addWidget(divider, row, 0, 1, 3)
         row += 1
 
-        self.set_default_btn = QPushButton("Set to Current")
+        self.set_default_btn = QPushButton("Restore Defaults")
         self.set_default_btn.setStyleSheet(_STYLE_BTN_BLUE)
         self.set_default_btn.setEnabled(False)
         self.set_default_btn.clicked.connect(self.confirm_and_send_default)
@@ -441,6 +467,9 @@ class SerialMonitorUI(QMainWindow):
             if telemetry and self.telemetry_view:
                 self.telemetry_view.add_row(telemetry)
 
+        if data.startswith('FWVER='):
+            self.fw_version_display.setText(data.split('=', 1)[1].strip())
+
         settings = SettingsParser.parse_settings_from_text(data)
         if settings:
             self.update_settings_display(settings)
@@ -523,8 +552,8 @@ class SerialMonitorUI(QMainWindow):
                 self.statusBar().showMessage(str(e))
 
     def confirm_and_send_default(self):
-        reply = QMessageBox.question(self, "Confirm Setting",
-            "Save current settings as default?",
+        reply = QMessageBox.question(self, "Confirm",
+            "The device will restore its internal default settings.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
 
         if reply == QMessageBox.StandardButton.Yes:
