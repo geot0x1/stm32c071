@@ -22,6 +22,11 @@ static Telemetry telemetry = {
     .last_send_ms = 0U,
 };
 
+static int cdeg_to_deg_rounded(int16_t cdeg)
+{
+    return (cdeg >= 0) ? (cdeg + 50) / 100 : (cdeg - 50) / 100;
+}
+
 static const char *system_state_to_string(SystemState state)
 {
     switch (state)
@@ -88,7 +93,7 @@ void telemetry_create(char *buf, size_t buf_size)
     }
     else
     {
-        snprintf(ds_temp_str, sizeof(ds_temp_str), "%d", (int)(raw_temp / 100));
+        snprintf(ds_temp_str, sizeof(ds_temp_str), "%d", cdeg_to_deg_rounded(raw_temp));
     }
 
     char hdc_temp_str[8];
@@ -100,7 +105,7 @@ void telemetry_create(char *buf, size_t buf_size)
     }
     else
     {
-        snprintf(hdc_temp_str, sizeof(hdc_temp_str), "%d", (int)(hdc_temp / 100));
+        snprintf(hdc_temp_str, sizeof(hdc_temp_str), "%d", cdeg_to_deg_rounded(hdc_temp));
         snprintf(hdc_rh_str, sizeof(hdc_rh_str), "%u", (unsigned)hdc_rh);
     }
 
