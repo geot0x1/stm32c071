@@ -12,6 +12,7 @@ class Command:
     SETTINGS_READ = "SETTINGS?"
     RESET_DEFAULTS = "SETDEFAULT"
     SET_DEFAULT = "SETDEFAULT"
+    GET_FW_VERSION = "GETFW"
 
     @staticmethod
     def fan(fan_num: int, state: str) -> str:
