@@ -103,3 +103,5 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 # Include build info generator
 include(cmake/build_info.cmake)
 generate_build_info_json(${CMAKE_PROJECT_NAME})
+
+# version.cmake is included by Application/commands/CMakeLists.txt

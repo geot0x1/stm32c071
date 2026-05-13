@@ -419,6 +419,13 @@ static void process_line(void)
         return;
     }
 
+    /* GETFW - Report firmware version */
+    if (strcmp(lineBuf.buf, "GETFW") == 0)
+    {
+        usb_printf("FWVER=%s\r\n", FIRMWARE_VERSION);
+        return;
+    }
+
     usb_printf("ERR UNKNOWN_CMD\r\n");
 }
 
