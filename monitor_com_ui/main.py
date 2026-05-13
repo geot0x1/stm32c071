@@ -16,7 +16,8 @@ import serial.tools.list_ports
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTabWidget, QTextEdit, QPushButton, QComboBox, QLabel, QStatusBar,
-    QFrame, QCheckBox, QGridLayout, QLineEdit, QScrollArea, QTableWidget, QTableWidgetItem
+    QFrame, QCheckBox, QGridLayout, QLineEdit, QScrollArea, QTableWidget, QTableWidgetItem,
+    QMessageBox
 )
 from PyQt6.QtGui import QIntValidator, QColor, QFont
 from PyQt6.QtCore import QDateTime, QTimer, Qt
@@ -54,6 +55,7 @@ class SerialMonitorUI(QMainWindow):
         self.serial_worker = None
         self.autoscroll_enabled = True
         self.telemetry_view = None
+        self.accumulated_settings = {}
 
         self.find_ports_timer = QTimer()
         self.find_ports_timer.timeout.connect(self.update_port_list)
@@ -141,10 +143,10 @@ class SerialMonitorUI(QMainWindow):
 
         # Telemetry table
         telemetry_table = QTableWidget()
-        telemetry_table.setColumnCount(14)
+        telemetry_table.setColumnCount(15)
         telemetry_table.setHorizontalHeaderLabels([
             "Received", "External Sensor", "OnBoard Sensor", "RH(%)", "State",
-            "Uptime", "FAN1", "FAN2", "FAN3", "FAN4", "In A(%)", "Out A(%)", "In B(%)", "Out B(%)"
+            "Uptime", "FAN1", "FAN2", "FAN3", "FAN4", "In A(%)", "Out A(%)", "In B(%)", "Out B(%)", "Button"
         ])
         telemetry_table.setAlternatingRowColors(True)
         telemetry_table.verticalHeader().setVisible(False)
@@ -219,34 +221,21 @@ class SerialMonitorUI(QMainWindow):
         self.settings_display = QTextEdit()
         self.settings_display.setReadOnly(True)
         self.settings_display.setFont(QFont("Consolas", 9))
-        self.settings_display.setMaximumHeight(100)
+        self.settings_display.setMaximumHeight(200)
         settings_layout.addWidget(self.settings_display)
 
-        # PWM Throttle A
-        settings_layout.addWidget(QLabel("PWM Throttle A (0-100%):"))
-        self.ctrl_pwm_a = QLineEdit()
-        self.ctrl_pwm_a.setValidator(QIntValidator(0, 100))
-        self.ctrl_pwm_a.setMaxLength(3)
-        self.ctrl_pwm_a.setEnabled(False)
-        settings_layout.addWidget(self.ctrl_pwm_a)
-        btn_a = QPushButton("Set")
-        btn_a.setEnabled(False)
-        btn_a.clicked.connect(lambda: self.send_pwm_setting("A"))
-        settings_layout.addWidget(btn_a)
-        self.ctrl_pwm_a_btn = btn_a
-
-        # PWM Throttle B
-        settings_layout.addWidget(QLabel("PWM Throttle B (0-100%):"))
-        self.ctrl_pwm_b = QLineEdit()
-        self.ctrl_pwm_b.setValidator(QIntValidator(0, 100))
-        self.ctrl_pwm_b.setMaxLength(3)
-        self.ctrl_pwm_b.setEnabled(False)
-        settings_layout.addWidget(self.ctrl_pwm_b)
-        btn_b = QPushButton("Set")
-        btn_b.setEnabled(False)
-        btn_b.clicked.connect(lambda: self.send_pwm_setting("B"))
-        settings_layout.addWidget(btn_b)
-        self.ctrl_pwm_b_btn = btn_b
+        # Temp Critical
+        settings_layout.addWidget(QLabel("Temp Critical (2-90°C):"))
+        self.ctrl_temp_critical = QLineEdit()
+        self.ctrl_temp_critical.setValidator(QIntValidator(2, 90))
+        self.ctrl_temp_critical.setMaxLength(3)
+        self.ctrl_temp_critical.setEnabled(False)
+        settings_layout.addWidget(self.ctrl_temp_critical)
+        btn_critical = QPushButton("Set")
+        btn_critical.setEnabled(False)
+        btn_critical.clicked.connect(lambda: self.send_temp_setting("critical"))
+        settings_layout.addWidget(btn_critical)
+        self.ctrl_temp_critical_btn = btn_critical
 
         # Temp Throttle On
         settings_layout.addWidget(QLabel("Temp Throttle On (1-254°C):"))
@@ -287,18 +276,31 @@ class SerialMonitorUI(QMainWindow):
         settings_layout.addWidget(btn_fan_off)
         self.ctrl_temp_fan_off_btn = btn_fan_off
 
-        # Temp Critical
-        settings_layout.addWidget(QLabel("Temp Critical (2-90°C):"))
-        self.ctrl_temp_critical = QLineEdit()
-        self.ctrl_temp_critical.setValidator(QIntValidator(2, 90))
-        self.ctrl_temp_critical.setMaxLength(3)
-        self.ctrl_temp_critical.setEnabled(False)
-        settings_layout.addWidget(self.ctrl_temp_critical)
-        btn_critical = QPushButton("Set")
-        btn_critical.setEnabled(False)
-        btn_critical.clicked.connect(lambda: self.send_temp_setting("critical"))
-        settings_layout.addWidget(btn_critical)
-        self.ctrl_temp_critical_btn = btn_critical
+        # PWM Throttle A
+        settings_layout.addWidget(QLabel("PWM Throttle A (0-100%):"))
+        self.ctrl_pwm_a = QLineEdit()
+        self.ctrl_pwm_a.setValidator(QIntValidator(0, 100))
+        self.ctrl_pwm_a.setMaxLength(3)
+        self.ctrl_pwm_a.setEnabled(False)
+        settings_layout.addWidget(self.ctrl_pwm_a)
+        btn_a = QPushButton("Set")
+        btn_a.setEnabled(False)
+        btn_a.clicked.connect(lambda: self.send_pwm_setting("A"))
+        settings_layout.addWidget(btn_a)
+        self.ctrl_pwm_a_btn = btn_a
+
+        # PWM Throttle B
+        settings_layout.addWidget(QLabel("PWM Throttle B (0-100%):"))
+        self.ctrl_pwm_b = QLineEdit()
+        self.ctrl_pwm_b.setValidator(QIntValidator(0, 100))
+        self.ctrl_pwm_b.setMaxLength(3)
+        self.ctrl_pwm_b.setEnabled(False)
+        settings_layout.addWidget(self.ctrl_pwm_b)
+        btn_b = QPushButton("Set")
+        btn_b.setEnabled(False)
+        btn_b.clicked.connect(lambda: self.send_pwm_setting("B"))
+        settings_layout.addWidget(btn_b)
+        self.ctrl_pwm_b_btn = btn_b
 
         settings_layout.addStretch()
 
@@ -413,25 +415,27 @@ class SerialMonitorUI(QMainWindow):
 
     def update_settings_display(self, settings: dict):
         """Update settings display from parsed settings dict"""
+        self.accumulated_settings.update(settings)
+
         display_text = ""
-        for key, value in settings.items():
+        for key, value in sorted(self.accumulated_settings.items()):
             display_text += f"{key} = {value}\n"
         self.settings_display.setPlainText(display_text)
 
-        if 'PWM_THROTTLE_A' in settings:
-            self.ctrl_pwm_a.setText(settings['PWM_THROTTLE_A'])
-        if 'PWM_THROTTLE_B' in settings:
-            self.ctrl_pwm_b.setText(settings['PWM_THROTTLE_B'])
-        if 'TEMP_THROTTLE_ON' in settings:
-            self.ctrl_temp_throttle.setText(settings['TEMP_THROTTLE_ON'])
-        if 'TEMP_FAN_ON' in settings:
-            self.ctrl_temp_fan_on.setText(settings['TEMP_FAN_ON'])
-        if 'TEMP_FAN_OFF' in settings:
-            self.ctrl_temp_fan_off.setText(settings['TEMP_FAN_OFF'])
-        if 'TEMP_CRITICAL' in settings:
-            self.ctrl_temp_critical.setText(settings['TEMP_CRITICAL'])
+        if 'PWM_THROTTLE_A' in self.accumulated_settings:
+            self.ctrl_pwm_a.setText(self.accumulated_settings['PWM_THROTTLE_A'])
+        if 'PWM_THROTTLE_B' in self.accumulated_settings:
+            self.ctrl_pwm_b.setText(self.accumulated_settings['PWM_THROTTLE_B'])
+        if 'TEMP_THROTTLE_ON' in self.accumulated_settings:
+            self.ctrl_temp_throttle.setText(self.accumulated_settings['TEMP_THROTTLE_ON'])
+        if 'TEMP_FAN_ON' in self.accumulated_settings:
+            self.ctrl_temp_fan_on.setText(self.accumulated_settings['TEMP_FAN_ON'])
+        if 'TEMP_FAN_OFF' in self.accumulated_settings:
+            self.ctrl_temp_fan_off.setText(self.accumulated_settings['TEMP_FAN_OFF'])
+        if 'TEMP_CRITICAL' in self.accumulated_settings:
+            self.ctrl_temp_critical.setText(self.accumulated_settings['TEMP_CRITICAL'])
 
-        logger.info(f"Received settings: {settings}")
+        logger.info(f"Accumulated settings: {self.accumulated_settings}")
 
     def send_pwm_setting(self, channel: str):
         """Send PWM throttle setting"""
@@ -444,25 +448,34 @@ class SerialMonitorUI(QMainWindow):
             self.statusBar().showMessage(f"PWM {channel}: Enter a value between 0-100")
             return
 
-        self.send_command(Command.pwm_throttle(channel, int(value)))
+        reply = QMessageBox.question(self, "Confirm Setting",
+            f"Set PWM Throttle {channel} to {value}%?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+
+        if reply == QMessageBox.StandardButton.Yes:
+            self.send_command(Command.pwm_throttle(channel, int(value)))
 
     def send_temp_setting(self, setting_type: str):
         """Send temperature setting"""
         if setting_type == "throttle":
             field = self.ctrl_temp_throttle
             method = Command.temp_throttle_on
+            label = "Temp Throttle On"
             range_text = "(1-254)"
         elif setting_type == "fan_on":
             field = self.ctrl_temp_fan_on
             method = Command.temp_fan_on
+            label = "Temp Fan On"
             range_text = "(1-80)"
         elif setting_type == "fan_off":
             field = self.ctrl_temp_fan_off
             method = Command.temp_fan_off
+            label = "Temp Fan Off"
             range_text = "(0-79)"
         elif setting_type == "critical":
             field = self.ctrl_temp_critical
             method = Command.temp_critical
+            label = "Temp Critical"
             range_text = "(2-90)"
         else:
             return
@@ -472,10 +485,15 @@ class SerialMonitorUI(QMainWindow):
             self.statusBar().showMessage(f"Enter a valid temperature {range_text}")
             return
 
-        try:
-            self.send_command(method(int(value)))
-        except ValueError as e:
-            self.statusBar().showMessage(str(e))
+        reply = QMessageBox.question(self, "Confirm Setting",
+            f"Set {label} to {value}°C?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                self.send_command(method(int(value)))
+            except ValueError as e:
+                self.statusBar().showMessage(str(e))
 
     def on_status_changed(self, status):
         """Handle status message updates"""
@@ -558,6 +576,9 @@ class SerialMonitorUI(QMainWindow):
         if not self.serial_worker or not self.serial_worker.isRunning():
             self.statusBar().showMessage("Not connected - cannot send command")
             return
+
+        if command == Command.SETTINGS_READ:
+            self.accumulated_settings.clear()
 
         self.raw_text.insertPlainText(f"\n>>> {command}\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:

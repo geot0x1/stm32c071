@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class TelemetryParser:
     """Parser for device telemetry messages (format $01,...)"""
 
-    EXPECTED_FIELD_COUNT = 11
+    EXPECTED_FIELD_COUNT = 12
     MESSAGE_PREFIX = "$01,"
 
     @staticmethod
@@ -28,6 +28,7 @@ class TelemetryParser:
 
             boot_s = int(parts[1])
             state_str = parts[10]
+            button_str = parts[11]
 
             try:
                 state = DeviceState(state_str)
@@ -47,6 +48,7 @@ class TelemetryParser:
                 pwm_out_a=int(parts[7]),
                 pwm_in_b=int(parts[8]),
                 pwm_out_b=int(parts[9]),
+                button=button_str,
             )
         except (ValueError, IndexError) as e:
             logger.error(f"Failed to parse telemetry '{line}': {e}")
