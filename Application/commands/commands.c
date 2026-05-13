@@ -407,15 +407,15 @@ static void process_line(void)
         return;
     }
 
-    /* DEFAULT - Reset to defaults */
-    if (strcmp(lineBuf.buf, "DEFAULT") == 0)
+    /* SETDEFAULT - Reset to defaults */
+    if (strcmp(lineBuf.buf, "SETDEFAULT") == 0)
     {
         if (!settings_reset_to_defaults())
         {
-            usb_printf("ERR SAVE_FAILED DEFAULT\r\n");
+            usb_printf("ERR SAVE_FAILED SETDEFAULT\r\n");
             return;
         }
-        usb_printf("OK SETTINGSCHANGE DEFAULT\r\n");
+        usb_printf("OK SETTINGSCHANGE SETDEFAULT\r\n");
         return;
     }
 

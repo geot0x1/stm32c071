@@ -304,6 +304,22 @@ class SerialMonitorUI(QMainWindow):
 
         settings_layout.addStretch()
 
+        # Button layout for defaults
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(8)
+
+        # Set Default button
+        self.set_default_btn = QPushButton("Set to Current")
+        self.set_default_btn.setStyleSheet(
+            "QPushButton { background-color: #1a3d7a; color: #7ec8f8; border: 1px solid #2d6abf; border-radius: 5px; font-weight: 700; padding: 5px 14px; }"
+            "QPushButton:hover { background-color: #2055a0; }"
+            "QPushButton:pressed { background-color: #122d5a; }"
+            "QPushButton:disabled { background-color: #1e2128; color: #444; border-color: #252930; }"
+        )
+        self.set_default_btn.setEnabled(False)
+        self.set_default_btn.clicked.connect(lambda: self.confirm_and_send_default())
+        button_layout.addWidget(self.set_default_btn)
+
         # Reset button
         self.reset_defaults_btn = QPushButton("Reset to Defaults")
         self.reset_defaults_btn.setStyleSheet(
@@ -313,8 +329,10 @@ class SerialMonitorUI(QMainWindow):
             "QPushButton:disabled { background-color: #1e2128; color: #444; border-color: #252930; }"
         )
         self.reset_defaults_btn.setEnabled(False)
-        self.reset_defaults_btn.clicked.connect(lambda: self.send_command(Command.RESET_DEFAULTS))
-        settings_layout.addWidget(self.reset_defaults_btn)
+        self.reset_defaults_btn.clicked.connect(lambda: self.confirm_and_send_reset())
+        button_layout.addWidget(self.reset_defaults_btn)
+
+        settings_layout.addLayout(button_layout)
 
         settings_frame.setLayout(settings_layout)
         scroll_area = QScrollArea()
@@ -495,6 +513,24 @@ class SerialMonitorUI(QMainWindow):
             except ValueError as e:
                 self.statusBar().showMessage(str(e))
 
+    def confirm_and_send_default(self):
+        """Confirm and send set default command"""
+        reply = QMessageBox.question(self, "Confirm Setting",
+            "Save current settings as default?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+
+        if reply == QMessageBox.StandardButton.Yes:
+            self.send_command(Command.SET_DEFAULT)
+
+    def confirm_and_send_reset(self):
+        """Confirm and send reset defaults command"""
+        reply = QMessageBox.question(self, "Confirm Reset",
+            "Reset all settings to factory defaults?\nThis cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+
+        if reply == QMessageBox.StandardButton.Yes:
+            self.send_command(Command.RESET_DEFAULTS)
+
     def on_status_changed(self, status):
         """Handle status message updates"""
         self.statusBar().showMessage(status)
@@ -528,6 +564,7 @@ class SerialMonitorUI(QMainWindow):
             self.ctrl_temp_fan_on_btn.setEnabled(True)
             self.ctrl_temp_fan_off_btn.setEnabled(True)
             self.ctrl_temp_critical_btn.setEnabled(True)
+            self.set_default_btn.setEnabled(True)
             self.reset_defaults_btn.setEnabled(True)
         else:
             self.status_label.setText("● Disconnected")
@@ -553,6 +590,7 @@ class SerialMonitorUI(QMainWindow):
             self.ctrl_temp_fan_on_btn.setEnabled(False)
             self.ctrl_temp_fan_off_btn.setEnabled(False)
             self.ctrl_temp_critical_btn.setEnabled(False)
+            self.set_default_btn.setEnabled(False)
             self.reset_defaults_btn.setEnabled(False)
 
     def clear_output(self):
