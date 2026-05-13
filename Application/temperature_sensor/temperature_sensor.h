@@ -15,9 +15,9 @@ void temperature_sensor_init(void);
 void temperature_sensor_task(void);
 
 /**
- * @brief  Returns the last valid temperature raw value.
- *         Returns 0xFFFF if the sensor is lost for 3 consecutive cycles.
+ * @brief  Returns the last valid temperature raw value (Celsius * 100).
+ *         Returns INT16_MIN if the sensor is lost for 3 consecutive cycles.
  */
-uint16_t get_temperature(void);
+int16_t get_temperature(void);
 
 #endif /* TEMPERATURE_SENSOR_H */

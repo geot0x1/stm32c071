@@ -68,8 +68,8 @@ void telemetry_create(char *buf, size_t buf_size)
         return;
     }
 
-    uint16_t raw_temp = get_temperature();
-    uint16_t hdc_temp = hdc2010_get_temp();
+    int16_t raw_temp = get_temperature();
+    int16_t hdc_temp = hdc2010_get_temp();
     uint8_t hdc_rh = hdc2010_get_rh();
     uint32_t boot_s = (uint32_t)(millis() / 1000U);
     const char *fan_str = get_fan_state_str();
@@ -82,25 +82,25 @@ void telemetry_create(char *buf, size_t buf_size)
     const char *state_str = system_state_to_string(state);
 
     char ds_temp_str[8];
-    if (raw_temp == 0xFFFFU)
+    if (raw_temp == INT16_MIN)
     {
         snprintf(ds_temp_str, sizeof(ds_temp_str), "ERR");
     }
     else
     {
-        snprintf(ds_temp_str, sizeof(ds_temp_str), "%d", (int)((int16_t)raw_temp / 100));
+        snprintf(ds_temp_str, sizeof(ds_temp_str), "%d", (int)(raw_temp / 100));
     }
 
     char hdc_temp_str[8];
     char hdc_rh_str[4];
-    if (hdc_temp == 0xFFFFU)
+    if (hdc_temp == INT16_MIN)
     {
         snprintf(hdc_temp_str, sizeof(hdc_temp_str), "ERR");
         snprintf(hdc_rh_str, sizeof(hdc_rh_str), "FF");
     }
     else
     {
-        snprintf(hdc_temp_str, sizeof(hdc_temp_str), "%d", (int)((int16_t)hdc_temp / 100));
+        snprintf(hdc_temp_str, sizeof(hdc_temp_str), "%d", (int)(hdc_temp / 100));
         snprintf(hdc_rh_str, sizeof(hdc_rh_str), "%u", (unsigned)hdc_rh);
     }
 

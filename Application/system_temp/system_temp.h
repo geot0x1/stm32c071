@@ -10,10 +10,10 @@ extern "C"
 
     /**
      * @brief Returns the system temperature as the max of DS18B20 and HDC2010.
-     *        Returns 0xFFFF if no sensor is available.
-     *        Value is in centidegrees (Celsius * 100), negatives as two's complement.
+     *        Returns INT16_MIN if no sensor is available.
+     *        Value is in centidegrees (Celsius * 100).
      */
-    uint16_t system_temp_get(void);
+    int16_t system_temp_get(void);
 
 #ifdef __cplusplus
 }
