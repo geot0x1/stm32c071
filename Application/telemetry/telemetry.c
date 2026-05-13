@@ -5,6 +5,7 @@
 #include "sys_time.h"
 #include "usb.h"
 #include "hdc2010.h"
+#include "push_button.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -85,6 +86,7 @@ void telemetry_create(char *buf, size_t buf_size)
 
     SystemState state = app_get_state();
     const char *state_str = system_state_to_string(state);
+    const char *btn_str = push_button_is_pressed() ? "ON" : "OFF";
 
     char ds_temp_str[8];
     if (raw_temp == INT16_MIN)
@@ -109,7 +111,7 @@ void telemetry_create(char *buf, size_t buf_size)
         snprintf(hdc_rh_str, sizeof(hdc_rh_str), "%u", (unsigned)hdc_rh);
     }
 
-    snprintf(buf, buf_size, "$01,%lu,%s,%s,%s,%s,%lu,%lu,%lu,%lu,%s\r\n",
+    snprintf(buf, buf_size, "$01,%lu,%s,%s,%s,%s,%lu,%lu,%lu,%lu,%s,%s\r\n",
         (unsigned long)boot_s,
         ds_temp_str,
         hdc_temp_str,
@@ -119,7 +121,8 @@ void telemetry_create(char *buf, size_t buf_size)
         (unsigned long)out_dc_a,
         (unsigned long)in_dc_b,
         (unsigned long)out_dc_b,
-        state_str);
+        state_str,
+        btn_str);
 }
 
 void telemetry_send(void)

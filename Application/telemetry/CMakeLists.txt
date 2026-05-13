@@ -18,4 +18,5 @@ target_link_libraries(telemetry PRIVATE
     sys_time
     usb
     hdc2010
+    push_button
 )
