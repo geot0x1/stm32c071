@@ -69,7 +69,16 @@ class TelemetryParser:
 
 
 class SettingsParser:
-    """Parser for device settings responses (format KEY=VALUE)"""
+    """Parser for device settings responses"""
+
+    SETTINGS_KEYS = [
+        "TEMP_FAN_OFF",
+        "TEMP_FAN_ON",
+        "TEMP_THROTTLE_ON",
+        "TEMP_CRITICAL",
+        "PWM_THROTTLE_A",
+        "PWM_THROTTLE_B",
+    ]
 
     @staticmethod
     def parse_line(line: str) -> tuple[Optional[str], Optional[str]]:
@@ -97,11 +106,34 @@ class SettingsParser:
 
         for line in lines:
             line = line.rstrip('\r\n')
-            key, value = SettingsParser.parse_line(line)
-            if key and value:
-                settings[key] = value
+            if line.startswith('SETTINGS='):
+                settings.update(SettingsParser.parse_settings_compact(line))
+            else:
+                key, value = SettingsParser.parse_line(line)
+                if key and value:
+                    settings[key] = value
 
         return settings
+
+    @staticmethod
+    def parse_settings_compact(line: str) -> dict:
+        """Parse SETTINGS=<low_temp>,<high_temp>,<throttle>,<critical>,<pwm_a>,<pwm_b>"""
+        if not line.startswith('SETTINGS='):
+            return {}
+
+        try:
+            values_str = line.split('=', 1)[1]
+            values = values_str.split(',')
+            if len(values) != 6:
+                return {}
+
+            settings = {}
+            for i, key in enumerate(SettingsParser.SETTINGS_KEYS):
+                settings[key] = values[i].strip()
+
+            return settings
+        except (IndexError, ValueError):
+            return {}
 
 
 class SettingsValidator:

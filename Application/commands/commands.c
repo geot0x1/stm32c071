@@ -418,12 +418,10 @@ static void handle_mode(const char *token)
 static void handle_settings(void)
 {
     const Settings *s = settings_get();
-    usb_printf("PWM_THROTTLE_A=%u\r\n", s->pwm_throttle_a);
-    usb_printf("PWM_THROTTLE_B=%u\r\n", s->pwm_throttle_b);
-    usb_printf("TEMP_THROTTLE_ON=%d\r\n", (int)s->temp_throttle_on);
-    usb_printf("TEMP_FAN_ON=%d\r\n", (int)s->temp_fan_on);
-    usb_printf("TEMP_FAN_OFF=%d\r\n", (int)s->temp_fan_off);
-    usb_printf("TEMP_CRITICAL=%d\r\n", (int)s->temp_critical);
+    usb_printf("SETTINGS=%d,%d,%d,%d,%u,%u\r\n",
+        (int)s->temp_fan_off, (int)s->temp_fan_on,
+        (int)s->temp_throttle_on, (int)s->temp_critical,
+        s->pwm_throttle_a, s->pwm_throttle_b);
 }
 
 
