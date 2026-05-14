@@ -205,136 +205,136 @@ static bool parse_settings(const char *params)
     char *token = strtok(buf, ",");
     if ((token == NULL) || (!parse_int(token, &low_temp)))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR INVALID_VALUE SETTINGS low_temp\r\n");
         return false;
     }
 
     token = strtok(NULL, ",");
     if ((token == NULL) || (!parse_int(token, &high_temp)))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR INVALID_VALUE SETTINGS high_temp\r\n");
         return false;
     }
 
     token = strtok(NULL, ",");
     if ((token == NULL) || (!parse_int(token, &throttle_temp)))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR INVALID_VALUE SETTINGS throttle_temp\r\n");
         return false;
     }
 
     token = strtok(NULL, ",");
     if ((token == NULL) || (!parse_int(token, &critical_temp)))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR INVALID_VALUE SETTINGS critical_temp\r\n");
         return false;
     }
 
     token = strtok(NULL, ",");
     if ((token == NULL) || (!parse_int(token, &throttle_a)))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR INVALID_VALUE SETTINGS throttle_a\r\n");
         return false;
     }
 
     token = strtok(NULL, ",");
     if ((token == NULL) || (!parse_int(token, &throttle_b)))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR INVALID_VALUE SETTINGS throttle_b\r\n");
         return false;
     }
 
     if ((low_temp < 0) || (low_temp > 254))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR OUT_OF_RANGE SETTINGS low_temp %ld\r\n", (long)low_temp);
         return false;
     }
 
     if ((high_temp < 0) || (high_temp > 254))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR OUT_OF_RANGE SETTINGS high_temp %ld\r\n", (long)high_temp);
         return false;
     }
 
     if ((throttle_temp < 0) || (throttle_temp > 254))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR OUT_OF_RANGE SETTINGS throttle_temp %ld\r\n", (long)throttle_temp);
         return false;
     }
 
     if ((critical_temp < 0) || (critical_temp > 254))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR OUT_OF_RANGE SETTINGS critical_temp %ld\r\n", (long)critical_temp);
         return false;
     }
 
     if ((throttle_a < 0) || (throttle_a > 100))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR OUT_OF_RANGE SETTINGS throttle_a %ld\r\n", (long)throttle_a);
         return false;
     }
 
     if ((throttle_b < 0) || (throttle_b > 100))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR OUT_OF_RANGE SETTINGS throttle_b %ld\r\n", (long)throttle_b);
         return false;
     }
 
     if (low_temp >= high_temp)
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR ORDERING SETTINGS low_temp %ld must be < high_temp %ld\r\n", (long)low_temp, (long)high_temp);
         return false;
     }
 
     if (high_temp >= throttle_temp)
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR ORDERING SETTINGS high_temp %ld must be < throttle_temp %ld\r\n", (long)high_temp, (long)throttle_temp);
         return false;
     }
 
     if (throttle_temp >= critical_temp)
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR ORDERING SETTINGS throttle_temp %ld must be < critical_temp %ld\r\n", (long)throttle_temp, (long)critical_temp);
         return false;
     }
 
     if (!settings_set_temp_fan_off((uint8_t)low_temp))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR SAVE_FAILED SETTINGS\r\n");
         return false;
     }
 
     if (!settings_set_temp_fan_on((uint8_t)high_temp))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR SAVE_FAILED SETTINGS\r\n");
         return false;
     }
 
     if (!settings_set_temp_throttle_on((uint8_t)throttle_temp))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR SAVE_FAILED SETTINGS\r\n");
         return false;
     }
 
     if (!settings_set_temp_critical((uint8_t)critical_temp))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR SAVE_FAILED SETTINGS\r\n");
         return false;
     }
 
     if (!settings_set_pwm_throttle_a((uint8_t)throttle_a))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR SAVE_FAILED SETTINGS\r\n");
         return false;
     }
 
     if (!settings_set_pwm_throttle_b((uint8_t)throttle_b))
     {
-        usb_printf("SETTINGS ERROR\r\n");
+        usb_printf("ERR SAVE_FAILED SETTINGS\r\n");
         return false;
     }
 
-    usb_printf("SETTINGS OK\r\n");
+    usb_printf("OK SETTINGSCHANGE SETTINGS\r\n");
     return true;
 }
 
