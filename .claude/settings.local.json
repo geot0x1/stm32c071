@@ -85,7 +85,9 @@
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\panos\\\\Documents\\\\PROJECTS\\\\external_stm_project\\\\stm32c071\\\\Application\" -Directory)",
       "Bash(Select-Object -ExpandProperty Name)",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\panos\\\\Documents\\\\PROJECTS\\\\external_stm_project\\\\stm32c071\" -Directory)",
-      "Bash(Select-Object Name)"
+      "Bash(Select-Object Name)",
+      "Bash(Get-ChildItem -Recurse)",
+      "Bash(Select-Object -First 30)"
     ]
   }
 }
