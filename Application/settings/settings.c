@@ -27,7 +27,7 @@ _Static_assert(sizeof(SettingsRecord) % 8U == 0U,
 
 static Settings current;
 
-static const Settings defaults = {
+static const Settings DEFAULTS = {
     .pwm_throttle_a = SETTINGS_DEFAULT_PWM_THROTTLE_A,
     .pwm_throttle_b = SETTINGS_DEFAULT_PWM_THROTTLE_B,
     .temp_throttle_on = SETTINGS_DEFAULT_TEMP_THROTTLE_ON,
@@ -86,7 +86,7 @@ void settings_init(void)
 
     if (!valid)
     {
-        current = defaults;
+        current = DEFAULTS;
         settings_save();
     }
 }
@@ -162,6 +162,6 @@ bool settings_set_temp_critical(uint8_t temp_deg)
 
 bool settings_reset_to_defaults(void)
 {
-    current = defaults;
+    current = DEFAULTS;
     return settings_save();
 }
