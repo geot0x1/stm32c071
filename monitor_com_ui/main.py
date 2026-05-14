@@ -372,6 +372,14 @@ class SerialMonitorUI(QMainWindow):
         grid.addWidget(divider, row, 0, 1, 3)
         row += 1
 
+        self.set_all_btn = QPushButton("Set All")
+        self.set_all_btn.setStyleSheet(_STYLE_BTN_GREEN)
+        self.set_all_btn.setEnabled(False)
+        self.set_all_btn.setToolTip("Set all temperature and PWM values at once")
+        self.set_all_btn.clicked.connect(self.send_all_settings)
+        grid.addWidget(self.set_all_btn, row, 0, 1, 3)
+        row += 1
+
         self.set_default_btn = QPushButton("Restore Defaults")
         self.set_default_btn.setStyleSheet(_STYLE_BTN_BLUE)
         self.set_default_btn.setEnabled(False)
@@ -385,7 +393,7 @@ class SerialMonitorUI(QMainWindow):
         self.reset_defaults_btn.clicked.connect(self.confirm_and_send_reset)
         grid.addWidget(self.reset_defaults_btn, row, 2)
 
-        self._connection_widgets += [self.set_default_btn, self.reset_defaults_btn]
+        self._connection_widgets += [self.set_all_btn, self.set_default_btn, self.reset_defaults_btn]
         return row + 1
 
     # -------------------------------------------------------------------------
@@ -550,6 +558,44 @@ class SerialMonitorUI(QMainWindow):
                 self.send_command(method(int(value)))
             except ValueError as e:
                 self.statusBar().showMessage(str(e))
+
+    def send_all_settings(self):
+        fan_off = self.ctrl_fan_off.text().strip()
+        fan_on = self.ctrl_fan_on.text().strip()
+        throttle = self.ctrl_throttle.text().strip()
+        critical = self.ctrl_critical.text().strip()
+        pwm_a = self.ctrl_pwm_a.text().strip()
+        pwm_b = self.ctrl_pwm_b.text().strip()
+
+        if not all([fan_off, fan_on, throttle, critical, pwm_a, pwm_b]):
+            self.statusBar().showMessage("Error: All fields must have values")
+            return
+
+        if not all(v.isdigit() for v in [fan_off, fan_on, throttle, critical, pwm_a, pwm_b]):
+            self.statusBar().showMessage("Error: All fields must be valid integers")
+            return
+
+        try:
+            low_temp = int(fan_off)
+            high_temp = int(fan_on)
+            throttle_temp = int(throttle)
+            critical_temp = int(critical)
+            throttle_a = int(pwm_a)
+            throttle_b = int(pwm_b)
+
+            reply = QMessageBox.question(self, "Confirm Set All",
+                f"Set all settings?\n\n"
+                f"Fan Off: {low_temp}°C\nFan On: {high_temp}°C\n"
+                f"Throttle: {throttle_temp}°C\nCritical: {critical_temp}°C\n"
+                f"PWM A: {throttle_a}%\nPWM B: {throttle_b}%",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+
+            if reply == QMessageBox.StandardButton.Yes:
+                command = Command.set_all_settings(low_temp, high_temp, throttle_temp,
+                                                   critical_temp, throttle_a, throttle_b)
+                self.send_command(command)
+        except ValueError as e:
+            self.statusBar().showMessage(f"Error: {str(e)}")
 
     def confirm_and_send_default(self):
         reply = QMessageBox.question(self, "Confirm",

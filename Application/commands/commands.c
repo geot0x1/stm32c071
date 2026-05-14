@@ -195,6 +195,149 @@ static bool parse_critical_temp(const char *value_str)
     return true;
 }
 
+static bool parse_settings(const char *params)
+{
+    int32_t low_temp, high_temp, throttle_temp, critical_temp, throttle_a, throttle_b;
+    char buf[CMD_LINE_BUF_SIZE];
+    strncpy(buf, params, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    char *token = strtok(buf, ",");
+    if ((token == NULL) || (!parse_int(token, &low_temp)))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    token = strtok(NULL, ",");
+    if ((token == NULL) || (!parse_int(token, &high_temp)))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    token = strtok(NULL, ",");
+    if ((token == NULL) || (!parse_int(token, &throttle_temp)))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    token = strtok(NULL, ",");
+    if ((token == NULL) || (!parse_int(token, &critical_temp)))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    token = strtok(NULL, ",");
+    if ((token == NULL) || (!parse_int(token, &throttle_a)))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    token = strtok(NULL, ",");
+    if ((token == NULL) || (!parse_int(token, &throttle_b)))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    if ((low_temp < 0) || (low_temp > 254))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    if ((high_temp < 0) || (high_temp > 254))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    if ((throttle_temp < 0) || (throttle_temp > 254))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    if ((critical_temp < 0) || (critical_temp > 254))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    if ((throttle_a < 0) || (throttle_a > 100))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    if ((throttle_b < 0) || (throttle_b > 100))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    if (low_temp >= high_temp)
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    if (high_temp >= throttle_temp)
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    if (throttle_temp >= critical_temp)
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    if (!settings_set_temp_fan_off((uint8_t)low_temp))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    if (!settings_set_temp_fan_on((uint8_t)high_temp))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    if (!settings_set_temp_throttle_on((uint8_t)throttle_temp))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    if (!settings_set_temp_critical((uint8_t)critical_temp))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    if (!settings_set_pwm_throttle_a((uint8_t)throttle_a))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    if (!settings_set_pwm_throttle_b((uint8_t)throttle_b))
+    {
+        usb_printf("SETTINGS ERROR\r\n");
+        return false;
+    }
+
+    usb_printf("SETTINGS OK\r\n");
+    return true;
+}
+
 // need review if this reset should happen in this module.
 static void handle_reset(void)
 {
@@ -416,6 +559,13 @@ static void process_line(void)
             return;
         }
         usb_printf("OK SETTINGSCHANGE SETDEFAULT\r\n");
+        return;
+    }
+
+    /* SETTINGS=<low_temp>,<high_temp>,<throttle_temp>,<critical_temp>,<throttle_a>,<throttle_b> */
+    if (strstr(lineBuf.buf, "SETTINGS=") == lineBuf.buf)
+    {
+        parse_settings(lineBuf.buf + 9);
         return;
     }
 

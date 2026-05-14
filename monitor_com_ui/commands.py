@@ -59,3 +59,27 @@ class Command:
         if not (2 <= temp <= 90):
             raise ValueError(f"Temperature must be 2-90, got {temp}")
         return f"TEMPCRIT={temp}"
+
+    @staticmethod
+    def set_all_settings(low_temp: int, high_temp: int, throttle_temp: int,
+                        critical_temp: int, throttle_a: int, throttle_b: int) -> str:
+        """Build SETTINGS command to set all parameters at once"""
+        if not (0 <= low_temp <= 254):
+            raise ValueError(f"Low temp must be 0-254, got {low_temp}")
+        if not (0 <= high_temp <= 254):
+            raise ValueError(f"High temp must be 0-254, got {high_temp}")
+        if not (0 <= throttle_temp <= 254):
+            raise ValueError(f"Throttle temp must be 0-254, got {throttle_temp}")
+        if not (0 <= critical_temp <= 254):
+            raise ValueError(f"Critical temp must be 0-254, got {critical_temp}")
+        if not (0 <= throttle_a <= 100):
+            raise ValueError(f"Throttle A must be 0-100, got {throttle_a}")
+        if not (0 <= throttle_b <= 100):
+            raise ValueError(f"Throttle B must be 0-100, got {throttle_b}")
+        if low_temp >= high_temp:
+            raise ValueError(f"Low temp {low_temp} must be < High temp {high_temp}")
+        if high_temp >= throttle_temp:
+            raise ValueError(f"High temp {high_temp} must be < Throttle temp {throttle_temp}")
+        if throttle_temp >= critical_temp:
+            raise ValueError(f"Throttle temp {throttle_temp} must be < Critical temp {critical_temp}")
+        return f"SETTINGS={low_temp},{high_temp},{throttle_temp},{critical_temp},{throttle_a},{throttle_b}"
