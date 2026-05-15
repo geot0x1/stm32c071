@@ -7,4 +7,4 @@ target_sources(pwm_repeater PRIVATE
 
 target_include_directories(pwm_repeater PUBLIC .)
 
-target_link_libraries(pwm_repeater PRIVATE bsp_tim bsp_gpio sys_time critical stm32cubemx)
+target_link_libraries(pwm_repeater PUBLIC sys_time PRIVATE bsp_tim bsp_gpio critical stm32cubemx)
