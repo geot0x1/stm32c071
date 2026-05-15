@@ -86,6 +86,11 @@ static uint32_t tim_channel(uint8_t channel)
 
 void tim_pwm_init(Tim *tim, TIM_TypeDef *instance, uint32_t freq_hz, uint8_t num_channels)
 {
+    if (tim == NULL || freq_hz == 0)
+    {
+        return;
+    }
+
     memset(tim, 0, sizeof(Tim));
 
     tim->hal_handle.Instance = instance;
@@ -234,9 +239,22 @@ void tim_pwm_stop(Tim *tim, uint8_t channel)
 
 void tim_pwm_set_freq(Tim *tim, uint32_t freq_hz)
 {
+    if (tim == NULL || freq_hz == 0)
+    {
+        return;
+    }
+
     tim->freq_hz = freq_hz;
     uint32_t clk_freq = tim_get_clock_freq(tim->hal_handle.Instance);
+
     uint32_t arr = (clk_freq / freq_hz) - 1;
+
+    uint32_t max_arr = (tim->hal_handle.Instance == TIM2) ? 0xFFFFFFFF : 0xFFFF;
+    if (arr > max_arr)
+    {
+        arr = max_arr;
+    }
+
     __HAL_TIM_SET_AUTORELOAD(&tim->hal_handle, arr);
     __HAL_TIM_CLEAR_FLAG(&tim->hal_handle, TIM_FLAG_UPDATE);
 }
@@ -285,6 +303,11 @@ void tim_pwm_set_deadtime(Tim *tim, uint32_t deadtime_ns)
 
 void tim_ic_init(Tim *tim, TIM_TypeDef *instance, uint32_t resolution_hz)
 {
+    if (tim == NULL || resolution_hz == 0)
+    {
+        return;
+    }
+
     memset(tim, 0, sizeof(Tim));
 
     tim->hal_handle.Instance = instance;
@@ -384,6 +407,11 @@ void tim_ic_disable_ch_irq(Tim *tim, uint8_t channel)
 
 void tim_base_init(Tim *tim, TIM_TypeDef *instance, uint32_t tick_hz)
 {
+    if (tim == NULL || tick_hz == 0)
+    {
+        return;
+    }
+
     memset(tim, 0, sizeof(Tim));
 
     tim->hal_handle.Instance = instance;
@@ -512,6 +540,11 @@ void tim_one_pulse_trigger(Tim *tim, uint8_t channel)
 void tim_oc_init(
     Tim *tim, TIM_TypeDef *instance, uint32_t tick_hz, uint8_t channel, uint32_t oc_mode)
 {
+    if (tim == NULL || tick_hz == 0)
+    {
+        return;
+    }
+
     memset(tim, 0, sizeof(Tim));
 
     tim->hal_handle.Instance = instance;
