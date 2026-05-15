@@ -178,7 +178,7 @@ static void apply_output_to_hardware(PwmOutput *out, uint32_t active_pulse)
 
 static void process_channel_update(PwmChannel *ch, PwmOutput *out, const Gpio *gpio)
 {
-    uint64_t now = millis();
+    millis_t now = millis();
     const uint32_t TIMEOUT_MS = 50;
 
     if (ch->new_data_ready)
@@ -195,7 +195,7 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out, const Gpio *g
     /* Atomic snapshot: 64-bit read is non-atomic on Cortex-M0+; an ISR firing
      * mid-read would yield a torn value and a spurious timeout. */
     critical_enter();
-    uint64_t last_capture = ch->last_capture_ms;
+    millis_t last_capture = ch->last_capture_ms;
     critical_exit();
 
     if ((now - last_capture) > TIMEOUT_MS)

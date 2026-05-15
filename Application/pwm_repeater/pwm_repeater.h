@@ -9,6 +9,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "sys_time.h"
 #include "tim.h"
 
 /**
@@ -29,7 +30,7 @@ typedef struct
     volatile uint32_t period_stable_counter;
     volatile uint32_t pulse_stable_counter;
     volatile uint32_t previous_pulse_ticks;
-    volatile uint64_t last_capture_ms;
+    volatile millis_t last_capture_ms;
 } PwmChannel;
 
 /**
