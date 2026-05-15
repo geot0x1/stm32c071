@@ -38,6 +38,7 @@ uint8_t fan_control_get_remote_channel_duty(FanChannel channel);
 void fan_control_set_unit_duty(uint8_t unit_idx, uint8_t duty_pct);
 uint8_t fan_control_get_unit_duty(uint8_t unit_idx);
 
+void fan_control_set_all_duty(uint8_t duty_pct);
 void fan_control_all_on(void);
 void fan_control_all_off(void);
 
