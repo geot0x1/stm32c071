@@ -127,7 +127,7 @@ Usb *board_get_usb(void)
 /**
  * @brief System Clock Configuration
  *
- * System Clock source    = HSE (8 MHz external crystal)
+ * System Clock source    = HSE (48 MHz external crystal)
  * SYSCLK / HCLK / APB1  = 48 MHz (no divisors)
  * HSI48                  = ON  (required for USB)
  */
