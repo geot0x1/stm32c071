@@ -4,6 +4,7 @@
  */
 
 #include "pwm_repeater.h"
+#include "critical.h"
 #include "gpio.h"
 #include "sys_time.h"
 #include "stm32c0xx_hal.h"
@@ -191,7 +192,13 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out, const Gpio *g
         ch->new_data_ready = false;
     }
 
-    if ((now - ch->last_capture_ms) > TIMEOUT_MS)
+    /* Atomic snapshot: 64-bit read is non-atomic on Cortex-M0+; an ISR firing
+     * mid-read would yield a torn value and a spurious timeout. */
+    critical_enter();
+    uint64_t last_capture = ch->last_capture_ms;
+    critical_exit();
+
+    if ((now - last_capture) > TIMEOUT_MS)
     {
         /* No edges for 50 ms: flat DC. Read pin to determine level.
          * Input BJT inverts: pin LOW = DIM_PWM 100%, pin HIGH = DIM_PWM 0%. */
