@@ -86,7 +86,8 @@ void temperature_sensor_task(void)
         {
             int16_t raw_temp = ds18b20_get_temp(&_ds18b20_dev, NULL);
 
-            if (raw_temp != -127 && raw_temp != 850)
+            /* -7040 raw = sensor disconnected; 10880 raw = 85 °C power-on reset value */
+            if (raw_temp != -7040 && raw_temp != 10880)
             {
                 float celsius = ds18b20_raw_to_celsius(raw_temp);
                 _last_temperature = (int16_t)(celsius * 100.0f);
