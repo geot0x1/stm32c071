@@ -48,6 +48,10 @@
 
 #define MAX_CONVERSION_TIMEOUT 750
 
+// Bounded busy-wait guard for "wait for bus idle (line released high)".
+// Prevents hangs when the bus is stuck low (shorted/faulty sensor).
+#define OW_BUS_IDLE_GUARD 65536U
+
 
 static int16_t calculate_temperature(const uint8_t *deviceAddress, uint8_t *scratchPad);
 static uint8_t ds18b20_check_crc(const uint8_t *buf, uint8_t len, uint8_t crc);
@@ -228,9 +232,18 @@ bool ds18b20_is_all_zeros(const uint8_t *const buff, const size_t length)
 
 bool ds18b20_read_scratch_pad(Ds18b20_t *ds, const uint8_t *deviceAddress, uint8_t *scratchPad)
 {
+    uint32_t guard;
+
     ow_lock_bus(ds->ow);
+
+    guard = OW_BUS_IDLE_GUARD;
     while (!ow_pin_status(ds->ow))
     {
+        if (--guard == 0U)
+        {
+            ow_unlock_bus(ds->ow);
+            return false;
+        }
     }
     // Send the reset command and fail fast
     int b = ow_reset(ds->ow);
@@ -241,8 +254,14 @@ bool ds18b20_read_scratch_pad(Ds18b20_t *ds, const uint8_t *deviceAddress, uint8
         return false;
     }
 
+    guard = OW_BUS_IDLE_GUARD;
     while (!ow_pin_status(ds->ow))
     {
+        if (--guard == 0U)
+        {
+            ow_unlock_bus(ds->ow);
+            return false;
+        }
     }
 
     if (deviceAddress == NULL)
@@ -255,8 +274,14 @@ bool ds18b20_read_scratch_pad(Ds18b20_t *ds, const uint8_t *deviceAddress, uint8
     }
     ow_write(ds->ow, READSCRATCH);
 
+    guard = OW_BUS_IDLE_GUARD;
     while (!ow_pin_status(ds->ow))
     {
+        if (--guard == 0U)
+        {
+            ow_unlock_bus(ds->ow);
+            return false;
+        }
     }
 
     // Read all registers in a simple loop
@@ -371,8 +396,14 @@ bool ds18b20_get_address(Ds18b20_t *ds, uint8_t *deviceAddress, uint8_t index)
     ow_lock_bus(ds->ow);
     ow_reset_search(ds->ow);
 
+    uint32_t guard = OW_BUS_IDLE_GUARD;
     while (!ow_pin_status(ds->ow))
     {
+        if (--guard == 0U)
+        {
+            ow_unlock_bus(ds->ow);
+            return false;
+        }
     }
 
     while (ow_search(ds->ow, deviceAddress, true))
