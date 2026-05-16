@@ -413,6 +413,7 @@ static bool linebuffer_append_byte(uint8_t byte)
 static void linebuffer_clear(void)
 {
     lineBuf.len = 0U;
+    lineBuf.buf[0] = 0;
 }
 
 static char *usb_read_line(void)
