@@ -12,6 +12,8 @@
 #include "serial.h"
 #include "settings.h"
 #include "stm32c0xx_hal.h"
+#include "sys_time.h"
+#include "system_temp.h"
 #include "telemetry.h"
 #include "thermal_control.h"
 #include "temperature_sensor.h"
@@ -22,29 +24,77 @@
 #include <stdint.h>
 
 /* Tunables */
-#define APP_FAN_PWM_FREQ_HZ 25000U
-#define APP_FAN_COUNT       4U
+#define APP_FAN_PWM_FREQ_HZ  25000U
+#define APP_FAN_COUNT        4U
+#define APP_INIT_TIMEOUT_MS  10000U
 
 static Hdc2010 hdc2010_dev;
 
-static void apply_throttle(SystemState state, const Settings *settings)
+static millis_t boot_start_ms = 0;
+
+static void app_boot_init(void)
 {
-    switch (state)
+    boot_start_ms = millis();
+}
+
+static void handle_boot(const Settings *settings)
+{
+    int16_t t = system_temp_get();
+    if (t != INT16_MIN)
     {
-        case SystemCritical:
-        case SystemError:
+        app_state_enter_running(thermal_control_initial(t, settings));
+        return;
+    }
+    if ((millis() - boot_start_ms) >= APP_INIT_TIMEOUT_MS)
+    {
+        app_state_enter_fault();
+    }
+}
+
+static void handle_running(const Settings *settings)
+{
+    int16_t t = system_temp_get();
+    if (t == INT16_MIN)
+    {
+        app_state_enter_fault();
+        return;
+    }
+    ThermalState next = thermal_control_step(app_get_thermal_state(), t, settings);
+    app_state_update_thermal(next);
+}
+
+static void handle_fault(const Settings *settings)
+{
+    int16_t t = system_temp_get();
+    if (t != INT16_MIN)
+    {
+        app_state_enter_running(thermal_control_initial(t, settings));
+    }
+}
+
+static void apply_throttle(SystemState state, ThermalState thermal, const Settings *settings)
+{
+    if (state != SystemRunning)
+    {
+        pwm_set_throttle_a(0U);
+        pwm_set_throttle_b(0U);
+        return;
+    }
+
+    switch (thermal)
+    {
+        case ThermalCritical:
             pwm_set_throttle_a(0U);
             pwm_set_throttle_b(0U);
             break;
 
-        case SystemThrottling:
+        case ThermalThrottling:
             pwm_set_throttle_a(settings->pwm_throttle_a);
             pwm_set_throttle_b(settings->pwm_throttle_b);
             break;
 
-        case SystemLow:
-        case SystemHigh:
-        case SystemSensorLost:
+        case ThermalLow:
+        case ThermalHigh:
         default:
             pwm_set_throttle_a(100U);
             pwm_set_throttle_b(100U);
@@ -52,10 +102,11 @@ static void apply_throttle(SystemState state, const Settings *settings)
     }
 }
 
-static void apply_fans(SystemState state, bool button_override)
+static void apply_fans(SystemState state, ThermalState thermal, bool button_pressed)
 {
-    bool auto_on = (state == SystemHigh) || (state == SystemThrottling) || (state == SystemCritical);
-    bool fans_on = button_override || auto_on;
+    bool auto_on = (state == SystemRunning) &&
+                   ((thermal == ThermalHigh) || (thermal == ThermalThrottling) || (thermal == ThermalCritical));
+    bool fans_on = button_pressed || auto_on;
 
     if (fans_on)
     {
@@ -67,40 +118,43 @@ static void apply_fans(SystemState state, bool button_override)
     }
 }
 
-static bool apply_lcd_power(SystemState state)
+static bool apply_lcd_power(SystemState state, ThermalState thermal)
 {
-    bool lcd_on = (state != SystemCritical && state != SystemError);
+    bool lcd_on = (state == SystemRunning) && (thermal != ThermalCritical);
     board_lcd_power_set(lcd_on);
     return lcd_on;
 }
 
-static void apply_program_led(SystemState state)
+static void apply_program_led(SystemState state, ThermalState thermal)
 {
     ProgramLedState led_state;
 
-    switch (state)
+    if (state == SystemBoot)
     {
-        case SystemCritical:
-            led_state = ProgramLedCritical;
-            break;
-
-        case SystemThrottling:
-            led_state = ProgramLedThrottling;
-            break;
-
-        case SystemHigh:
-            led_state = ProgramLedHigh;
-            break;
-
-        case SystemLow:
-            led_state = ProgramLedLow;
-            break;
-
-        case SystemSensorLost:
-        case SystemError:
-        default:
-            led_state = ProgramLedError;
-            break;
+        led_state = ProgramLedLow;
+    }
+    else if (state == SystemFault)
+    {
+        led_state = ProgramLedError;
+    }
+    else
+    {
+        switch (thermal)
+        {
+            case ThermalCritical:
+                led_state = ProgramLedCritical;
+                break;
+            case ThermalThrottling:
+                led_state = ProgramLedThrottling;
+                break;
+            case ThermalHigh:
+                led_state = ProgramLedHigh;
+                break;
+            case ThermalLow:
+            default:
+                led_state = ProgramLedLow;
+                break;
+        }
     }
 
     program_led_set_state(led_state);
@@ -114,36 +168,29 @@ static void app_task(void)
         return;
     }
 
-    AppMode mode = app_get_mode();
-    SystemState state = app_get_state();
-
-    switch (mode)
+    switch (app_get_state())
     {
-        case ModeNormal:
-        {
-            /* Normal mode: system state machine controls behavior */
-            state = thermal_control_step(state, settings);
-            app_set_state(state);
-            bool button_override = push_button_is_pressed();
-
-            apply_throttle(state, settings);
-            apply_fans(state, button_override);
-            apply_lcd_power(state);
-            apply_program_led(state);
+        case SystemBoot:
+            handle_boot(settings);
             break;
-        }
 
-        case ModeManual:
-        {
-            /* Manual mode: external control via USB commands */
-            /* Throttle: set via PWMTHR=<channel>,<duty> commands */
-            /* Fans: set via FAN<n>=ON/OFF commands */
-            /* Skip state machine processing; use commands for all control */
-
-            apply_program_led(SystemLow);
+        case SystemRunning:
+            handle_running(settings);
             break;
-        }
+
+        case SystemFault:
+            handle_fault(settings);
+            break;
     }
+
+    SystemState  state   = app_get_state();
+    ThermalState thermal = app_get_thermal_state();
+    bool button_pressed  = push_button_is_pressed();
+
+    apply_throttle(state, thermal, settings);
+    apply_fans(state, thermal, button_pressed);
+    apply_lcd_power(state, thermal);
+    apply_program_led(state, thermal);
 }
 
 int main(void)
@@ -184,6 +231,7 @@ int main(void)
 
     app_state_init();
     thermal_control_init();
+    app_boot_init();
 
     /* Phase 5: Cooperative main loop */
     while (true)

@@ -1,113 +1,112 @@
 #include "thermal_control.h"
-#include "system_temp.h"
 
 #define CRITICAL_HYSTERESIS_CDEG  200     /* 2 C below T_critical to exit critical */
 #define THROTTLE_HYSTERESIS_CDEG  200     /* 2 C below T_throttle_on to exit throttling */
 
-static SystemState step(SystemState prev, int16_t raw, const Settings *s);
+typedef struct
+{
+    int16_t t_deg;
+    int16_t crit_on;
+    int16_t crit_off;
+    int16_t throttle_on;
+    int16_t throttle_off;
+    int16_t fan_on;
+    int16_t fan_off;
+} Thresholds;
 
-/* ── Public API ──────────────────────────────────────────────────────────── */
+static Thresholds compute_thresholds(int16_t t_cdeg, const Settings *s);
 
 void thermal_control_init(void)
 {
 }
 
-SystemState thermal_control_step(SystemState current, const Settings *s)
+ThermalState thermal_control_initial(int16_t t_cdeg, const Settings *s)
 {
-    if (current == SystemError)
-    {
-        return SystemError;
-    }
+    Thresholds th = compute_thresholds(t_cdeg, s);
 
-    return step(current, system_temp_get(), s);
+    if (th.t_deg >= th.crit_on)
+    {
+        return ThermalCritical;
+    }
+    if (th.t_deg >= th.throttle_on)
+    {
+        return ThermalThrottling;
+    }
+    if (th.t_deg >= th.fan_on)
+    {
+        return ThermalHigh;
+    }
+    return ThermalLow;
 }
 
-/* ── Static functions ────────────────────────────────────────────────────── */
-
-static SystemState step(SystemState prev, int16_t raw, const Settings *s)
+ThermalState thermal_control_step(ThermalState current, int16_t t_cdeg, const Settings *s)
 {
-    if (raw == INT16_MIN)
+    Thresholds th = compute_thresholds(t_cdeg, s);
+
+    switch (current)
     {
-        return SystemSensorLost;
+        case ThermalLow:
+            if (th.t_deg >= th.crit_on)
+            {
+                return ThermalCritical;
+            }
+            if (th.t_deg >= th.throttle_on)
+            {
+                return ThermalThrottling;
+            }
+            if (th.t_deg >= th.fan_on)
+            {
+                return ThermalHigh;
+            }
+            return ThermalLow;
+
+        case ThermalHigh:
+            if (th.t_deg >= th.crit_on)
+            {
+                return ThermalCritical;
+            }
+            if (th.t_deg >= th.throttle_on)
+            {
+                return ThermalThrottling;
+            }
+            if (th.t_deg < th.fan_off)
+            {
+                return ThermalLow;
+            }
+            return ThermalHigh;
+
+        case ThermalThrottling:
+            if (th.t_deg >= th.crit_on)
+            {
+                return ThermalCritical;
+            }
+            if (th.t_deg < th.throttle_off)
+            {
+                return ThermalHigh;
+            }
+            return ThermalThrottling;
+
+        case ThermalCritical:
+            if (th.t_deg < th.crit_off)
+            {
+                return ThermalThrottling;
+            }
+            return ThermalCritical;
+
+        default:
+            return ThermalLow;
     }
+}
 
-    int16_t t_cdeg       = raw;
-    int16_t t_deg        = t_cdeg / 100;
-    int16_t crit_on      = (int16_t)s->temp_critical;
-    int16_t crit_off     = crit_on - (CRITICAL_HYSTERESIS_CDEG / 100);
-    int16_t throttle_on  = (int16_t)s->temp_throttle_on;
-    int16_t throttle_off = throttle_on - (THROTTLE_HYSTERESIS_CDEG / 100);
-    int16_t fan_on       = (int16_t)s->temp_fan_on;
-    int16_t fan_off      = (int16_t)s->temp_fan_off;
-
-    switch (prev)
-    {
-        case SystemSensorLost:
-            /* Re-enter normal SM as if from Low */
-            if (t_deg >= crit_on)
-            {
-                return SystemCritical;
-            }
-            if (t_deg >= throttle_on)
-            {
-                return SystemThrottling;
-            }
-            if (t_deg >= fan_on)
-            {
-                return SystemHigh;
-            }
-            return SystemLow;
-
-        case SystemLow:
-            if (t_deg >= crit_on)
-            {
-                return SystemCritical;
-            }
-            if (t_deg >= throttle_on)
-            {
-                return SystemThrottling;
-            }
-            if (t_deg >= fan_on)
-            {
-                return SystemHigh;
-            }
-            return SystemLow;
-
-        case SystemHigh:
-            if (t_deg >= crit_on)
-            {
-                return SystemCritical;
-            }
-            if (t_deg >= throttle_on)
-            {
-                return SystemThrottling;
-            }
-            if (t_deg < fan_off)
-            {
-                return SystemLow;
-            }
-            return SystemHigh;
-
-        case SystemThrottling:
-            if (t_deg >= crit_on)
-            {
-                return SystemCritical;
-            }
-            if (t_deg < throttle_off)
-            {
-                return SystemHigh;
-            }
-            return SystemThrottling;
-
-        case SystemCritical:
-            if (t_deg < crit_off)
-            {
-                return SystemThrottling;
-            }
-            return SystemCritical;
-
-        case SystemError:
-            return SystemError;
-    }
-    return SystemLow;
+static Thresholds compute_thresholds(int16_t t_cdeg, const Settings *s)
+{
+    Thresholds th;
+    th.t_deg        = t_cdeg / 100;
+    th.crit_on      = (int16_t)s->temp_critical;
+    th.crit_off     = th.crit_on - (CRITICAL_HYSTERESIS_CDEG / 100);
+    th.throttle_on  = (int16_t)s->temp_throttle_on;
+    th.throttle_off = th.throttle_on - (THROTTLE_HYSTERESIS_CDEG / 100);
+    th.fan_on       = (int16_t)s->temp_fan_on;
+    th.fan_off      = (int16_t)s->temp_fan_off;
+    return th;
 }

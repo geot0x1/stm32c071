@@ -1,5 +1,4 @@
 #include "commands.h"
-#include "app_state.h"
 #include "settings.h"
 #include "telemetry.h"
 #include "usb.h"
@@ -388,33 +387,6 @@ static void handle_fan(const char *token)
     usb_printf("OK FAN %ld %s\r\n", (long)fan_num, state_str);
 }
 
-static void handle_mode(const char *token)
-{
-    const char *equals = strchr(token, '=');
-    if (equals == NULL)
-    {
-        usb_printf("ERR INVALID_FORMAT mode\r\n");
-        return;
-    }
-
-    const char *mode_str = equals + 1;
-
-    if (strcmp(mode_str, "NORMAL") == 0)
-    {
-        app_set_mode(ModeNormal);
-        usb_printf("OK MODE NORMAL\r\n");
-    }
-    else if (strcmp(mode_str, "MANUAL") == 0)
-    {
-        app_set_mode(ModeManual);
-        usb_printf("OK MODE MANUAL\r\n");
-    }
-    else
-    {
-        usb_printf("ERR INVALID_MODE %s\r\n", mode_str);
-    }
-}
-
 static void handle_settings(void)
 {
     const Settings *s = settings_get();
@@ -496,13 +468,6 @@ static void process_line(void)
     if (strcmp(lineBuf.buf, "RESET") == 0)
     {
         handle_reset();
-        return;
-    }
-
-    /* Application mode: MODE=<NORMAL|MANUAL> */
-    if (strstr(lineBuf.buf, "MODE=") == lineBuf.buf)
-    {
-        handle_mode(lineBuf.buf);
         return;
     }
 
