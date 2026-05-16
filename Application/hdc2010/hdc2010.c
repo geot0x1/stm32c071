@@ -1,4 +1,5 @@
 #include "hdc2010.h"
+#include "config.h"
 #include "sys_time.h"
 #include <stdbool.h>
 #include <stddef.h>
@@ -38,7 +39,7 @@
 #define MEAS_CFG_ONESHOT         0x01U
 
 #define I2C_TIMEOUT_MS           10U
-#define CONVERSION_WAIT_MS       2U
+#define CONVERSION_WAIT_MS       5U
 
 #define HAL_ADDR(a)              ((uint16_t)((a) << 1))
 
@@ -304,8 +305,11 @@ static void handle_waiting(millis_t now)
 
     int16_t temp = 0;
     uint8_t rh   = 0;
-    /* Only a paired (temp, rh) success counts as a valid reading. */
-    if (hdc2010_read(dev_handle, &temp, &rh) == HDC2010_OK)
+    /* Only a paired (temp, rh) success counts as a valid reading, and only if
+     * the temperature is within the plausible sensor range. */
+    if (hdc2010_read(dev_handle, &temp, &rh) == HDC2010_OK &&
+        temp >= CONFIG_SENSOR_TEMP_MIN_CDEG &&
+        temp <= CONFIG_SENSOR_TEMP_MAX_CDEG)
     {
         commit_reading(temp, rh);
     }

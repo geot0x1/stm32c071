@@ -341,6 +341,8 @@ static bool parse_settings(const char *params)
 static void handle_reset(void)
 {
     usb_printf("OK RESET\r\n");
+    /* Intentional: no watchdog kick inside this loop. If something goes wrong
+     * during the pre-reset drain, we want the IWDG to reset us anyway. */
     for (uint8_t i = 0U; i < 10U; i++)
     {
         usb_task();
