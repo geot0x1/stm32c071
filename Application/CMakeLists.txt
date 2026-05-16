@@ -1,3 +1,4 @@
+add_subdirectory(config)
 add_subdirectory(app_state)
 add_subdirectory(bsp)
 add_subdirectory(watchdog)

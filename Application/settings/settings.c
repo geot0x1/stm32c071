@@ -25,6 +25,17 @@ _Static_assert(
 _Static_assert(sizeof(SettingsRecord) % 8U == 0U,
     "SettingsRecord must be a multiple of 8 bytes for flash doubleword writes");
 
+_Static_assert(CONFIG_TEMP_FAN_OFF_DEFAULT < CONFIG_TEMP_FAN_ON_DEFAULT,
+    "CONFIG: temp_fan_off must be below temp_fan_on");
+_Static_assert(CONFIG_TEMP_FAN_ON_DEFAULT < CONFIG_TEMP_THROTTLE_ON_DEFAULT,
+    "CONFIG: temp_fan_on must be below temp_throttle_on");
+_Static_assert(CONFIG_TEMP_THROTTLE_ON_DEFAULT < CONFIG_TEMP_CRITICAL_DEFAULT,
+    "CONFIG: temp_throttle_on must be below temp_critical");
+_Static_assert(CONFIG_TEMP_CRITICAL_DEFAULT <= CONFIG_TEMP_MAX,
+    "CONFIG: temp_critical exceeds 180 °C limit");
+_Static_assert(CONFIG_TEMP_FAN_OFF_DEFAULT <= CONFIG_TEMP_MAX,
+    "CONFIG: temp_fan_off exceeds 180 °C limit");
+
 static Settings current;
 
 static const Settings DEFAULTS = {

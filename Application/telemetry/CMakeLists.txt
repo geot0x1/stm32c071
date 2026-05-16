@@ -8,6 +8,7 @@ target_sources(telemetry PRIVATE
 target_include_directories(telemetry PUBLIC . ..)
 
 target_link_libraries(telemetry PRIVATE
+    config
     app_state
     bsp_tim
     bsp_i2c
