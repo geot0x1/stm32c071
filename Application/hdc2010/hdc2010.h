@@ -32,8 +32,9 @@ typedef struct
  * @param dev   Handle to fill
  * @param i2c   Initialized I2C bus
  * @param addr  7-bit device address (HDC2010_ADDR_LOW or HDC2010_ADDR_HIGH)
- * @return HDC2010_ERR_NOT_FOUND if the device does not respond or returns an
- *         unexpected ID.
+ * @return HDC2010_ERR_ARG if dev or i2c is NULL or addr is not a recognized
+ *         HDC2010 address; HDC2010_ERR_NOT_FOUND if the device does not
+ *         respond or returns an unexpected ID.
  */
 Hdc2010Err hdc2010_init(Hdc2010 *dev, I2c *i2c, uint8_t addr);
 
@@ -41,7 +42,7 @@ Hdc2010Err hdc2010_init(Hdc2010 *dev, I2c *i2c, uint8_t addr);
  * @brief Trigger a one-shot temperature + humidity measurement.
  *
  * The conversion takes up to 1 ms. The caller must wait before calling
- * hdc2010_read().
+ * hdc2010_read(). Returns HDC2010_ERR_ARG if dev is NULL.
  */
 Hdc2010Err hdc2010_start_measurement(Hdc2010 *dev);
 

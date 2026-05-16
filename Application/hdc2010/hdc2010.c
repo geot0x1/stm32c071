@@ -79,6 +79,15 @@ static void       handle_waiting(millis_t now);
 
 Hdc2010Err hdc2010_init(Hdc2010 *dev, I2c *i2c, uint8_t addr)
 {
+    if (dev == NULL || i2c == NULL)
+    {
+        return HDC2010_ERR_ARG;
+    }
+    if (addr != HDC2010_ADDR_LOW && addr != HDC2010_ADDR_HIGH)
+    {
+        return HDC2010_ERR_ARG;
+    }
+
     dev->i2c  = i2c;
     dev->addr = addr;
 
@@ -104,6 +113,10 @@ Hdc2010Err hdc2010_init(Hdc2010 *dev, I2c *i2c, uint8_t addr)
 
 Hdc2010Err hdc2010_start_measurement(Hdc2010 *dev)
 {
+    if (dev == NULL)
+    {
+        return HDC2010_ERR_ARG;
+    }
     return write_reg(dev, REG_MEAS_CFG, MEAS_CFG_ONESHOT);
 }
 
