@@ -45,8 +45,8 @@ static Gpio _ic_pin_b;
 /* ── Global instances ──────────────────────────────────────────────────────── */
 PwmChannel pwmChannelA = {.rise_captured = false};
 PwmChannel pwmChannelB = {.rise_captured = false};
-PwmOutput pwmOutputA = {.tim = NULL, .channel = TIM_CHANNEL_1, .throttle_val = 50};
-PwmOutput pwmOutputB = {.tim = NULL, .channel = TIM_CHANNEL_1, .throttle_val = 50};
+PwmOutput pwmOutputA = {.tim = NULL, .channel = TIM_CHANNEL_1, .throttle_val = 50, .period_valid = false};
+PwmOutput pwmOutputB = {.tim = NULL, .channel = TIM_CHANNEL_1, .throttle_val = 50, .period_valid = false};
 
 /* ── Forward declarations ──────────────────────────────────────────────────── */
 static void handle_ic_capture(
@@ -191,6 +191,7 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out, const Gpio *g
     {
         out->period_ticks = ch->period_ticks;
         out->pulse_ticks = ch->low_level_ticks; /* DIM_PWM HIGH time (BJT-corrected) */
+        out->period_valid = true;
 
         uint32_t active_pulse = calculate_output_pulse(out);
         apply_output_to_hardware(out, active_pulse);
@@ -210,7 +211,7 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out, const Gpio *g
          * Input BJT inverts: pin LOW = DIM_PWM 100%, pin HIGH = DIM_PWM 0%. */
         if (gpio_read(gpio) == GPIO_PIN_RESET)
         {
-            if (out->period_ticks != 0)
+            if (out->period_valid)
             {
                 /* Known period — apply throttled 100% using last seen frequency */
                 out->pulse_ticks = out->period_ticks;
@@ -219,9 +220,12 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out, const Gpio *g
             }
             else
             {
-                /* Cold 100% DC — no frequency seen yet, drive full on */
+                /* Cold 100% DC — no frequency seen yet. Apply throttle directly against
+                 * output period; no input period to scale against. */
+                uint32_t cold_pulse = (OUTPUT_PERIOD_TICKS * out->throttle_val) / 100U;
+                uint32_t target_ccr = OUTPUT_PERIOD_TICKS - cold_pulse;
                 out->tim->hal_handle.Instance->ARR = OUTPUT_ARR;
-                out->tim->hal_handle.Instance->CCR1 = 0U;
+                out->tim->hal_handle.Instance->CCR1 = target_ccr;
             }
         }
         else
@@ -231,6 +235,7 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out, const Gpio *g
             out->tim->hal_handle.Instance->CCR1 = OUTPUT_ARR + 1U;
             out->period_ticks = 0;
             out->pulse_ticks = 0;
+            out->period_valid = false;
         }
         init_channel_struct(ch);
     }

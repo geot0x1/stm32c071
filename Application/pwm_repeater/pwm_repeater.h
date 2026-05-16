@@ -43,6 +43,7 @@ typedef struct
     volatile uint32_t period_ticks;
     volatile uint32_t pulse_ticks; /* actual input HIGH time (post-BJT correction) */
     volatile uint32_t throttle_val; /* limit in percent, 0–100 */
+    volatile bool period_valid; /* true once a real PWM period has been committed */
 } PwmOutput;
 
 /* Global channel instances (read-only from outside this module) */
