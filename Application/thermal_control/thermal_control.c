@@ -1,7 +1,7 @@
 #include "thermal_control.h"
 
-#define CRITICAL_HYSTERESIS_CDEG  200     /* 2 C below T_critical to exit critical */
-#define THROTTLE_HYSTERESIS_CDEG  200     /* 2 C below T_throttle_on to exit throttling */
+#define CRITICAL_HYSTERESIS_DEG  2     /* degrees below T_critical to exit critical */
+#define THROTTLE_HYSTERESIS_DEG  2     /* degrees below T_throttle_on to exit throttling */
 
 typedef struct
 {
@@ -103,9 +103,9 @@ static Thresholds compute_thresholds(int16_t t_cdeg, const Settings *s)
     Thresholds th;
     th.t_deg        = t_cdeg / 100;
     th.crit_on      = (int16_t)s->temp_critical;
-    th.crit_off     = th.crit_on - (CRITICAL_HYSTERESIS_CDEG / 100);
+    th.crit_off     = th.crit_on - CRITICAL_HYSTERESIS_DEG;
     th.throttle_on  = (int16_t)s->temp_throttle_on;
-    th.throttle_off = th.throttle_on - (THROTTLE_HYSTERESIS_CDEG / 100);
+    th.throttle_off = th.throttle_on - THROTTLE_HYSTERESIS_DEG;
     th.fan_on       = (int16_t)s->temp_fan_on;
     th.fan_off      = (int16_t)s->temp_fan_off;
     return th;
