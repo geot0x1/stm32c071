@@ -78,11 +78,11 @@ void telemetry_init(void)
     telemetry.last_send_ms = 0U;
 }
 
-void telemetry_create(char *buf, size_t buf_size)
+bool telemetry_create(char *buf, size_t buf_size)
 {
     if (buf == NULL || buf_size == 0U)
     {
-        return;
+        return false;
     }
 
     int16_t raw_temp = get_temperature();
@@ -123,7 +123,7 @@ void telemetry_create(char *buf, size_t buf_size)
         snprintf(hdc_rh_str, sizeof(hdc_rh_str), "%u", (unsigned)hdc_rh);
     }
 
-    snprintf(buf, buf_size, "$01,%lu,%s,%s,%s,%s,%lu,%lu,%lu,%lu,%s,%s\r\n",
+    int len = snprintf(buf, buf_size, "$01,%lu,%s,%s,%s,%s,%lu,%lu,%lu,%lu,%s,%s\r\n",
         (unsigned long)boot_s,
         ds_temp_str,
         hdc_temp_str,
@@ -135,13 +135,17 @@ void telemetry_create(char *buf, size_t buf_size)
         (unsigned long)out_dc_b,
         state_str,
         btn_str);
+
+    return (len > 0) && ((size_t)len < buf_size);
 }
 
 void telemetry_send(void)
 {
     char buf[TELEMETRY_BUF_SIZE];
-    telemetry_create(buf, sizeof(buf));
-    usb_printf("%s", buf);
+    if (telemetry_create(buf, sizeof(buf)))
+    {
+        usb_printf("%s", buf);
+    }
 }
 
 void telemetry_task(void)

@@ -8,7 +8,7 @@
 
 void telemetry_init(void);
 void telemetry_task(void);
-void telemetry_create(char *buf, size_t buf_size);
+bool telemetry_create(char *buf, size_t buf_size);
 void telemetry_send(void);
 void telemetry_reset(void);
 void telemetry_enable(bool enable);
