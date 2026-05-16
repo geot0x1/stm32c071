@@ -66,6 +66,7 @@ static millis_t         poll_ms      = 0U;
 
 static Hdc2010Err read_reg(Hdc2010 *dev, uint8_t reg, uint8_t *out);
 static Hdc2010Err write_reg(Hdc2010 *dev, uint8_t reg, uint8_t val);
+static void       commit_reading(int16_t temp_cdeg, uint8_t rh_pct);
 static void       note_failure(void);
 static bool       poll_interval_elapsed(millis_t now);
 static bool       conversion_ready(millis_t now);
@@ -108,11 +109,6 @@ Hdc2010Err hdc2010_start_measurement(Hdc2010 *dev)
 
 Hdc2010Err hdc2010_read(Hdc2010 *dev, int16_t *temperature_cdeg, uint8_t *humidity_pct)
 {
-    int16_t temp_value = 0;
-    uint8_t rh_value   = 0;
-    bool    have_temp  = false;
-    bool    have_rh    = false;
-
     if (temperature_cdeg != NULL)
     {
         uint8_t lo;
@@ -127,8 +123,7 @@ Hdc2010Err hdc2010_read(Hdc2010 *dev, int16_t *temperature_cdeg, uint8_t *humidi
         }
         uint16_t raw = (uint16_t)((uint16_t)hi << 8) | lo;
         /* T(cdeg) = raw * 165 * 100 / 65536 - 4000 */
-        temp_value = (int16_t)(((uint32_t)raw * 16500UL) / 65536UL) - 4000;
-        have_temp  = true;
+        *temperature_cdeg = (int16_t)(((uint32_t)raw * 16500UL) / 65536UL) - 4000;
     }
 
     if (humidity_pct != NULL)
@@ -145,24 +140,9 @@ Hdc2010Err hdc2010_read(Hdc2010 *dev, int16_t *temperature_cdeg, uint8_t *humidi
         }
         uint16_t raw = (uint16_t)((uint16_t)hi << 8) | lo;
         /* RH(%) = raw * 100 / 65536 */
-        rh_value = (uint8_t)(((uint32_t)raw * 100UL) / 65536UL);
-        have_rh  = true;
+        *humidity_pct = (uint8_t)(((uint32_t)raw * 100UL) / 65536UL);
     }
 
-    /* Commit to cache only after both requested reads succeeded. */
-    if (have_temp)
-    {
-        *temperature_cdeg = temp_value;
-        cached_temp       = temp_value;
-    }
-    if (have_rh)
-    {
-        *humidity_pct = rh_value;
-        cached_rh     = rh_value;
-    }
-
-    cached_valid = true;
-    fail_count   = 0U;
     return HDC2010_OK;
 }
 
@@ -223,6 +203,14 @@ static Hdc2010Err write_reg(Hdc2010 *dev, uint8_t reg, uint8_t val)
     I2cErr err = i2c_mem_write(dev->i2c, HAL_ADDR(dev->addr),
                                reg, I2C_MEMADD_SIZE_8BIT, &val, 1, I2C_TIMEOUT_MS);
     return (err == I2C_OK) ? HDC2010_OK : HDC2010_ERR_I2C;
+}
+
+static void commit_reading(int16_t temp_cdeg, uint8_t rh_pct)
+{
+    cached_temp  = temp_cdeg;
+    cached_rh    = rh_pct;
+    cached_valid = true;
+    fail_count   = 0U;
 }
 
 static void note_failure(void)
@@ -287,7 +275,12 @@ static void handle_waiting(millis_t now)
 
     int16_t temp = 0;
     uint8_t rh   = 0;
-    if (hdc2010_read(dev_handle, &temp, &rh) != HDC2010_OK)
+    /* Only a paired (temp, rh) success counts as a valid reading. */
+    if (hdc2010_read(dev_handle, &temp, &rh) == HDC2010_OK)
+    {
+        commit_reading(temp, rh);
+    }
+    else
     {
         note_failure();
     }
