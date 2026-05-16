@@ -171,6 +171,33 @@ bool settings_set_temp_critical(uint8_t temp_deg)
     return settings_save();
 }
 
+bool settings_set_all(const Settings *s)
+{
+    if (s == NULL)
+    {
+        return false;
+    }
+    if (s->temp_fan_off    == SETTINGS_TEMP_INVALID
+        || s->temp_fan_on     == SETTINGS_TEMP_INVALID
+        || s->temp_throttle_on == SETTINGS_TEMP_INVALID
+        || s->temp_critical   == SETTINGS_TEMP_INVALID)
+    {
+        return false;
+    }
+    if (s->temp_fan_off >= s->temp_fan_on
+        || s->temp_fan_on >= s->temp_throttle_on
+        || s->temp_throttle_on >= s->temp_critical)
+    {
+        return false;
+    }
+    if ((s->pwm_throttle_a > 100U) || (s->pwm_throttle_b > 100U))
+    {
+        return false;
+    }
+    current = *s;
+    return settings_save();
+}
+
 bool settings_reset_to_defaults(void)
 {
     current = DEFAULTS;

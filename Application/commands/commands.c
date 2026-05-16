@@ -297,37 +297,15 @@ static bool parse_settings(const char *params)
         return false;
     }
 
-    if (!settings_set_temp_fan_off((uint8_t)low_temp))
-    {
-        usb_printf("ERR SAVE_FAILED SETTINGS\r\n");
-        return false;
-    }
+    Settings new_settings = {0};
+    new_settings.temp_fan_off      = (uint8_t)low_temp;
+    new_settings.temp_fan_on       = (uint8_t)high_temp;
+    new_settings.temp_throttle_on  = (uint8_t)throttle_temp;
+    new_settings.temp_critical     = (uint8_t)critical_temp;
+    new_settings.pwm_throttle_a    = (uint8_t)throttle_a;
+    new_settings.pwm_throttle_b    = (uint8_t)throttle_b;
 
-    if (!settings_set_temp_fan_on((uint8_t)high_temp))
-    {
-        usb_printf("ERR SAVE_FAILED SETTINGS\r\n");
-        return false;
-    }
-
-    if (!settings_set_temp_throttle_on((uint8_t)throttle_temp))
-    {
-        usb_printf("ERR SAVE_FAILED SETTINGS\r\n");
-        return false;
-    }
-
-    if (!settings_set_temp_critical((uint8_t)critical_temp))
-    {
-        usb_printf("ERR SAVE_FAILED SETTINGS\r\n");
-        return false;
-    }
-
-    if (!settings_set_pwm_throttle_a((uint8_t)throttle_a))
-    {
-        usb_printf("ERR SAVE_FAILED SETTINGS\r\n");
-        return false;
-    }
-
-    if (!settings_set_pwm_throttle_b((uint8_t)throttle_b))
+    if (!settings_set_all(&new_settings))
     {
         usb_printf("ERR SAVE_FAILED SETTINGS\r\n");
         return false;

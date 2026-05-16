@@ -50,6 +50,14 @@ bool settings_set_temp_fan_off(uint8_t temp_deg);
 bool settings_set_temp_critical(uint8_t temp_deg);
 
 /**
+ * @brief Atomically replace all settings. Validates ordering
+ *        (fan_off < fan_on < throttle_on < critical) and that no temperature
+ *        equals SETTINGS_TEMP_INVALID. Persists to flash on success.
+ * @return true on success; false if validation fails or flash write fails.
+ */
+bool settings_set_all(const Settings *s);
+
+/**
  * @brief Restore all settings to compile-time defaults and persist.
  */
 bool settings_reset_to_defaults(void);
