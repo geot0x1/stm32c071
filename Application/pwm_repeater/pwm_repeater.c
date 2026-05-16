@@ -55,6 +55,7 @@ static void reset_channel_state(PwmChannel *ch, uint32_t channel);
 static uint32_t calculate_output_pulse(PwmOutput *out);
 static void init_channel_struct(PwmChannel *ch);
 static void apply_output_to_hardware(PwmOutput *out, uint32_t active_pulse);
+static void apply_throttled_output(PwmOutput *out);
 static void process_channel_update(PwmChannel *ch, PwmOutput *out, const Gpio *gpio);
 static uint32_t calculate_frequency(uint32_t period_ticks);
 static uint32_t calculate_duty_pct(uint32_t period_ticks, uint32_t pulse_ticks);
@@ -182,6 +183,12 @@ static void apply_output_to_hardware(PwmOutput *out, uint32_t active_pulse)
     out->tim->hal_handle.Instance->CCR1 = target_ccr;
 }
 
+static void apply_throttled_output(PwmOutput *out)
+{
+    uint32_t active_pulse = calculate_output_pulse(out);
+    apply_output_to_hardware(out, active_pulse);
+}
+
 static void process_channel_update(PwmChannel *ch, PwmOutput *out, const Gpio *gpio)
 {
     millis_t now = millis();
@@ -193,8 +200,7 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out, const Gpio *g
         out->pulse_ticks = ch->low_level_ticks; /* DIM_PWM HIGH time (BJT-corrected) */
         out->period_valid = true;
 
-        uint32_t active_pulse = calculate_output_pulse(out);
-        apply_output_to_hardware(out, active_pulse);
+        apply_throttled_output(out);
 
         ch->new_data_ready = false;
     }
@@ -215,8 +221,7 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out, const Gpio *g
             {
                 /* Known period — apply throttled 100% using last seen frequency */
                 out->pulse_ticks = out->period_ticks;
-                uint32_t active_pulse = calculate_output_pulse(out);
-                apply_output_to_hardware(out, active_pulse);
+                apply_throttled_output(out);
             }
             else
             {
