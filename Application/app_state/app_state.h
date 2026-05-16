@@ -3,24 +3,25 @@
 
 typedef enum
 {
-    ModeNormal,
-    ModeManual,
-} AppMode;
+    SystemBoot,
+    SystemRunning,
+    SystemFault,
+} SystemState;
 
 typedef enum
 {
-    SystemLow,
-    SystemHigh,
-    SystemThrottling,
-    SystemCritical,
-    SystemSensorLost,
-    SystemError,
-} SystemState;
+    ThermalLow,
+    ThermalHigh,
+    ThermalThrottling,
+    ThermalCritical,
+} ThermalState;
 
-void app_state_init(void);
-void app_set_mode(AppMode mode);
-AppMode app_get_mode(void);
-void app_set_state(SystemState state);
-SystemState app_get_state(void);
+void         app_state_init(void);
+SystemState  app_get_state(void);
+ThermalState app_get_thermal_state(void);
+
+void app_state_enter_running(ThermalState initial);
+void app_state_enter_fault(void);
+void app_state_update_thermal(ThermalState s);
 
 #endif /* APP_STATE_H */

@@ -41,42 +41,47 @@
 ## 4. Control Logic (Automation)
 
 ### System State Machine
-The firmware implements a unified system state machine. In normal operation the state is driven by temperature (thermal states). A dedicated error state exists for fault conditions.
+The firmware implements a layered state machine: a **lifecycle** state at the top level and a **thermal** sub-state that is only meaningful while the lifecycle state is `Running`.
 
-#### Thermal States
-Four thermal states are defined, governed by four configurable temperature thresholds:
+#### Lifecycle States
+
+| State | Description | PWM Throttle | Fans | Backlight | LED |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **SystemBoot** | Initial state on power-up. The system waits for the first valid temperature reading before running. | 0% | OFF | OFF | Boot pattern |
+| **SystemRunning** | Normal operation. Outputs are driven by the thermal sub-state. | (per thermal) | (per thermal) | (per thermal) | (per thermal) |
+| **SystemFault** | Sensor-lost or boot-timeout. All outputs disabled; polling continues. Auto-recovers on the next valid reading. | 0% | OFF | OFF | Error pattern |
+
+#### Lifecycle Transitions
+
+| Transition | Trigger |
+| :--- | :--- |
+| **Boot → Running** | First valid sensor reading. Thermal sub-state computed from the reading. |
+| **Boot → Fault** | No valid reading within 10 s of power-up. |
+| **Running → Fault** | Sensor reading becomes invalid (any single bad read). |
+| **Fault → Running** | First valid reading after entering Fault. Thermal sub-state recomputed from the reading. |
+
+`Boot` cannot be re-entered after exit — by construction, no public API transitions a running system back into `Boot`.
+
+#### Thermal Sub-States (valid only inside `Running`)
+Four thermal sub-states are defined, governed by four configurable temperature thresholds:
 
 **Threshold Hierarchy**: `T_critical > T_throttle_on > T_fan_on > T_fan_off`
 
-| State | Entry Condition | PWM Throttle | Fans | Backlight |
+| Sub-state | Entry Condition | PWM Throttle | Fans | Backlight |
 | :--- | :--- | :--- | :--- | :--- |
-| **SystemLow** | Temperature < $T_{fan\_off}$ | 100% (no cap) | OFF | ON |
-| **SystemHigh** | Temperature ≥ $T_{fan\_on}$ | 100% (no cap) | ON | ON |
-| **SystemThrottling** | Temperature ≥ $T_{throttle\_on}$ | Capped to configured limit | ON | ON |
-| **SystemCritical** | Temperature ≥ $T_{critical}$ | 0% (fully capped) | ON | **OFF** |
+| **ThermalLow** | Temperature < $T_{fan\_off}$ | 100% (no cap) | OFF | ON |
+| **ThermalHigh** | Temperature ≥ $T_{fan\_on}$ | 100% (no cap) | ON | ON |
+| **ThermalThrottling** | Temperature ≥ $T_{throttle\_on}$ | Capped to configured limit | ON | ON |
+| **ThermalCritical** | Temperature ≥ $T_{critical}$ | 0% (fully capped) | ON | **OFF** |
 
 #### Hysteresis
-To prevent rapid state switching (flickering), all upward transitions are offset from downward transitions:
+To prevent rapid sub-state switching (flickering), all upward transitions are offset from downward transitions:
 
 | Transition | Exit Condition |
 | :--- | :--- |
-| **SystemCritical → SystemThrottling** | Temperature < $T_{critical}$ − 2°C |
-| **SystemThrottling → SystemHigh** | Temperature < $T_{throttle\_on}$ − 2°C |
-| **SystemHigh → SystemLow** | Temperature < $T_{fan\_off}$ |
-
-#### Sensor Lost State (SystemSensorLost)
-If the temperature sensor returns an invalid reading, the system enters **SystemSensorLost**:
-- PWM throttle: 100% (no cap).
-- Fans: remain in their current state.
-- LED: ERROR pattern.
-- Recovery: on the next valid reading, the state machine re-enters normally from the current temperature.
-
-#### Error State (SystemError)
-A latching fault state for non-thermal system errors:
-- PWM throttle: 0% (fully capped).
-- Backlight: OFF.
-- LED: ERROR pattern.
-- The state machine does not exit **SystemError** autonomously; it requires an explicit external action.
+| **ThermalCritical → ThermalThrottling** | Temperature < $T_{critical}$ − 2°C |
+| **ThermalThrottling → ThermalHigh** | Temperature < $T_{throttle\_on}$ − 2°C |
+| **ThermalHigh → ThermalLow** | Temperature < $T_{fan\_off}$ |
 
 ### Temperature Control Diagram
 
@@ -85,25 +90,25 @@ Temperature
     ↑
     │  ┌────────────────────────────────────────────────────┐
     │  │ T_critical  (exit: T_critical − 2°C)               │
-    │  │ • SystemCritical                                   │
+    │  │ • ThermalCritical                                   │
     │  │ • PWM: 0%  |  Fans: ON  |  Backlight: OFF          │
     │  └────────────────────────────────────────────────────┘
     │
     │  ┌────────────────────────────────────────────────────┐
     │  │ T_throttle_on  (exit: T_throttle_on − 2°C)         │
-    │  │ • SystemThrottling                                 │
+    │  │ • ThermalThrottling                                 │
     │  │ • PWM: capped  |  Fans: ON  |  Backlight: ON       │
     │  └────────────────────────────────────────────────────┘
     │
     │  ┌────────────────────────────────────────────────────┐
     │  │ T_fan_on  (exit: T_fan_off)                        │
-    │  │ • SystemHigh                                       │
+    │  │ • ThermalHigh                                       │
     │  │ • PWM: 100%  |  Fans: ON  |  Backlight: ON         │
     │  └────────────────────────────────────────────────────┘
     │
     │  ┌────────────────────────────────────────────────────┐
     │  │ Below T_fan_off                                    │
-    │  │ • SystemLow                                        │
+    │  │ • ThermalLow                                        │
     │  │ • PWM: 100%  |  Fans: OFF  |  Backlight: ON        │
     │  └────────────────────────────────────────────────────┘
     │

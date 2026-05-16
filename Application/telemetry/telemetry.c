@@ -29,22 +29,33 @@ static int cdeg_to_deg_rounded(int16_t cdeg)
     return (cdeg >= 0) ? (cdeg + 50) / 100 : (cdeg - 50) / 100;
 }
 
-static const char *system_state_to_string(SystemState state)
+static const char *thermal_state_to_string(ThermalState thermal)
+{
+    switch (thermal)
+    {
+        case ThermalLow:
+            return "TEMP_LOW";
+        case ThermalHigh:
+            return "TEMP_HIGH";
+        case ThermalThrottling:
+            return "TEMP_THROTTLE";
+        case ThermalCritical:
+            return "TEMP_CRIT";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+static const char *system_state_to_string(SystemState state, ThermalState thermal)
 {
     switch (state)
     {
-        case SystemLow:
-            return "TEMP_LOW";
-        case SystemHigh:
-            return "TEMP_HIGH";
-        case SystemThrottling:
-            return "TEMP_THROTTLE";
-        case SystemCritical:
-            return "TEMP_CRIT";
-        case SystemSensorLost:
-            return "SENSOR_LOST";
-        case SystemError:
-            return "ERROR";
+        case SystemBoot:
+            return "BOOT";
+        case SystemFault:
+            return "FAULT";
+        case SystemRunning:
+            return thermal_state_to_string(thermal);
         default:
             return "UNKNOWN";
     }
@@ -85,7 +96,8 @@ void telemetry_create(char *buf, size_t buf_size)
     uint32_t out_dc_b = pwm_get_output_duty_b();
 
     SystemState state = app_get_state();
-    const char *state_str = system_state_to_string(state);
+    ThermalState thermal = app_get_thermal_state();
+    const char *state_str = system_state_to_string(state, thermal);
     const char *btn_str = push_button_is_pressed() ? "1" : "0";
 
     char ds_temp_str[8];
