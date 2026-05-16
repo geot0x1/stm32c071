@@ -10,16 +10,16 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#define TELEMETRY_BUF_SIZE 128U
+
 typedef struct
 {
     bool enabled;
-    uint32_t interval_ms;
-    uint64_t last_send_ms;
+    millis_t last_send_ms;
 } Telemetry;
 
 static Telemetry telemetry = {
     .enabled = true,
-    .interval_ms = TELEMETRY_DEFAULT_INTERVAL_MS,
     .last_send_ms = 0U,
 };
 
@@ -63,7 +63,6 @@ static const char *get_fan_state_str(void)
 void telemetry_init(void)
 {
     telemetry.enabled = true;
-    telemetry.interval_ms = TELEMETRY_DEFAULT_INTERVAL_MS;
     telemetry.last_send_ms = 0U;
 }
 
@@ -138,8 +137,8 @@ void telemetry_task(void)
     {
         return;
     }
-    uint64_t now = millis();
-    if ((now - telemetry.last_send_ms) >= (uint64_t)telemetry.interval_ms)
+    millis_t now = millis();
+    if ((now - telemetry.last_send_ms) >= (millis_t)TELEMETRY_DEFAULT_INTERVAL_MS)
     {
         telemetry.last_send_ms = now;
         telemetry_send();
@@ -149,7 +148,6 @@ void telemetry_task(void)
 void telemetry_reset(void)
 {
     telemetry.enabled = true;
-    telemetry.interval_ms = TELEMETRY_DEFAULT_INTERVAL_MS;
     telemetry.last_send_ms = 0U;
 }
 
@@ -163,20 +161,7 @@ bool telemetry_is_enabled(void)
     return telemetry.enabled;
 }
 
-void telemetry_set_interval_ms(uint32_t ms)
-{
-    if (ms < TELEMETRY_MIN_INTERVAL_MS)
-    {
-        ms = TELEMETRY_MIN_INTERVAL_MS;
-    }
-    if (ms > TELEMETRY_MAX_INTERVAL_MS)
-    {
-        ms = TELEMETRY_MAX_INTERVAL_MS;
-    }
-    telemetry.interval_ms = ms;
-}
-
 uint32_t telemetry_get_interval_ms(void)
 {
-    return telemetry.interval_ms;
+    return TELEMETRY_DEFAULT_INTERVAL_MS;
 }
