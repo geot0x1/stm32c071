@@ -1,4 +1,5 @@
 #include "temperature_sensor.h"
+#include "config.h"
 #include "ds18b20.h"
 #include "stm32c0xx_hal.h"
 #include <stdio.h>
@@ -90,9 +91,17 @@ void temperature_sensor_task(void)
             if (raw_temp != -7040 && raw_temp != 10880)
             {
                 float celsius = ds18b20_raw_to_celsius(raw_temp);
-                _last_temperature = (int16_t)(celsius * 100.0f);
-                _fail_count = 0;
-                _is_lost = false;
+                int16_t cdeg = (int16_t)(celsius * 100.0f);
+                if (cdeg >= CONFIG_SENSOR_TEMP_MIN_CDEG && cdeg <= CONFIG_SENSOR_TEMP_MAX_CDEG)
+                {
+                    _last_temperature = cdeg;
+                    _fail_count = 0;
+                    _is_lost = false;
+                }
+                else
+                {
+                    handle_failure();
+                }
             }
             else
             {

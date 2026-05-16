@@ -1,4 +1,4 @@
 add_library(temperature_sensor STATIC)
 target_sources(temperature_sensor PRIVATE temperature_sensor.h temperature_sensor.c)
 target_include_directories(temperature_sensor PUBLIC .)
-target_link_libraries(temperature_sensor PRIVATE ds18b20 onewire stm32cubemx)
+target_link_libraries(temperature_sensor PRIVATE config ds18b20 onewire stm32cubemx)
