@@ -21,6 +21,11 @@
 					"tooltip": "Build the project"
 				},
 				{
+					"name": "$(trash) Rebuild",
+					"command": "Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue; python build.py",
+					"tooltip": "Delete build directory and rebuild"
+				},
+				{
 					"name": "$(play) Build & Flash",
 					"command": "python run.py",
 					"tooltip": "Build and flash in one step"
