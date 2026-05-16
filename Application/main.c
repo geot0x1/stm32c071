@@ -5,11 +5,9 @@
 #include "hdc2010.h"
 #include "delay.h"
 #include "fan_control.h"
-#include "fan_tacho.h"
 #include "program_led.h"
 #include "push_button.h"
 #include "pwm_repeater.h"
-#include "serial.h"
 #include "settings.h"
 #include "stm32c0xx_hal.h"
 #include "sys_time.h"
@@ -25,12 +23,11 @@
 
 /* Tunables */
 #define APP_FAN_PWM_FREQ_HZ  25000U
-#define APP_FAN_COUNT        4U
 #define APP_INIT_TIMEOUT_MS  10000U
 
 static Hdc2010 hdc2010_dev;
 
-static millis_t boot_start_ms = 0;
+static millis_t boot_start_ms;
 
 static void app_boot_init(void)
 {
@@ -118,11 +115,10 @@ static void apply_fans(SystemState state, ThermalState thermal, bool button_pres
     }
 }
 
-static bool apply_lcd_power(SystemState state, ThermalState thermal)
+static void apply_lcd_power(SystemState state, ThermalState thermal)
 {
     bool lcd_on = (state == SystemRunning) && (thermal != ThermalCritical);
     board_lcd_power_set(lcd_on);
-    return lcd_on;
 }
 
 static void apply_program_led(SystemState state, ThermalState thermal)
@@ -180,6 +176,9 @@ static void app_task(void)
 
         case SystemFault:
             handle_fault(settings);
+            break;
+
+        default:
             break;
     }
 
