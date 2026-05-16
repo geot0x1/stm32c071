@@ -6,8 +6,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define TELEMETRY_DEFAULT_INTERVAL_MS 1000U
-
 void telemetry_init(void);
 void telemetry_task(void);
 void telemetry_create(char *buf, size_t buf_size);

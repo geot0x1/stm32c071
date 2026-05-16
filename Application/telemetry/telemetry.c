@@ -1,4 +1,5 @@
 #include "telemetry.h"
+#include "config.h"
 #include "temperature_sensor.h"
 #include "pwm_repeater.h"
 #include "fan_control.h"
@@ -138,7 +139,7 @@ void telemetry_task(void)
         return;
     }
     millis_t now = millis();
-    if ((now - telemetry.last_send_ms) >= (millis_t)TELEMETRY_DEFAULT_INTERVAL_MS)
+    if ((now - telemetry.last_send_ms) >= (millis_t)CONFIG_TELEMETRY_INTERVAL_MS)
     {
         telemetry.last_send_ms = now;
         telemetry_send();
@@ -163,5 +164,5 @@ bool telemetry_is_enabled(void)
 
 uint32_t telemetry_get_interval_ms(void)
 {
-    return TELEMETRY_DEFAULT_INTERVAL_MS;
+    return CONFIG_TELEMETRY_INTERVAL_MS;
 }
