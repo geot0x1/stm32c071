@@ -29,6 +29,10 @@ typedef struct
 /**
  * @brief Initialize and verify the HDC2010 by reading its device ID.
  *
+ * On successful re-init, cached values are invalidated and the polling state
+ * machine is reset. A failed probe (HDC2010_ERR_ARG or HDC2010_ERR_NOT_FOUND)
+ * leaves any previously-initialized device state untouched.
+ *
  * @param dev   Handle to fill
  * @param i2c   Initialized I2C bus
  * @param addr  7-bit device address (HDC2010_ADDR_LOW or HDC2010_ADDR_HIGH)
