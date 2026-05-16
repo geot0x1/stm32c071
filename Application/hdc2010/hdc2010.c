@@ -66,6 +66,7 @@ static millis_t         poll_ms      = 0U;
 
 static Hdc2010Err read_reg(Hdc2010 *dev, uint8_t reg, uint8_t *out);
 static Hdc2010Err write_reg(Hdc2010 *dev, uint8_t reg, uint8_t val);
+static void       reset_state(void);
 static void       commit_reading(int16_t temp_cdeg, uint8_t rh_pct);
 static void       note_failure(void);
 static bool       poll_interval_elapsed(millis_t now);
@@ -107,6 +108,9 @@ Hdc2010Err hdc2010_init(Hdc2010 *dev, I2c *i2c, uint8_t addr)
         return HDC2010_ERR_NOT_FOUND;
     }
 
+    /* Clear cache and SM state so a re-init does not leak readings or
+     * timestamps from a previous session. */
+    reset_state();
     dev_handle = dev;
     return HDC2010_OK;
 }
@@ -217,6 +221,17 @@ static Hdc2010Err write_reg(Hdc2010 *dev, uint8_t reg, uint8_t val)
     I2cErr err = i2c_mem_write(dev->i2c, HAL_ADDR(dev->addr),
                                reg, I2C_MEMADD_SIZE_8BIT, &val, 1, I2C_TIMEOUT_MS);
     return (err == I2C_OK) ? HDC2010_OK : HDC2010_ERR_I2C;
+}
+
+static void reset_state(void)
+{
+    cached_temp  = INT16_MIN;
+    cached_rh    = 0xFFU;
+    cached_valid = false;
+    fail_count   = 0U;
+    poll_state   = Hdc2010Idle;
+    trigger_ms   = 0U;
+    poll_ms      = 0U;
 }
 
 static void commit_reading(int16_t temp_cdeg, uint8_t rh_pct)
