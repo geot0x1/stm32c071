@@ -42,8 +42,8 @@ static const PatternStep critical_pattern[] = {
 };
 
 static const PatternStep error_pattern[] = {
-    {100U, true},
-    {100U, false},
+    {80U, true},
+    {80U, false},
 };
 
 static const BlinkPattern patterns[] = {
