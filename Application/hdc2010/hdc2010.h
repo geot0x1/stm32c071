@@ -17,6 +17,7 @@ typedef enum
     HDC2010_OK = 0,
     HDC2010_ERR_I2C,
     HDC2010_ERR_NOT_FOUND,
+    HDC2010_ERR_ARG,
 } Hdc2010Err;
 
 typedef struct
@@ -47,10 +48,13 @@ Hdc2010Err hdc2010_start_measurement(Hdc2010 *dev);
 /**
  * @brief Read the last completed measurement results.
  *
+ * Both outputs are mandatory — a reading is only considered complete when
+ * temperature and humidity are read together. Returns HDC2010_ERR_ARG if
+ * either pointer is NULL.
+ *
  * @param dev              Device handle
  * @param temperature_cdeg Celsius * 100 as signed int16 (e.g. 2350 = 23.50 C).
- *                         Pass NULL to skip.
- * @param humidity_pct     Relative humidity 0-100 %. Pass NULL to skip.
+ * @param humidity_pct     Relative humidity 0-100 %.
  */
 Hdc2010Err hdc2010_read(Hdc2010 *dev, int16_t *temperature_cdeg, uint8_t *humidity_pct);
 

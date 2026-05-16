@@ -109,39 +109,40 @@ Hdc2010Err hdc2010_start_measurement(Hdc2010 *dev)
 
 Hdc2010Err hdc2010_read(Hdc2010 *dev, int16_t *temperature_cdeg, uint8_t *humidity_pct)
 {
-    if (temperature_cdeg != NULL)
+    if (dev == NULL || temperature_cdeg == NULL || humidity_pct == NULL)
     {
-        uint8_t lo;
-        uint8_t hi;
-        if (read_reg(dev, REG_TEMP_LOW, &lo) != HDC2010_OK)
-        {
-            return HDC2010_ERR_I2C;
-        }
-        if (read_reg(dev, REG_TEMP_HIGH, &hi) != HDC2010_OK)
-        {
-            return HDC2010_ERR_I2C;
-        }
-        uint16_t raw = (uint16_t)((uint16_t)hi << 8) | lo;
-        /* T(cdeg) = raw * 165 * 100 / 65536 - 4000 */
-        *temperature_cdeg = (int16_t)(((uint32_t)raw * 16500UL) / 65536UL) - 4000;
+        return HDC2010_ERR_ARG;
     }
 
-    if (humidity_pct != NULL)
+    uint8_t t_lo;
+    uint8_t t_hi;
+    if (read_reg(dev, REG_TEMP_LOW, &t_lo) != HDC2010_OK)
     {
-        uint8_t lo;
-        uint8_t hi;
-        if (read_reg(dev, REG_HUM_LOW, &lo) != HDC2010_OK)
-        {
-            return HDC2010_ERR_I2C;
-        }
-        if (read_reg(dev, REG_HUM_HIGH, &hi) != HDC2010_OK)
-        {
-            return HDC2010_ERR_I2C;
-        }
-        uint16_t raw = (uint16_t)((uint16_t)hi << 8) | lo;
-        /* RH(%) = raw * 100 / 65536 */
-        *humidity_pct = (uint8_t)(((uint32_t)raw * 100UL) / 65536UL);
+        return HDC2010_ERR_I2C;
     }
+    if (read_reg(dev, REG_TEMP_HIGH, &t_hi) != HDC2010_OK)
+    {
+        return HDC2010_ERR_I2C;
+    }
+
+    uint8_t h_lo;
+    uint8_t h_hi;
+    if (read_reg(dev, REG_HUM_LOW, &h_lo) != HDC2010_OK)
+    {
+        return HDC2010_ERR_I2C;
+    }
+    if (read_reg(dev, REG_HUM_HIGH, &h_hi) != HDC2010_OK)
+    {
+        return HDC2010_ERR_I2C;
+    }
+
+    uint16_t temp_raw = (uint16_t)((uint16_t)t_hi << 8) | t_lo;
+    uint16_t rh_raw   = (uint16_t)((uint16_t)h_hi << 8) | h_lo;
+
+    /* T(cdeg) = raw * 165 * 100 / 65536 - 4000 */
+    *temperature_cdeg = (int16_t)(((uint32_t)temp_raw * 16500UL) / 65536UL) - 4000;
+    /* RH(%) = raw * 100 / 65536 */
+    *humidity_pct     = (uint8_t)(((uint32_t)rh_raw * 100UL) / 65536UL);
 
     return HDC2010_OK;
 }
