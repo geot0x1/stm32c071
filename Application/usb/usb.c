@@ -3,8 +3,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#define USB_WRITE_GUARD_MIN_AVAILABLE 64U
-
 /**
  * @brief Initialize the USB module.
  */
@@ -27,28 +25,21 @@ void usb_task(void)
 /**
  * @brief Send raw data over the USB CDC interface.
  *
+ * Non-blocking: copies as many bytes as fit in the CDC TX FIFO and returns
+ * the count. The caller's bytes that fit will be drained on subsequent
+ * tud_task() invocations (called from usb_task() in the main loop). Does NOT
+ * invoke tud_task() itself — that would re-enter the USB stack from within
+ * any caller already on the tud_task call path.
+ *
  * @param buffer Pointer to the data to send
  * @param size Number of bytes to send
- * @return uint32_t Number of bytes successfully sent
+ * @return uint32_t Number of bytes successfully queued (may be < size if FIFO is full)
  */
 uint32_t usb_write(const void *buffer, uint32_t size)
 {
-    uint32_t available = tud_cdc_write_available();
-
-    if (available < USB_WRITE_GUARD_MIN_AVAILABLE)
-    {
-        usb_task();
-        available = tud_cdc_write_available();
-    }
-
-    uint32_t total_sent = 0;
-    if (available > 0)
-    {
-        total_sent = tud_cdc_write(buffer, size);
-        tud_cdc_write_flush();
-    }
-
-    return total_sent;
+    uint32_t n = tud_cdc_write(buffer, size);
+    tud_cdc_write_flush();
+    return n;
 }
 
 /**
