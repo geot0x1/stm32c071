@@ -83,7 +83,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     timers
     pwm_repeater
     flash
-    nvs
     sys_time
     critical
     onewire
