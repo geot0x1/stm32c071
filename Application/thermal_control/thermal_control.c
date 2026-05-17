@@ -1,7 +1,16 @@
 #include "thermal_control.h"
 
+/* Thermal control operates at whole-degree resolution. Sensor readings (in centidegrees)
+   are rounded to the nearest whole degree before comparison. This introduces a ±0.5°C
+   dead band, which is acceptable for thermal management of passive/active cooling systems. */
+
 #define CRITICAL_HYSTERESIS_DEG  2     /* degrees below T_critical to exit critical */
 #define THROTTLE_HYSTERESIS_DEG  2     /* degrees below T_throttle_on to exit throttling */
+
+static inline int16_t cdeg_to_deg_rounded(int16_t cdeg)
+{
+    return (cdeg >= 0) ? (cdeg + 50) / 100 : (cdeg - 50) / 100;
+}
 
 typedef struct
 {
@@ -101,7 +110,7 @@ ThermalState thermal_control_step(ThermalState current, int16_t t_cdeg, const Se
 static Thresholds compute_thresholds(int16_t t_cdeg, const Settings *s)
 {
     Thresholds th;
-    th.t_deg        = t_cdeg / 100;
+    th.t_deg        = cdeg_to_deg_rounded(t_cdeg);
     th.crit_on      = (int16_t)s->temp_critical;
     th.crit_off     = th.crit_on - CRITICAL_HYSTERESIS_DEG;
     th.throttle_on  = (int16_t)s->temp_throttle_on;
