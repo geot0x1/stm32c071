@@ -127,11 +127,19 @@ bool settings_set_pwm_throttle_b(uint8_t percent)
     return settings_save();
 }
 
+/*
+ * Each setter enforces only the immediate-neighbor relations from the
+ * invariant documented in settings.h:
+ *     fan_off < fan_on <= throttle_on < critical
+ * Transitive bounds are not re-checked — they hold by induction as long as
+ * the in-memory state was valid before the call.
+ */
+
 bool settings_set_temp_throttle_on(uint8_t temp_deg)
 {
     if (temp_deg == SETTINGS_TEMP_INVALID
-        || temp_deg <= current.temp_fan_off
-        || temp_deg >= current.temp_critical)
+        || temp_deg < current.temp_fan_on       /* fan_on <= throttle_on (weak) */
+        || temp_deg >= current.temp_critical)   /* throttle_on < critical (strict) */
     {
         return false;
     }
@@ -142,8 +150,8 @@ bool settings_set_temp_throttle_on(uint8_t temp_deg)
 bool settings_set_temp_fan_on(uint8_t temp_deg)
 {
     if (temp_deg == SETTINGS_TEMP_INVALID
-        || temp_deg <= current.temp_fan_off
-        || temp_deg >= current.temp_critical)
+        || temp_deg <= current.temp_fan_off       /* fan_off < fan_on (strict) */
+        || temp_deg > current.temp_throttle_on)   /* fan_on <= throttle_on (weak) */
     {
         return false;
     }
@@ -153,7 +161,8 @@ bool settings_set_temp_fan_on(uint8_t temp_deg)
 
 bool settings_set_temp_fan_off(uint8_t temp_deg)
 {
-    if (temp_deg == SETTINGS_TEMP_INVALID || temp_deg >= current.temp_fan_on)
+    if (temp_deg == SETTINGS_TEMP_INVALID
+        || temp_deg >= current.temp_fan_on)       /* fan_off < fan_on (strict) */
     {
         return false;
     }
@@ -163,7 +172,8 @@ bool settings_set_temp_fan_off(uint8_t temp_deg)
 
 bool settings_set_temp_critical(uint8_t temp_deg)
 {
-    if (temp_deg == SETTINGS_TEMP_INVALID || temp_deg <= current.temp_fan_on)
+    if (temp_deg == SETTINGS_TEMP_INVALID
+        || temp_deg <= current.temp_throttle_on)  /* throttle_on < critical (strict) */
     {
         return false;
     }

@@ -14,12 +14,14 @@
 #define CMD_LINE_BUF_SIZE 128U
 #define CMD_USB_CHUNK_SIZE 64U
 
-#define CMD_TEMPON_MIN 1
-#define CMD_TEMPON_MAX 80
+#define CMD_TEMPON_MIN 0
+#define CMD_TEMPON_MAX 150
 #define CMD_TEMPOFF_MIN 0
-#define CMD_TEMPOFF_MAX 79
-#define CMD_TEMPCRIT_MIN 2
-#define CMD_TEMPCRIT_MAX 90
+#define CMD_TEMPOFF_MAX 150
+#define CMD_TEMPCRIT_MIN 0
+#define CMD_TEMPCRIT_MAX 150
+#define CMD_PWMTHRTEMP_MIN 0
+#define CMD_PWMTHRTEMP_MAX 150
 
 typedef struct
 {
@@ -156,6 +158,24 @@ static bool parse_pwm_throttle_temp(const char *value_str)
         usb_printf("ERR INVALID_VALUE PWMTHRTEMP %s\r\n", value_str);
         return false;
     }
+    if ((val < CMD_PWMTHRTEMP_MIN) || (val > CMD_PWMTHRTEMP_MAX))
+    {
+        usb_printf("ERR OUT_OF_RANGE PWMTHRTEMP %d\r\n", (int)val);
+        return false;
+    }
+    const Settings *s = settings_get();
+    if (val < s->temp_fan_on)
+    {
+        usb_printf("ERR ORDERING PWMTHRTEMP %d must be >= FANTEMPON %d\r\n", (int)val,
+            (int)s->temp_fan_on);
+        return false;
+    }
+    if (val >= s->temp_critical)
+    {
+        usb_printf("ERR ORDERING PWMTHRTEMP %d must be < TEMPCRIT %d\r\n", (int)val,
+            (int)s->temp_critical);
+        return false;
+    }
     if (!settings_set_temp_throttle_on((uint8_t)val))
     {
         usb_printf("ERR SAVE_FAILED PWMTHRTEMP\r\n");
@@ -285,9 +305,9 @@ static bool parse_settings(const char *params)
         return false;
     }
 
-    if (high_temp >= throttle_temp)
+    if (high_temp > throttle_temp)
     {
-        usb_printf("ERR ORDERING SETTINGS high_temp must be less than throttle_temp\r\n");
+        usb_printf("ERR ORDERING SETTINGS high_temp must not exceed throttle_temp\r\n");
         return false;
     }
 
