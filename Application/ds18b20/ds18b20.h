@@ -13,6 +13,10 @@ extern "C"
 
 #define DS18B20_ADDRESS_SIZE (8)
 
+#define DS18B20_RAW_MIN       (-7040)  /* –55 °C physical lower limit (also the disconnect sentinel) */
+#define DS18B20_RAW_POWER_ON  (10880)  /* 85 °C power-on reset value — reject as invalid reading */
+#define DS18B20_RAW_MAX       (16000)  /* 125 °C physical upper limit */
+
     typedef struct
     {
         OneWire *ow;

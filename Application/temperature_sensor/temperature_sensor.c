@@ -87,11 +87,15 @@ void temperature_sensor_task(void)
         {
             int16_t raw_temp = ds18b20_get_temp(&_ds18b20_dev, NULL);
 
-            /* -7040 raw = sensor disconnected; 10880 raw = 85 °C power-on reset value */
-            if (raw_temp != -7040 && raw_temp != 10880)
+            if (raw_temp <= DS18B20_RAW_MIN || raw_temp == DS18B20_RAW_POWER_ON || raw_temp > DS18B20_RAW_MAX)
             {
-                float celsius = ds18b20_raw_to_celsius(raw_temp);
-                int16_t cdeg = (int16_t)(celsius * 100.0f);
+                handle_failure();
+            }
+            else
+            {
+                /* Fixed-point: raw units are 1/128 °C → cdeg = raw * 100 / 128 = raw * 25 / 32 */
+                int16_t cdeg = (int16_t)(((int32_t)raw_temp * 25) / 32);
+
                 if (cdeg >= CONFIG_SENSOR_TEMP_MIN_CDEG && cdeg <= CONFIG_SENSOR_TEMP_MAX_CDEG)
                 {
                     _last_temperature = cdeg;
@@ -102,10 +106,6 @@ void temperature_sensor_task(void)
                 {
                     handle_failure();
                 }
-            }
-            else
-            {
-                handle_failure();
             }
             _current_state = StateWaitNext;
             _last_tick = HAL_GetTick();
