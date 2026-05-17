@@ -45,8 +45,8 @@ static Gpio _ic_pin_b;
 /* ── Global instances ──────────────────────────────────────────────────────── */
 PwmChannel pwmChannelA = {.rise_captured = false};
 PwmChannel pwmChannelB = {.rise_captured = false};
-PwmOutput pwmOutputA = {.tim = NULL, .channel = TIM_CHANNEL_1, .throttle_val = 50, .period_valid = false};
-PwmOutput pwmOutputB = {.tim = NULL, .channel = TIM_CHANNEL_1, .throttle_val = 50, .period_valid = false};
+PwmOutput pwmOutputA = {.tim = NULL, .channel = TIM_CHANNEL_1, .throttle_val = 100, .period_valid = false};
+PwmOutput pwmOutputB = {.tim = NULL, .channel = TIM_CHANNEL_1, .throttle_val = 100, .period_valid = false};
 
 /* ── Forward declarations ──────────────────────────────────────────────────── */
 static void handle_ic_capture(
@@ -117,8 +117,8 @@ void pwm_repeater_init(Tim *capture_tim, Tim *out_a_tim, Tim *out_b_tim)
     tim_ic_enable_ch_irq(_capture_tim, 3);
     tim_ic_enable_ch_irq(_capture_tim, 4);
 
-    pwm_set_throttle_a(50);
-    pwm_set_throttle_b(50);
+    pwm_set_throttle_a(100);
+    pwm_set_throttle_b(100);
 }
 
 void pwm_repeater_tim2_irq_handler(void)

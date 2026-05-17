@@ -215,8 +215,6 @@ int main(void)
     push_button_init();
 
     pwm_repeater_init(timers_get_capture(), timers_get_repeater_a(), timers_get_repeater_b());
-    pwm_set_throttle_a(100U);
-    pwm_set_throttle_b(100U);
 
     board_onewire_power_set(true);
     board_onewire_pullup_set(true);
