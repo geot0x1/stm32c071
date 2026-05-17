@@ -194,15 +194,20 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out, const Gpio *g
     millis_t now = millis();
     const uint32_t TIMEOUT_MS = 50;
 
-    if (ch->new_data_ready)
+    critical_enter();
+    bool ready      = ch->new_data_ready;
+    uint32_t period = ch->period_ticks;
+    uint32_t pulse  = ch->low_level_ticks;
+    ch->new_data_ready = false;
+    critical_exit();
+
+    if (ready)
     {
-        out->period_ticks = ch->period_ticks;
-        out->pulse_ticks = ch->low_level_ticks; /* DIM_PWM HIGH time (BJT-corrected) */
+        out->period_ticks = period;
+        out->pulse_ticks  = pulse; /* DIM_PWM HIGH time (BJT-corrected) */
         out->period_valid = true;
 
         apply_throttled_output(out);
-
-        ch->new_data_ready = false;
     }
 
     /* Atomic snapshot: 64-bit read is non-atomic on Cortex-M0+; an ISR firing
