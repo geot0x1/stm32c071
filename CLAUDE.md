@@ -61,7 +61,7 @@ To add a new setting:
 2. Add a `#define SETTINGS_DEFAULT_*` backed by a `CONFIG_*` constant in `config.h`.
 3. Add a setter in `settings.c` with validation, and wire a command in `commands.c`.
 
-Temperature ordering invariant enforced by `settings_set_all()`: `fan_off < fan_on < throttle_on < critical`.
+Temperature ordering invariant enforced by `settings_set_all()`: `fan_off < fan_on <= throttle_on < critical`. `fan_on == throttle_on` is permitted — in that configuration, the thermal state machine transitions directly from `ThermalLow` to `ThermalThrottling` at the shared threshold, skipping `ThermalHigh`.
 
 ### USB CDC command protocol
 

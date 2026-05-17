@@ -27,8 +27,8 @@ _Static_assert(sizeof(SettingsRecord) % 8U == 0U,
 
 _Static_assert(CONFIG_TEMP_FAN_OFF_DEFAULT < CONFIG_TEMP_FAN_ON_DEFAULT,
     "CONFIG: temp_fan_off must be below temp_fan_on");
-_Static_assert(CONFIG_TEMP_FAN_ON_DEFAULT < CONFIG_TEMP_THROTTLE_ON_DEFAULT,
-    "CONFIG: temp_fan_on must be below temp_throttle_on");
+_Static_assert(CONFIG_TEMP_FAN_ON_DEFAULT <= CONFIG_TEMP_THROTTLE_ON_DEFAULT,
+    "CONFIG: temp_fan_on must be at or below temp_throttle_on");
 _Static_assert(CONFIG_TEMP_THROTTLE_ON_DEFAULT < CONFIG_TEMP_CRITICAL_DEFAULT,
     "CONFIG: temp_throttle_on must be below temp_critical");
 _Static_assert(CONFIG_TEMP_CRITICAL_DEFAULT <= CONFIG_TEMP_MAX,
@@ -171,6 +171,11 @@ bool settings_set_temp_critical(uint8_t temp_deg)
     return settings_save();
 }
 
+/*
+ * Validates the ordering invariant documented in settings.h:
+ *   fan_off < fan_on <= throttle_on < critical
+ * fan_on == throttle_on is permitted (see header for rationale).
+ */
 bool settings_set_all(const Settings *s)
 {
     if (s == NULL)
@@ -185,7 +190,7 @@ bool settings_set_all(const Settings *s)
         return false;
     }
     if (s->temp_fan_off >= s->temp_fan_on
-        || s->temp_fan_on >= s->temp_throttle_on
+        || s->temp_fan_on > s->temp_throttle_on
         || s->temp_throttle_on >= s->temp_critical)
     {
         return false;

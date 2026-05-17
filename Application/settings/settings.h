@@ -15,7 +15,20 @@
 #define SETTINGS_DEFAULT_PWM_THROTTLE_B   CONFIG_PWM_THROTTLE_B_DEFAULT
 #define SETTINGS_TEMP_INVALID 255U
 
-/* Total size: 16 bytes (2 × 8-byte flash write blocks). */
+/*
+ * Temperature ordering invariant (enforced by settings_set_all and the
+ * individual setters):
+ *
+ *     temp_fan_off < temp_fan_on <= temp_throttle_on < temp_critical
+ *
+ * Note the WEAK relation between fan_on and throttle_on — they may be equal.
+ * In that configuration the thermal state machine transitions directly from
+ * ThermalLow to ThermalThrottling when t crosses the shared threshold,
+ * skipping the ThermalHigh ("fans on, no throttle") zone. All other
+ * relations remain strict.
+ *
+ * Total size: 16 bytes (2 × 8-byte flash write blocks).
+ */
 typedef struct
 {
     uint8_t pwm_throttle_a; /* offset  0 — 0–100 % */
@@ -50,8 +63,8 @@ bool settings_set_temp_fan_off(uint8_t temp_deg);
 bool settings_set_temp_critical(uint8_t temp_deg);
 
 /**
- * @brief Atomically replace all settings. Validates ordering
- *        (fan_off < fan_on < throttle_on < critical) and that no temperature
+ * @brief Atomically replace all settings. Validates the ordering invariant
+ *        (fan_off < fan_on <= throttle_on < critical) and that no temperature
  *        equals SETTINGS_TEMP_INVALID. Persists to flash on success.
  * @return true on success; false if validation fails or flash write fails.
  */
