@@ -65,13 +65,24 @@ void ds18b20_begin(Ds18b20_t *ds)
     ow_lock_bus(ds->ow);
     ow_reset_search(ds->ow);
 
+    uint32_t guard = OW_BUS_IDLE_GUARD;
+    while (!ow_pin_status(ds->ow))
+    {
+        if (--guard == 0U)
+        {
+            ow_unlock_bus(ds->ow);
+            ds->devices = 0;
+            ds->ds18Count = 0;
+            return;
+        }
+    }
 
-    ds->devices = 0; // Reset the number of devices when we enumerate wire devices
-    ds->ds18Count = 0; // Reset number of DS18xxx Family devices
+    ds->devices = 0;
+    ds->ds18Count = 0;
 
     uint8_t *device_address = &device_address_array[0][0];
     uint8_t *previous_address = &device_address_array[1][0];
-    while (ow_search(ds->ow, device_address, true)) // edw
+    while (ow_search(ds->ow, device_address, true))
     {
         if (memcmp(previous_address, device_address, DEVICE_ADDRESS_SIZE) != 0)
         {
@@ -511,6 +522,15 @@ float ds18b20_raw_to_celsius(int16_t raw)
 // sends command for all devices on the bus to perform a temperature conversion
 int ds18b20_request_temperatures(Ds18b20_t *ds)
 {
+    uint32_t guard = OW_BUS_IDLE_GUARD;
+    while (!ow_pin_status(ds->ow))
+    {
+        if (--guard == 0U)
+        {
+            return -1;
+        }
+    }
+
     if (!ow_reset(ds->ow))
     {
         return -1;
