@@ -115,19 +115,10 @@ void ow_init(OneWire *ow)
 
 static void ow_sem_lock(OneWire *ow)
 {
-    ENTER_CRITICAL();
-    ow->lock_count++;
-    EXIT_CRITICAL();
 }
 
 static void ow_sem_unlock(OneWire *ow)
 {
-    ENTER_CRITICAL();
-    if (ow->lock_count > 0)
-    {
-        ow->lock_count--;
-    }
-    EXIT_CRITICAL();
 }
 
 uint8_t ow_reset(OneWire *const ow)
