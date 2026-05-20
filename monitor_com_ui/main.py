@@ -239,6 +239,7 @@ class SerialMonitorUI(QMainWindow):
                                     QIntValidator(0, 100), 3)
         row = self._add_setting_row(grid, row, "Channel B (0–100 %)", "pwm_b",
                                     QIntValidator(0, 100), 3)
+        row = self._add_set_all_button_row(grid, row)
         row = self._add_read_settings_button_row(grid, row)
         row = self._add_firmware_version_row(grid, row)
         row = self._add_action_buttons_compact(grid, row)
@@ -255,6 +256,24 @@ class SerialMonitorUI(QMainWindow):
 
         panel.setLayout(outer)
         return panel
+
+    def _add_set_all_button_row(self, grid, row):
+        divider = QFrame()
+        divider.setStyleSheet(_STYLE_DIVIDER)
+        divider.setFrameShape(QFrame.Shape.HLine)
+        grid.addWidget(divider, row, 0, 1, 3)
+        row += 1
+
+        self.set_all_btn = QPushButton("Set All")
+        self.set_all_btn.setStyleSheet(_STYLE_BTN_GREEN)
+        self.set_all_btn.setEnabled(False)
+        self.set_all_btn.setToolTip("Set all temperature and PWM values at once")
+        self.set_all_btn.clicked.connect(self.send_all_settings)
+        grid.addWidget(self.set_all_btn, row, 0, 1, 3)
+        row += 1
+
+        self._connection_widgets += [self.set_all_btn]
+        return row
 
     def _add_read_settings_button_row(self, grid, row):
         divider = QFrame()

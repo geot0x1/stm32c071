@@ -16,14 +16,16 @@ except ImportError:
 class TelemetryTableView:
     """Manages telemetry data display in a table widget"""
 
+    MAX_ENTRIES = 100
+
     def __init__(self, table_widget: QTableWidget):
         self.table = table_widget
         self.formatter = TelemetryFormatter()
 
     def add_row(self, data: TelemetryData):
-        """Add a telemetry row to the table"""
-        if self.table.rowCount() >= UIConfig.TELEMETRY_MAX_ROWS:
-            self.table.setRowCount(0)
+        """Add a telemetry row to the table (FIFO with max 100 entries)"""
+        if self.table.rowCount() >= self.MAX_ENTRIES:
+            self.table.removeRow(self.table.rowCount() - 1)
 
         self.table.insertRow(0)
         self._populate_row(0, data)
