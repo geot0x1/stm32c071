@@ -48,7 +48,7 @@ class GraphView(QWidget):
 
         self.settings = None
         self.state_labels = self._generate_state_labels()
-        self.state_temps = {0: 0, 1: 30, 2: 60, 3: 90, 4: 120, 5: 150}
+        self.state_temps = {0: 0, 1: 30, 2: 60, 3: 90, 4: 145, 5: 150}
 
     def add_telemetry(self, telemetry: TelemetryData):
         """Add a new telemetry data point"""
@@ -83,7 +83,7 @@ class GraphView(QWidget):
     def _update_state_temps(self):
         """Extract temperature thresholds from settings for state positioning"""
         if not self.settings:
-            self.state_temps = {0: 0, 1: 30, 2: 60, 3: 90, 4: 120, 5: 150}
+            self.state_temps = {0: 0, 1: 30, 2: 60, 3: 90, 4: 145, 5: 150}
             return
 
         try:
@@ -92,11 +92,11 @@ class GraphView(QWidget):
                 1: int(self.settings.get('TEMP_FAN_ON', 0)),
                 2: int(self.settings.get('TEMP_THROTTLE_ON', 0)),
                 3: int(self.settings.get('TEMP_CRITICAL', 0)),
-                4: 150,
+                4: 145,
                 5: 150,
             }
         except (ValueError, TypeError):
-            self.state_temps = {0: 0, 1: 30, 2: 60, 3: 90, 4: 120, 5: 150}
+            self.state_temps = {0: 0, 1: 30, 2: 60, 3: 90, 4: 145, 5: 150}
 
     def _generate_state_labels(self):
         """Generate state labels, with temperature values if settings are available"""
