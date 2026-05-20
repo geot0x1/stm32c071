@@ -29,6 +29,7 @@ try:
     from .commands import Command
     from .styles import DARK_STYLESHEET
     from .telemetry_table import TelemetryTableView
+    from .graph_view import GraphView
     from .logger import setup_logging
 except ImportError:
     from config import UIConfig, DeviceConfig
@@ -37,6 +38,7 @@ except ImportError:
     from commands import Command
     from styles import DARK_STYLESHEET
     from telemetry_table import TelemetryTableView
+    from graph_view import GraphView
     from logger import setup_logging
 
 logger = setup_logging()
@@ -80,6 +82,7 @@ class SerialMonitorUI(QMainWindow):
         self.serial_worker = None
         self.autoscroll_enabled = True
         self.telemetry_view = None
+        self.graph_view = None
         self.accumulated_settings = {}
         self._connection_widgets = []
 
@@ -169,6 +172,9 @@ class SerialMonitorUI(QMainWindow):
 
         self.telemetry_view = TelemetryTableView(telemetry_table)
         self.tabs.addTab(telemetry_table, "Telemetry")
+
+        self.graph_view = GraphView()
+        self.tabs.addTab(self.graph_view, "Graph")
 
         return self.tabs
 
@@ -500,8 +506,11 @@ class SerialMonitorUI(QMainWindow):
 
         if data.startswith('$01,'):
             telemetry = TelemetryParser.parse(data.rstrip('\r\n'))
-            if telemetry and self.telemetry_view:
-                self.telemetry_view.add_row(telemetry)
+            if telemetry:
+                if self.telemetry_view:
+                    self.telemetry_view.add_row(telemetry)
+                if self.graph_view:
+                    self.graph_view.add_telemetry(telemetry)
 
         if data.startswith('FWVER='):
             fwver = data.split('=', 1)[1].strip()
