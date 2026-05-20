@@ -110,7 +110,7 @@ class GraphView(QWidget):
         height = self.height()
 
         margin_left = 60
-        margin_right = 80
+        margin_right = 105
         margin_top = 30
         margin_bottom = 40
 
@@ -204,7 +204,7 @@ class GraphView(QWidget):
 
         for i in range(6):
             y = margin_top + i / 5.0 * plot_height
-            painter.drawText(width - 75, int(y), self.state_labels.get(5 - i, ""))
+            painter.drawText(width - 100, int(y), self.state_labels.get(5 - i, ""))
 
         painter.setPen(QPen(QColor("#7ec8f8"), 1))
         painter.drawText(margin_left - 50, margin_top - 10, "DS18B20")
