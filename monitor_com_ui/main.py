@@ -337,7 +337,7 @@ class SerialMonitorUI(QMainWindow):
         self.info_display = QTextEdit()
         self.info_display.setReadOnly(True)
         self.info_display.setFont(QFont("Consolas", 8))
-        self.info_display.setFixedHeight(150)
+        self.info_display.setFixedHeight(220)
         grid.addWidget(self.info_display, row, 0, 1, 3)
         row += 1
 
