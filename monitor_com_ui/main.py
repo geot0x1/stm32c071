@@ -543,6 +543,9 @@ class SerialMonitorUI(QMainWindow):
             if key in self.accumulated_settings:
                 field.setText(self.accumulated_settings[key])
 
+        if self.graph_view:
+            self.graph_view.set_settings(self.accumulated_settings)
+
         if self.accumulated_settings:
             self.log_info(f"Read OK - {len(self.accumulated_settings)} settings received")
 

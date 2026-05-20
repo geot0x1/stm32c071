@@ -46,6 +46,9 @@ class GraphView(QWidget):
         self.temp_min = 0
         self.temp_max = 150
 
+        self.settings = None
+        self.state_labels = self._generate_state_labels()
+
     def add_telemetry(self, telemetry: TelemetryData):
         """Add a new telemetry data point"""
         ds_temp = None
@@ -68,6 +71,35 @@ class GraphView(QWidget):
         self.sample_count += 1
 
         self.update()
+
+    def set_settings(self, settings: dict):
+        """Update settings and regenerate state labels"""
+        self.settings = settings
+        self.state_labels = self._generate_state_labels()
+        self.update()
+
+    def _generate_state_labels(self):
+        """Generate state labels, with temperature values if settings are available"""
+        if not self.settings:
+            return self.STATE_NAMES.copy()
+
+        labels = {}
+        try:
+            fan_off = int(self.settings.get('TEMP_FAN_OFF', 0))
+            fan_on = int(self.settings.get('TEMP_FAN_ON', 0))
+            throttle = int(self.settings.get('TEMP_THROTTLE_ON', 0))
+            critical = int(self.settings.get('TEMP_CRITICAL', 0))
+
+            labels[0] = f"Low [{fan_off}]"
+            labels[1] = f"High [{fan_on}]"
+            labels[2] = f"Throttle [{throttle}]"
+            labels[3] = f"Critical [{critical}]"
+            labels[4] = "Sensor Lost"
+            labels[5] = "Error"
+        except (ValueError, TypeError):
+            return self.STATE_NAMES.copy()
+
+        return labels
 
     def paintEvent(self, event):
         """Draw the graph"""
@@ -172,7 +204,7 @@ class GraphView(QWidget):
 
         for i in range(6):
             y = margin_top + i / 5.0 * plot_height
-            painter.drawText(width - 75, int(y), self.STATE_NAMES.get(5 - i, ""))
+            painter.drawText(width - 75, int(y), self.state_labels.get(5 - i, ""))
 
         painter.setPen(QPen(QColor("#7ec8f8"), 1))
         painter.drawText(margin_left - 50, margin_top - 10, "DS18B20")
@@ -183,8 +215,8 @@ class GraphView(QWidget):
         painter.setPen(QPen(QColor("#7ec8f8"), 1))
         painter.setFont(QFont("Consolas", 7))
         for i in range(5):
-            y = margin_top + i / 4.0 * plot_height
-            temp_val = temp_max - (temp_max - temp_min) * i / 4.0
+            y = margin_top + i / 5.0 * plot_height
+            temp_val = temp_max - (temp_max - temp_min) * i / 5.0
             painter.drawText(margin_left - 55, int(y), f"{temp_val:.0f}")
         painter.drawText(margin_left - 55, margin_top + plot_height, f"{temp_min:.0f}")
 
