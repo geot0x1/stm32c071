@@ -271,7 +271,7 @@ class SerialMonitorUI(QMainWindow):
         row += 1
 
         self.set_all_btn = QPushButton("Set All")
-        self.set_all_btn.setStyleSheet(_STYLE_BTN_GREEN)
+        self.set_all_btn.setStyleSheet(_STYLE_BTN_BLUE)
         self.set_all_btn.setEnabled(False)
         self.set_all_btn.setToolTip("Set all temperature and PWM values at once")
         self.set_all_btn.clicked.connect(self.send_all_settings)
@@ -407,7 +407,7 @@ class SerialMonitorUI(QMainWindow):
         row += 1
 
         self.set_all_btn = QPushButton("Set All")
-        self.set_all_btn.setStyleSheet(_STYLE_BTN_GREEN)
+        self.set_all_btn.setStyleSheet(_STYLE_BTN_BLUE)
         self.set_all_btn.setEnabled(False)
         self.set_all_btn.setToolTip("Set all temperature and PWM values at once")
         self.set_all_btn.clicked.connect(self.send_all_settings)
