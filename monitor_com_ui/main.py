@@ -225,7 +225,6 @@ class SerialMonitorUI(QMainWindow):
         grid.setColumnStretch(1, 1)
 
         row = 0
-        row = self._add_read_settings_row(grid, row)
         row = self._add_section_header(grid, row, "Temperature")
         row = self._add_setting_row(grid, row, "Critical (2–90 °C)", "critical",
                                     QIntValidator(2, 90), 3)
@@ -240,7 +239,10 @@ class SerialMonitorUI(QMainWindow):
                                     QIntValidator(0, 100), 3)
         row = self._add_setting_row(grid, row, "Channel B (0–100 %)", "pwm_b",
                                     QIntValidator(0, 100), 3)
-        row = self._add_action_buttons(grid, row)
+        row = self._add_read_settings_button_row(grid, row)
+        row = self._add_firmware_version_row(grid, row)
+        row = self._add_action_buttons_compact(grid, row)
+        row = self._add_info_display_row(grid, row)
         grid.setRowStretch(row, 1)
 
         contents.setLayout(grid)
@@ -254,7 +256,13 @@ class SerialMonitorUI(QMainWindow):
         panel.setLayout(outer)
         return panel
 
-    def _add_read_settings_row(self, grid, row):
+    def _add_read_settings_button_row(self, grid, row):
+        divider = QFrame()
+        divider.setStyleSheet(_STYLE_DIVIDER)
+        divider.setFrameShape(QFrame.Shape.HLine)
+        grid.addWidget(divider, row, 0, 1, 3)
+        row += 1
+
         self.read_settings_btn = QPushButton("Read Settings")
         self.read_settings_btn.setStyleSheet(_STYLE_BTN_BLUE)
         self.read_settings_btn.setEnabled(False)
@@ -262,19 +270,10 @@ class SerialMonitorUI(QMainWindow):
         grid.addWidget(self.read_settings_btn, row, 0, 1, 3)
         row += 1
 
-        self.settings_display = QTextEdit()
-        self.settings_display.setReadOnly(True)
-        self.settings_display.setFont(QFont("Consolas", 9))
-        self.settings_display.setFixedHeight(160)
-        grid.addWidget(self.settings_display, row, 0, 1, 3)
-        row += 1
+        self._connection_widgets += [self.read_settings_btn]
+        return row
 
-        divider = QFrame()
-        divider.setStyleSheet(_STYLE_DIVIDER)
-        divider.setFrameShape(QFrame.Shape.HLine)
-        grid.addWidget(divider, row, 0, 1, 3)
-        row += 1
-
+    def _add_firmware_version_row(self, grid, row):
         lbl = QLabel("Firmware Version")
         lbl.setStyleSheet(_STYLE_SECTION_LABEL)
         grid.addWidget(lbl, row, 0, 1, 3)
@@ -295,7 +294,28 @@ class SerialMonitorUI(QMainWindow):
         grid.addWidget(self.fw_version_display, row, 0, 1, 3)
         row += 1
 
-        self._connection_widgets += [self.read_settings_btn, self.get_fw_btn]
+        self._connection_widgets += [self.get_fw_btn]
+        return row
+
+    def _add_info_display_row(self, grid, row):
+        divider = QFrame()
+        divider.setStyleSheet(_STYLE_DIVIDER)
+        divider.setFrameShape(QFrame.Shape.HLine)
+        grid.addWidget(divider, row, 0, 1, 3)
+        row += 1
+
+        lbl = QLabel("Status")
+        lbl.setStyleSheet(_STYLE_SECTION_LABEL)
+        grid.addWidget(lbl, row, 0, 1, 3)
+        row += 1
+
+        self.info_display = QTextEdit()
+        self.info_display.setReadOnly(True)
+        self.info_display.setFont(QFont("Consolas", 8))
+        self.info_display.setFixedHeight(150)
+        grid.addWidget(self.info_display, row, 0, 1, 3)
+        row += 1
+
         return row
 
     def _add_section_header(self, grid, row, title):
@@ -335,6 +355,23 @@ class SerialMonitorUI(QMainWindow):
         setattr(self, f"ctrl_{key}", field)
         setattr(self, f"ctrl_{key}_btn", btn)
         self._connection_widgets += [field, btn]
+        return row + 1
+
+    def _add_action_buttons_compact(self, grid, row):
+        self.set_default_btn = QPushButton("Restore Defaults")
+        self.set_default_btn.setStyleSheet(_STYLE_BTN_BLUE)
+        self.set_default_btn.setEnabled(False)
+        self.set_default_btn.clicked.connect(self.confirm_and_send_default)
+        grid.addWidget(self.set_default_btn, row, 0, 1, 2)
+
+        self.reset_defaults_btn = QPushButton("Reset Device")
+        self.reset_defaults_btn.setStyleSheet(_STYLE_BTN_RED)
+        self.reset_defaults_btn.setEnabled(False)
+        self.reset_defaults_btn.setToolTip("Reset device")
+        self.reset_defaults_btn.clicked.connect(self.confirm_and_send_reset)
+        grid.addWidget(self.reset_defaults_btn, row, 2)
+
+        self._connection_widgets += [self.set_default_btn, self.reset_defaults_btn]
         return row + 1
 
     def _add_action_buttons(self, grid, row):
@@ -448,21 +485,23 @@ class SerialMonitorUI(QMainWindow):
                 self.telemetry_view.add_row(telemetry)
 
         if data.startswith('FWVER='):
-            self.fw_version_display.setText(data.split('=', 1)[1].strip())
+            fwver = data.split('=', 1)[1].strip()
+            self.fw_version_display.setText(fwver)
+            self.log_info(f"Firmware: {fwver}")
 
         settings = SettingsParser.parse_settings_from_text(data)
         if settings:
             self.update_settings_display(settings)
 
+        if data.startswith('OK'):
+            self.log_info("Command executed successfully")
+        elif data.startswith('ERR'):
+            self.log_info(f"Error: {data.strip()}")
+
         self.autoscroll_to_bottom()
 
     def update_settings_display(self, settings: dict):
         self.accumulated_settings.update(settings)
-
-        display_text = ""
-        for key, value in sorted(self.accumulated_settings.items()):
-            display_text += f"{key} = {value}\n"
-        self.settings_display.setPlainText(display_text)
 
         mapping = {
             'PWM_THROTTLE_A': self.ctrl_pwm_a,
@@ -475,6 +514,9 @@ class SerialMonitorUI(QMainWindow):
         for key, field in mapping.items():
             if key in self.accumulated_settings:
                 field.setText(self.accumulated_settings[key])
+
+        if self.accumulated_settings:
+            self.log_info(f"Read OK - {len(self.accumulated_settings)} settings received")
 
         logger.info(f"Accumulated settings: {self.accumulated_settings}")
 
@@ -635,11 +677,19 @@ class SerialMonitorUI(QMainWindow):
 
         if command == Command.SETTINGS_READ:
             self.accumulated_settings.clear()
+            self.log_info("Sending settings read command...")
 
         self.raw_text.insertPlainText(f"\n>>> {command}\n")
         if self.serial_worker.ser and self.serial_worker.ser.is_open:
             self.serial_worker.ser.write(f"{command}\r\n".encode())
         self.autoscroll_to_bottom()
+
+    def log_info(self, message: str):
+        """Log a message to the info display with timestamp"""
+        timestamp = QDateTime.currentDateTime().toString("hh:mm:ss")
+        log_msg = f"[{timestamp}] {message}\n"
+        current_text = self.info_display.toPlainText()
+        self.info_display.setPlainText(log_msg + current_text if current_text else log_msg)
 
     def send_custom_command(self):
         command = self.command_input.text().strip()
