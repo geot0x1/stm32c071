@@ -621,11 +621,11 @@ class SerialMonitorUI(QMainWindow):
 
     def confirm_and_send_reset(self):
         reply = QMessageBox.question(self, "Confirm Reset",
-            "Reset all settings to factory defaults?\nThis cannot be undone.",
+            "Reset device?\nThis will restart the device.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
 
         if reply == QMessageBox.StandardButton.Yes:
-            self.send_command(Command.RESET_DEFAULTS)
+            self.send_command(Command.RESET)
 
     # -------------------------------------------------------------------------
     # Connection state & UI enable/disable

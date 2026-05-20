@@ -8,6 +8,7 @@ class Command:
     SETTINGS_READ = "SETTINGS?"
     RESET_DEFAULTS = "SETDEFAULT"
     SET_DEFAULT = "SETDEFAULT"
+    RESET = "RESET"
     GET_FW_VERSION = "GETFW"
 
     @staticmethod
