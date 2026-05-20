@@ -48,6 +48,7 @@ class GraphView(QWidget):
 
         self.settings = None
         self.state_labels = self._generate_state_labels()
+        self.state_temps = {0: 0, 1: 30, 2: 60, 3: 90, 4: 120, 5: 150}
 
     def add_telemetry(self, telemetry: TelemetryData):
         """Add a new telemetry data point"""
@@ -76,7 +77,26 @@ class GraphView(QWidget):
         """Update settings and regenerate state labels"""
         self.settings = settings
         self.state_labels = self._generate_state_labels()
+        self._update_state_temps()
         self.update()
+
+    def _update_state_temps(self):
+        """Extract temperature thresholds from settings for state positioning"""
+        if not self.settings:
+            self.state_temps = {0: 0, 1: 30, 2: 60, 3: 90, 4: 120, 5: 150}
+            return
+
+        try:
+            self.state_temps = {
+                0: int(self.settings.get('TEMP_FAN_OFF', 0)),
+                1: int(self.settings.get('TEMP_FAN_ON', 0)),
+                2: int(self.settings.get('TEMP_THROTTLE_ON', 0)),
+                3: int(self.settings.get('TEMP_CRITICAL', 0)),
+                4: 150,
+                5: 150,
+            }
+        except (ValueError, TypeError):
+            self.state_temps = {0: 0, 1: 30, 2: 60, 3: 90, 4: 120, 5: 150}
 
     def _generate_state_labels(self):
         """Generate state labels, with temperature values if settings are available"""
@@ -169,7 +189,8 @@ class GraphView(QWidget):
             return margin_top + (temp_max - temp) / temp_range * plot_height
 
         def map_y_state(state):
-            return margin_top + (5 - state) / 5.0 * plot_height
+            state_temp = self.state_temps.get(state, 0)
+            return margin_top + (temp_max - state_temp) / temp_range * plot_height
 
         painter.setPen(QPen(QColor("#ff6b6b"), 2))
         for i in range(len(ds_temps_list) - 1):
@@ -202,9 +223,10 @@ class GraphView(QWidget):
         painter.setPen(QPen(QColor("#7a8a9a"), 1))
         painter.setFont(QFont("Consolas", 8))
 
-        for i in range(6):
-            y = margin_top + i / 5.0 * plot_height
-            painter.drawText(width - 100, int(y), self.state_labels.get(5 - i, ""))
+        for state_idx in range(6):
+            state_temp = self.state_temps.get(state_idx, 0)
+            y = margin_top + (temp_max - state_temp) / temp_range * plot_height
+            painter.drawText(width - 100, int(y), self.state_labels.get(state_idx, ""))
 
         painter.setPen(QPen(QColor("#7ec8f8"), 1))
         painter.drawText(margin_left - 50, margin_top - 10, "DS18B20")
