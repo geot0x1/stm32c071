@@ -116,7 +116,6 @@ class SerialMonitorUI(QMainWindow):
         left_layout.setSpacing(6)
 
         left_layout.addLayout(self._build_connection_bar())
-        left_layout.addLayout(self._build_mode_bar())
         left_layout.addWidget(self._build_tabs())
         left_layout.addLayout(self._build_command_bar())
 
@@ -148,33 +147,6 @@ class SerialMonitorUI(QMainWindow):
         self.status_label.setStyleSheet("color: #e05555; font-weight: bold; letter-spacing: 0.5px;")
         layout.addWidget(self.status_label)
 
-        return layout
-
-    def _build_mode_bar(self):
-        layout = QHBoxLayout()
-        layout.setSpacing(6)
-
-        mode_label = QLabel("Mode:")
-        mode_label.setStyleSheet("color: #7a8a9a; font-weight: 600;")
-        layout.addWidget(mode_label)
-
-        self.mode_normal_btn = QPushButton("Normal")
-        self.mode_normal_btn.clicked.connect(lambda: self.send_command(Command.MODE_NORMAL))
-        self.mode_normal_btn.setStyleSheet(_STYLE_BTN_GREEN)
-        self.mode_normal_btn.setEnabled(False)
-        self.mode_normal_btn.setFixedHeight(28)
-        layout.addWidget(self.mode_normal_btn)
-
-        self.mode_manual_btn = QPushButton("Manual")
-        self.mode_manual_btn.clicked.connect(lambda: self.send_command(Command.MODE_MANUAL))
-        self.mode_manual_btn.setStyleSheet(_STYLE_BTN_RED)
-        self.mode_manual_btn.setEnabled(False)
-        self.mode_manual_btn.setFixedHeight(28)
-        layout.addWidget(self.mode_manual_btn)
-
-        layout.addStretch()
-
-        self._connection_widgets += [self.mode_normal_btn, self.mode_manual_btn]
         return layout
 
     def _build_tabs(self):

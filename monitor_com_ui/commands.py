@@ -4,10 +4,6 @@
 class Command:
     """Unified interface for building device commands"""
 
-    # Mode commands
-    MODE_NORMAL = "MODE=NORMAL"
-    MODE_MANUAL = "MODE=MANUAL"
-
     # Settings commands
     SETTINGS_READ = "SETTINGS?"
     RESET_DEFAULTS = "SETDEFAULT"
