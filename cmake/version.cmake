@@ -69,7 +69,7 @@ function(target_firmware_version target_name)
     _read_version(fw_ver)
     _read_git_hash(fw_hash)
 
-    set(fw_version "V${fw_ver}_${fw_hash}")
+    set(fw_version "V${fw_ver}.${fw_hash}")
 
     message(STATUS "Firmware hash   : ${fw_hash}")
     message(STATUS "Firmware version: ${fw_version}")
