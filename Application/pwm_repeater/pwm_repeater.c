@@ -25,7 +25,7 @@
 #define MAX_PERIOD_TICKS (CAPTURE_TIMER_HZ / MIN_INPUT_FREQ_HZ) /* 10000 ticks → 100 Hz */
 
 #define ARR_UPDATE_THRESHOLD 100U
-#define STABILITY_THRESHOLD 100U
+#define STABILITY_THRESHOLD 150U /* max tick deviation between consecutive measurements; resets counter if exceeded */
 #define STABILITY_REQUIRED_COUNT 3U
 
 #define OUTPUT_FREQ_HZ 160U
