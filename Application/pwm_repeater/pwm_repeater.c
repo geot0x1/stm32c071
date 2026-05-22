@@ -14,7 +14,7 @@
 #define TIMEOUT_TICKS 48000000U /* 1 second at 48 MHz */
 #define MAX_DUTY_PCT 100U
 #define IC_FILTER_VAL 0x04U
-#define MIN_LEVEL_TICKS 100U
+#define MIN_LEVEL_TICKS 10U
 #define MAX_LEVEL_TICKS 1200000U
 
 /* Accepted input-frequency window. Edges outside this range are rejected. */
