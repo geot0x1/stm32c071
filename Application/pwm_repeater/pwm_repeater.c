@@ -201,7 +201,7 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out, const Gpio *g
     ch->new_data_ready = false;
     critical_exit();
 
-    if (ready)
+   if (ready)
     {
         out->period_ticks = period;
         out->pulse_ticks  = pulse; /* DIM_PWM HIGH time (BJT-corrected) */
@@ -216,7 +216,7 @@ static void process_channel_update(PwmChannel *ch, PwmOutput *out, const Gpio *g
     millis_t last_capture = ch->last_capture_ms;
     critical_exit();
 
-    if ((now - last_capture) > TIMEOUT_MS)
+    if ((now > last_capture + TIMEOUT_MS))
     {
         /* No edges for 50 ms: flat DC. Read pin to determine level.
          * Input BJT inverts: pin LOW = DIM_PWM 100%, pin HIGH = DIM_PWM 0%. */
