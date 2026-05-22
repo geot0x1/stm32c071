@@ -19,7 +19,7 @@
 
 /* Accepted input-frequency window. Edges outside this range are rejected. */
 #define CAPTURE_TIMER_HZ 1000000U
-#define MIN_INPUT_FREQ_HZ 90U
+#define MIN_INPUT_FREQ_HZ 50U
 #define MAX_INPUT_FREQ_HZ 300U
 #define MIN_PERIOD_TICKS (CAPTURE_TIMER_HZ / MAX_INPUT_FREQ_HZ) /* 4000  ticks → 250 Hz */
 #define MAX_PERIOD_TICKS (CAPTURE_TIMER_HZ / MIN_INPUT_FREQ_HZ) /* 10000 ticks → 100 Hz */
