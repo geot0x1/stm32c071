@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 class DeviceState(Enum):
     """Device operating state"""
+    BOOT = "BOOT"
+    FAULT = "FAULT"
     TEMP_LOW = "TEMP_LOW"
     TEMP_HIGH = "TEMP_HIGH"
     TEMP_THROTTLE = "TEMP_THROTTLE"

@@ -25,6 +25,8 @@ class TelemetryFormatter:
     """Format telemetry data for display with appropriate colors"""
 
     STATE_COLORS = {
+        DeviceState.BOOT.value: TelemetryColors.DEFAULT,
+        DeviceState.FAULT.value: TelemetryColors.STATE_LOST,
         DeviceState.TEMP_LOW.value: TelemetryColors.STATE_LOW,
         DeviceState.TEMP_HIGH.value: TelemetryColors.STATE_HIGH,
         DeviceState.TEMP_CRIT.value: TelemetryColors.STATE_CRIT,
