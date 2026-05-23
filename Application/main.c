@@ -101,9 +101,9 @@ static void apply_throttle(SystemState state, ThermalState thermal, const Settin
 
 static void apply_fans(SystemState state, ThermalState thermal, bool button_pressed)
 {
-    bool auto_on = (state == SystemRunning) &&
+    bool auto_on = ((state == SystemRunning) || (state == SystemFault)) &&
                    ((thermal == ThermalHigh) || (thermal == ThermalThrottling) || (thermal == ThermalCritical));
-    bool fans_on = button_pressed || auto_on;
+    bool fans_on = button_pressed || auto_on || (state == SystemFault);
 
     if (fans_on)
     {
