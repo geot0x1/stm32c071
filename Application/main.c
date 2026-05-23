@@ -107,7 +107,7 @@ static void apply_fans(SystemState state, ThermalState thermal, bool button_pres
 
     if (fans_on)
     {
-        fan_control_all_on();
+        fan_control_sequential_open();
     }
     else
     {

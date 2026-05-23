@@ -50,4 +50,12 @@ void fan_control_all_off(void);
  */
 FanType fan_control_get_type(uint8_t unit_idx);
 
+/**
+ * @brief Non-blocking state machine to open all fans sequentially.
+ *
+ * Opens fans in order: channel 4 → 3 → 2 → 1 with 500ms delay between each.
+ * Call repeatedly from the main loop.
+ */
+void fan_control_sequential_open(void);
+
 #endif /* FAN_CONTROL_H */

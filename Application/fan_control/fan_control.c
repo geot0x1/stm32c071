@@ -2,17 +2,41 @@
 #include "gpio.h"
 #include "board_config.h"
 #include "tim.h"
+#include "sys_time.h"
+#include <stdbool.h>
 
-static Tim *_power_tim = NULL;
-static Tim *_remote_tim = NULL;
-
-static FanType _fan_types[4];
+#define SEQ_DELAY_MS 500
 
 typedef struct
 {
     FanChannel tim1_pwr_channel; /**< Power channel on TIM1 */
     FanChannel tim3_ctrl_channel; /**< Control channel on TIM3 */
 } FanLink;
+
+typedef enum
+{
+    SeqStateOpenCh4 = 0,
+    SeqStateOpenCh3 = 1,
+    SeqStateOpenCh2 = 2,
+    SeqStateOpenCh1 = 3,
+    SeqStateComplete = 4,
+} SeqState;
+
+typedef struct
+{
+    SeqState state;
+    millis_t last_activation_time;
+} SeqContext;
+
+static Tim *_power_tim = NULL;
+static Tim *_remote_tim = NULL;
+
+static FanType _fan_types[4];
+
+static SeqContext _seq_ctx = {
+    .state = SeqStateOpenCh4,
+    .last_activation_time = 0,
+};
 
 static const FanLink _fan_links[4] = {
     {FanChannelTwo, FanChannelOne}, /* Unit 1: TIM1_CH2 (PA9) + TIM3_CH1 (PC6) */
@@ -170,4 +194,53 @@ void fan_control_all_on(void)
 void fan_control_all_off(void)
 {
     fan_control_set_all_duty(0);
+    _seq_ctx.state = SeqStateOpenCh4;
+    _seq_ctx.last_activation_time = 0;
+}
+
+void fan_control_sequential_open(void)
+{
+    millis_t now = millis();
+
+    switch (_seq_ctx.state)
+    {
+        case SeqStateOpenCh4:
+            fan_control_set_unit_duty(FanChannelFour, 100);
+            _seq_ctx.last_activation_time = now;
+            _seq_ctx.state = SeqStateOpenCh3;
+            break;
+
+        case SeqStateOpenCh3:
+            if ((now - _seq_ctx.last_activation_time) >= SEQ_DELAY_MS)
+            {
+                fan_control_set_unit_duty(FanChannelThree, 100);
+                _seq_ctx.last_activation_time = now;
+                _seq_ctx.state = SeqStateOpenCh2;
+            }
+            break;
+
+        case SeqStateOpenCh2:
+            if ((now - _seq_ctx.last_activation_time) >= SEQ_DELAY_MS)
+            {
+                fan_control_set_unit_duty(FanChannelTwo, 100);
+                _seq_ctx.last_activation_time = now;
+                _seq_ctx.state = SeqStateOpenCh1;
+            }
+            break;
+
+        case SeqStateOpenCh1:
+            if ((now - _seq_ctx.last_activation_time) >= SEQ_DELAY_MS)
+            {
+                fan_control_set_unit_duty(FanChannelOne, 100);
+                _seq_ctx.state = SeqStateComplete;
+            }
+            break;
+
+        case SeqStateComplete:
+            break;
+
+        default:
+            _seq_ctx.state = SeqStateOpenCh4;
+            break;
+    }
 }
