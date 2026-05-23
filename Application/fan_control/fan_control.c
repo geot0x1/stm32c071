@@ -140,19 +140,18 @@ void fan_control_set_unit_duty(uint8_t unit_idx, uint8_t duty_pct)
         return;
     }
     uint8_t idx = unit_idx - 1;
-    uint8_t on_off = (duty_pct > 0) ? 100 : 0;
 
     FanChannel pwr_ch = _fan_links[idx].tim1_pwr_channel;
     FanChannel ctrl_ch = _fan_links[idx].tim3_ctrl_channel;
 
     if (_fan_types[idx] == FanType2Wire)
     {
-        fan_control_set_power_channel_duty(pwr_ch, on_off);
+        fan_control_set_power_channel_duty(pwr_ch, duty_pct);
     }
     else
     {
-        fan_control_set_power_channel_duty(pwr_ch, on_off);
-        fan_control_set_remote_channel_duty(ctrl_ch, on_off);
+        fan_control_set_power_channel_duty(pwr_ch, 100);
+        fan_control_set_remote_channel_duty(ctrl_ch, duty_pct);
     }
 }
 
@@ -201,11 +200,12 @@ void fan_control_all_off(void)
 void fan_control_sequential_open(void)
 {
     millis_t now = millis();
+    const int DC = 100;
 
     switch (_seq_ctx.state)
     {
         case SeqStateOpenCh4:
-            fan_control_set_unit_duty(FanChannelFour, 100);
+            fan_control_set_unit_duty(FanChannelFour, DC);
             _seq_ctx.last_activation_time = now;
             _seq_ctx.state = SeqStateOpenCh3;
             break;
@@ -213,7 +213,7 @@ void fan_control_sequential_open(void)
         case SeqStateOpenCh3:
             if ((now - _seq_ctx.last_activation_time) >= SEQ_DELAY_MS)
             {
-                fan_control_set_unit_duty(FanChannelThree, 100);
+                fan_control_set_unit_duty(FanChannelThree, DC);
                 _seq_ctx.last_activation_time = now;
                 _seq_ctx.state = SeqStateOpenCh2;
             }
@@ -222,7 +222,7 @@ void fan_control_sequential_open(void)
         case SeqStateOpenCh2:
             if ((now - _seq_ctx.last_activation_time) >= SEQ_DELAY_MS)
             {
-                fan_control_set_unit_duty(FanChannelTwo, 100);
+                fan_control_set_unit_duty(FanChannelTwo, DC);
                 _seq_ctx.last_activation_time = now;
                 _seq_ctx.state = SeqStateOpenCh1;
             }
@@ -231,7 +231,7 @@ void fan_control_sequential_open(void)
         case SeqStateOpenCh1:
             if ((now - _seq_ctx.last_activation_time) >= SEQ_DELAY_MS)
             {
-                fan_control_set_unit_duty(FanChannelOne, 100);
+                fan_control_set_unit_duty(FanChannelOne, DC);
                 _seq_ctx.state = SeqStateComplete;
             }
             break;
