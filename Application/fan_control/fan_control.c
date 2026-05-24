@@ -39,10 +39,10 @@ static SeqContext _seq_ctx = {
 };
 
 static const FanLink _fan_links[4] = {
+    {FanChannelThree, FanChannelTwo}, /* Unit 4: TIM1_CH3 (PA2) + TIM3_CH2 (PB9) */
     {FanChannelTwo, FanChannelOne}, /* Unit 1: TIM1_CH2 (PA9) + TIM3_CH1 (PC6) */
     {FanChannelOne, FanChannelFour}, /* Unit 2: TIM1_CH1 (PA8) + TIM3_CH4 (PB1) */
     {FanChannelFour, FanChannelThree}, /* Unit 3: TIM1_CH4 (PA3) + TIM3_CH3 (PB0) */
-    {FanChannelThree, FanChannelTwo}, /* Unit 4: TIM1_CH3 (PA2) + TIM3_CH2 (PB9) */
 };
 
 static const uint16_t _type_pins[4] = {
