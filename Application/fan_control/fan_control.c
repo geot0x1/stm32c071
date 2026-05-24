@@ -15,10 +15,10 @@ typedef struct
 
 typedef enum
 {
-    SeqStateOpenCh4 = 0,
-    SeqStateOpenCh3 = 1,
-    SeqStateOpenCh2 = 2,
-    SeqStateOpenCh1 = 3,
+    SeqStateOpenCh1 = 0,
+    SeqStateOpenCh2 = 1,
+    SeqStateOpenCh3 = 2,
+    SeqStateOpenCh4 = 3,
     SeqStateComplete = 4,
 } SeqState;
 
@@ -34,7 +34,7 @@ static Tim *_remote_tim = NULL;
 static FanType _fan_types[4];
 
 static SeqContext _seq_ctx = {
-    .state = SeqStateOpenCh4,
+    .state = SeqStateOpenCh1,
     .last_activation_time = 0,
 };
 
@@ -193,7 +193,7 @@ void fan_control_all_on(void)
 void fan_control_all_off(void)
 {
     fan_control_set_all_duty(0);
-    _seq_ctx.state = SeqStateOpenCh4;
+    _seq_ctx.state = SeqStateOpenCh1;
     _seq_ctx.last_activation_time = 0;
 }
 
@@ -204,34 +204,34 @@ void fan_control_sequential_open(void)
 
     switch (_seq_ctx.state)
     {
-        case SeqStateOpenCh4:
-            fan_control_set_unit_duty(FanChannelFour, DC);
+        case SeqStateOpenCh1:
+            fan_control_set_unit_duty(1, DC);
             _seq_ctx.last_activation_time = now;
-            _seq_ctx.state = SeqStateOpenCh3;
-            break;
-
-        case SeqStateOpenCh3:
-            if ((now - _seq_ctx.last_activation_time) >= SEQ_DELAY_MS)
-            {
-                fan_control_set_unit_duty(FanChannelThree, DC);
-                _seq_ctx.last_activation_time = now;
-                _seq_ctx.state = SeqStateOpenCh2;
-            }
+            _seq_ctx.state = SeqStateOpenCh2;
             break;
 
         case SeqStateOpenCh2:
             if ((now - _seq_ctx.last_activation_time) >= SEQ_DELAY_MS)
             {
-                fan_control_set_unit_duty(FanChannelTwo, DC);
+                fan_control_set_unit_duty(2, DC);
                 _seq_ctx.last_activation_time = now;
-                _seq_ctx.state = SeqStateOpenCh1;
+                _seq_ctx.state = SeqStateOpenCh3;
             }
             break;
 
-        case SeqStateOpenCh1:
+        case SeqStateOpenCh3:
             if ((now - _seq_ctx.last_activation_time) >= SEQ_DELAY_MS)
             {
-                fan_control_set_unit_duty(FanChannelOne, DC);
+                fan_control_set_unit_duty(3, DC);
+                _seq_ctx.last_activation_time = now;
+                _seq_ctx.state = SeqStateOpenCh4;
+            }
+            break;
+
+        case SeqStateOpenCh4:
+            if ((now - _seq_ctx.last_activation_time) >= SEQ_DELAY_MS)
+            {
+                fan_control_set_unit_duty(4, DC);
                 _seq_ctx.state = SeqStateComplete;
             }
             break;
@@ -240,7 +240,7 @@ void fan_control_sequential_open(void)
             break;
 
         default:
-            _seq_ctx.state = SeqStateOpenCh4;
+            _seq_ctx.state = SeqStateOpenCh1;
             break;
     }
 }
