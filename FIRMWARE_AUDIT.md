@@ -1,13 +1,11 @@
 # Firmware Audit — STM32C071 Thermal Controller
 
-Six open findings from the adversarial static analysis. Sorted by priority.
-Closed findings are marked as **CLOSED** with resolution details below the summary table.
+Five open findings from the adversarial static analysis. Sorted by priority.
 
 ## Summary
 
 | Priority | # | Area | One-line issue |
 |---|---|---|---|
-| Critical | 9 | Safety | `SystemFault` kills fans — fail-unsafe cooling on sensor loss |
 | High | 8 | State | No hysteresis on `SystemFault → SystemRunning` recovery |
 | High | 13 | Logic | Command-buffer overflow tail bytes execute as a new command |
 | Medium | 5 | Architecture | Dual tick sources (`millis()` vs `HAL_GetTick()`) |
@@ -16,43 +14,10 @@ Closed findings are marked as **CLOSED** with resolution details below the summa
 
 ## Recommended order
 
-1. **#9** — fail-unsafe fans on sensor loss. Safety defect.
-2. **#8** — fault-recovery hysteresis. Prevents fan on/off oscillation.
-3. **#13** — command-buffer tail-accumulation. Blocks garbage-command execution.
-4. **#5** — tick-source consolidation. Architectural correctness.
-5. **#15, #20** — code quality / margin items, low urgency.
-
----
-
-## Closed Findings
-
-- **#14** — Implicit 0.99°C dead band in thermal comparisons — [see resolution below](#14--implicit-099c-dead-band-in-thermal-comparisons--closed)
-- **#16** — `ow_sem_lock()` dead abstraction — [see resolution below](#16--ow_sem_lock-is-a-dead-abstraction--closed)
-- **#19** — Dead 50% throttle default in `pwm_repeater_init()` — [see resolution below](#19--dead-throttle-init-in-pwm_repeater_init--closed)
-
----
-
-## #9 — `SystemFault` kills fans (fail-unsafe)
-
-**Severity:** Critical · **Category:** Safety · **Location:** [`main.c apply_fans()`](Application/main.c) · **Confidence:** High
-
-In `SystemFault` (entered on temperature-sensor loss), `auto_on = (state == SystemRunning) && (thermal == …)` evaluates to false, so the auto-drive path stops every fan. Without the manual button held, every fan goes OFF — exactly when a hot component most needs cooling.
-
-The combination of *thermal emergency* + *sensor fault* is never tested. Lab QA either raises temperature with sensors healthy, or pulls the sensor at ambient. Real-world trigger: component at 65°C (above `temp_critical`), an ESD event or loose 1-Wire connector disrupts the sensor, system enters SystemFault, fans stop, component keeps heating.
-
-**Fix — fail-safe to full cooling:**
-```c
-static void apply_fans(SystemState state, ThermalState thermal, bool button_pressed)
-{
-    if (state == SystemFault)
-    {
-        fan_control_all_on();   // fail-safe on sensor loss
-        return;
-    }
-    // ... existing logic ...
-}
-```
-Alternative: persist the last valid `ThermalState` on fault entry and continue driving fans by that state until recovery.
+1. **#8** — fault-recovery hysteresis. Prevents fan on/off oscillation. **[HIGH]**
+2. **#13** — command-buffer tail-accumulation. Blocks garbage-command execution. **[HIGH]**
+3. **#5** — tick-source consolidation. Architectural correctness. **[MEDIUM]**
+4. **#15, #20** — code quality / margin items, low urgency. **[MEDIUM, LOW]**
 
 ---
 
@@ -107,23 +72,6 @@ On overflow: set `overflow_discard = true` and clear the buffer. In `linebuffer_
 
 ---
 
-## #14 — Implicit 0.99°C dead band in thermal comparisons — **CLOSED**
-
-**Severity:** Medium · **Category:** Logic · **Status:** Fixed (commit TBD)
-
-**Original Issue:**
-`t_cdeg / 100` truncated toward zero, creating an implicit 0–0.99°C dead band on upward transitions. With `fan_on = 35`, at `t_cdeg = 3499` (34.99°C), the truncated value was 34, so fans stayed off even near threshold. Compounded by telemetry rounding (not truncating), users saw "35°C reported but fans still off."
-
-**Resolution:**
-Replaced truncation with rounding via `cdeg_to_deg_rounded()` static inline function in [`thermal_control.c`](Application/thermal_control/thermal_control.c). Sensor readings are now rounded to nearest whole degree before threshold comparison, introducing a symmetric ±0.5°C dead band (acceptable for thermal control). Added design documentation noting whole-degree resolution and acceptable dead-band margin.
-
-**Implementation:**
-- Line 10–13: Static inline `cdeg_to_deg_rounded(cdeg)` — rounds centidegrees to nearest degree (matches telemetry logic)
-- Line 113: `compute_thresholds()` uses rounding function for sensor value
-- Lines 3–5: Design note documenting whole-degree resolution and ±0.5°C dead band justification
-
----
-
 ## #5 — Dual tick sources
 
 **Severity:** Medium (revised) · **Category:** Architecture · **Location:** [`sys_time.c millis()`](Application/sys_time/sys_time.c), all modules using `HAL_GetTick()` · **Confidence:** High
@@ -158,37 +106,6 @@ The current board (`PC7`, `PB14`, `PA5`, `PC15` — all distinct pin numbers, ve
 if (tacho[i].gpio.pin == GPIO_Pin && tacho[i].gpio.port == source_port)
 ```
 HAL's callback signature only delivers the pin, so the port has to be inferred from EXTI pending bits or looked up from a table at callback time.
-
----
-
-## #16 — `ow_sem_lock()` is a dead abstraction — **CLOSED**
-
-**Severity:** Medium · **Category:** Code Quality · **Status:** Not Applicable
-
-**Original Issue:**
-`ow_sem_lock()` / `ow_sem_unlock()` provided no real mutual exclusion — it only disabled IRQs to increment a counter, then re-enabled them. The actual timing protection came from inner `ENTER_CRITICAL()` / `EXIT_CRITICAL()` calls in `ow_write_bit()` / `ow_read_bit()`. Risk was that a future developer would trust the abstraction and remove the inner critical sections.
-
-**Resolution:**
-Not applicable. This architecture uses a bare-metal cooperative scheduler with no RTOS tasks and no IRSs calling 1-Wire code. The 1-Wire operations are never preempted, so the lock serves no purpose and poses no risk. The inner critical sections are the sole synchronization mechanism and are sufficient. The lock functions remain but are understood to be non-functional in this context by design.
-
-**Note:** Adjacent observation about `ds18b20_begin()` calling `ow_init()` on every poll cycle (reconfiguring GPIO unnecessarily) remains valid but is a separate optimization concern, not a correctness defect.
-
----
-
-## #19 — Dead throttle init in `pwm_repeater_init()` — **CLOSED**
-
-**Severity:** Medium · **Category:** Code Quality · **Status:** Fixed
-
-**Original Issue:**
-`pwm_repeater_init()` set throttle to 50%, which was immediately overridden to 100% in `main.c` (lines 222–223). Dead code risk: if someone removed the `main.c` overrides believing init had set a sane default, operational throttle would silently become 50%.
-
-**Resolution:**
-Changed `pwm_repeater_init()` to initialize throttle to 100% directly:
-- **pwm_repeater.c line 48–49:** Global `PwmOutput` instances now initialize `.throttle_val = 100` instead of 50
-- **pwm_repeater.c line 120–121:** `pwm_repeater_init()` calls `pwm_set_throttle_a(100)` / `pwm_set_throttle_b(100)` instead of 50
-- **main.c line 222–223:** Removed redundant overrides to 100 — init now sets the correct value directly
-
-**Fix:** Drop the throttle calls from `pwm_repeater_init()`. Init should set the hardware to a known-off state only; throttle is application policy and belongs in the caller, where it already is.
 
 ---
 
